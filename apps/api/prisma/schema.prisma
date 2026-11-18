@@ -143,16 +143,16 @@ model TenantBranding {
 }
 
 model StaffInvite {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  email       String
-  name        String?
-  role        StaffRole
-  storeIds    String[]  @default([]) @map("store_ids") @db.Uuid
-  tokenHash   String    @unique @map("token_hash")
-  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
-  usedAt      DateTime? @map("used_at") @db.Timestamptz(3)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  email     String
+  name      String?
+  role      StaffRole
+  storeIds  String[]  @default([]) @map("store_ids") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -161,18 +161,20 @@ model StaffInvite {
 }
 
 model StaffSession {
-  id               String    @id @default(uuid()) @db.Uuid
-  staffUserId      String    @map("staff_user_id") @db.Uuid
-  refreshTokenHash String    @unique @map("refresh_token_hash")
+  id                String    @id @default(uuid()) @db.Uuid
+  staffUserId       String    @map("staff_user_id") @db.Uuid
+  refreshTokenHash  String    @unique @map("refresh_token_hash")
+  /// Token anterior à última rotação; aceito por alguns segundos (concorrência entre abas).
+  previousTokenHash String?   @unique @map("previous_token_hash")
   /// Contexto escolhido (estabelecimento e unidade) gravado na sessão.
-  tenantId         String?   @map("tenant_id") @db.Uuid
-  storeId          String?   @map("store_id") @db.Uuid
-  deviceLabel      String?   @map("device_label")
-  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
-  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
-  rotatedAt        DateTime? @map("rotated_at") @db.Timestamptz(3)
-  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  tenantId          String?   @map("tenant_id") @db.Uuid
+  storeId           String?   @map("store_id") @db.Uuid
+  deviceLabel       String?   @map("device_label")
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt        DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  rotatedAt         DateTime? @map("rotated_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   staffUser StaffUser @relation(fields: [staffUserId], references: [id])
 
@@ -220,19 +222,19 @@ enum IdentityProvider {
 
 /// Conta GLOBAL: não pertence a nenhum tenant.
 model Customer {
-  id           String         @id @default(uuid()) @db.Uuid
-  name         String
+  id              String         @id @default(uuid()) @db.Uuid
+  name            String
   /// Nulo apenas enquanto o cadastro via login social não foi completado, ou após exclusão.
-  phoneE164    String?        @unique @map("phone_e164")
+  phoneE164       String?        @unique @map("phone_e164")
   /// Sempre em minúsculas. Nulo após exclusão (anonimização).
-  email        String?        @unique
-  birthDate    DateTime?      @map("birth_date") @db.Date
-  passwordHash String?        @map("password_hash")
-  status       CustomerStatus @default(ACTIVE)
-  termsAcceptedAt DateTime?   @map("terms_accepted_at") @db.Timestamptz(3)
-  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  email           String?        @unique
+  birthDate       DateTime?      @map("birth_date") @db.Date
+  passwordHash    String?        @map("password_hash")
+  status          CustomerStatus @default(ACTIVE)
+  termsAcceptedAt DateTime?      @map("terms_accepted_at") @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
   identities    CustomerIdentity[]
   sessions      CustomerSession[]
@@ -258,15 +260,17 @@ model CustomerIdentity {
 }
 
 model CustomerSession {
-  id               String    @id @default(uuid()) @db.Uuid
-  customerId       String    @map("customer_id") @db.Uuid
-  refreshTokenHash String    @unique @map("refresh_token_hash")
-  deviceLabel      String?   @map("device_label")
-  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
-  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
-  rotatedAt        DateTime? @map("rotated_at") @db.Timestamptz(3)
-  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                String    @id @default(uuid()) @db.Uuid
+  customerId        String    @map("customer_id") @db.Uuid
+  refreshTokenHash  String    @unique @map("refresh_token_hash")
+  /// Token anterior à última rotação; aceito por alguns segundos (concorrência entre abas).
+  previousTokenHash String?   @unique @map("previous_token_hash")
+  deviceLabel       String?   @map("device_label")
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt        DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  rotatedAt         DateTime? @map("rotated_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   customer Customer @relation(fields: [customerId], references: [id])
 
