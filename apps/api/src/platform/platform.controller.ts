@@ -1,6 +1,19 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { ZodPipe } from '../common/zod.pipe';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import { PlatformAuditInterceptor } from './platform-audit.interceptor';
 import { PlatformKeyGuard } from './platform-key.guard';
 import {
@@ -16,7 +29,10 @@ import {
 @UseGuards(PlatformKeyGuard)
 @UseInterceptors(PlatformAuditInterceptor)
 export class PlatformController {
-  constructor(private readonly platform: PlatformService) {}
+  constructor(
+    private readonly platform: PlatformService,
+    private readonly loyalty: LoyaltyService,
+  ) {}
 
   @Post('tenants')
   create(@Body(new ZodPipe(createTenantSchema)) body: z.infer<typeof createTenantSchema>) {
@@ -59,6 +75,13 @@ export class PlatformController {
     @Body(new ZodPipe(storeInputSchema)) body: z.infer<typeof storeInputSchema>,
   ) {
     return this.platform.addStore(id, body);
+  }
+
+  /** RN-72: confere os saldos em cache com a soma do ledger. `?fix=true` corrige divergências. */
+  @Post('reconcile')
+  @HttpCode(200)
+  reconcile(@Query('tenantId') tenantId?: string, @Query('fix') fix?: string) {
+    return this.loyalty.reconcile({ tenantId: tenantId || undefined, fix: fix === 'true' });
   }
 
   @Post('tenants/:id/invites')
