@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CustomerShell, PublicShell } from '@/components/customer-shell';
 import { ProgressBar } from '@/components/stamps';
-import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
+import { Alert, Badge, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { MembershipCard, useMe } from '@/lib/customer';
 import { plural, readableOn } from '@/lib/format';
@@ -82,15 +82,8 @@ function Cards({ firstName }: { firstName: string }) {
     return () => document.removeEventListener('visibilitychange', onFocus);
   }, [load]);
 
-  async function consent(id: string, value: boolean) {
-    setCards((cs) => cs?.map((c) => (c.membershipId === id ? { ...c, marketingConsent: value } : c)) ?? null);
-    await api(`/api/me/memberships/${id}/consent`, { method: 'PATCH', body: { marketingConsent: value } }).catch(() => load());
-  }
-
   if (error) return <Alert>{error}</Alert>;
   if (!cards) return <FullPageSpinner />;
-
-  const pendingConsent = cards.find((c) => c.marketingConsent === null);
 
   return (
     <div className="space-y-4">
@@ -103,25 +96,6 @@ function Cards({ firstName }: { firstName: string }) {
           Meu QR
         </LinkButton>
       </div>
-
-      {pendingConsent && (
-        <Card className="border-brand-200 bg-brand-50">
-          <p className="font-medium">
-            Quer receber promoções do <strong>{pendingConsent.tenant.name}</strong>?
-          </p>
-          <p className="mt-1 text-sm text-stone-600">
-            Só esse estabelecimento verá seu telefone para enviar ofertas. Você pode mudar isso quando quiser em Conta.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" onClick={() => consent(pendingConsent.membershipId, true)}>
-              Quero receber
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => consent(pendingConsent.membershipId, false)}>
-              Agora não
-            </Button>
-          </div>
-        </Card>
-      )}
 
       {cards.length === 0 && (
         <Card className="text-center">

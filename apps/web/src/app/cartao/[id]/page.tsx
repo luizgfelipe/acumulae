@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { CustomerShell } from '@/components/customer-shell';
 import { StampGrid } from '@/components/stamps';
-import { Alert, Badge, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
+import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/customer';
 import { LEDGER_LABELS, formatDate, formatDateTime, formatShortDate, plural, readableOn } from '@/lib/format';
@@ -20,6 +20,7 @@ interface Detail {
   tenant: { name: string; logoUrl: string | null; primaryColor: string; active: boolean };
   rules: { redeemWeekdaysText: string | null; redeemBlockedToday: string | null };
   firstVisitAt: string | null;
+  marketingConsent: boolean | null;
   rewards: Array<{ id: string; description: string; status: string; unlockedAt: string; redeemedAt: string | null; redeemedStore: string | null }>;
   history: Array<{ id: string; type: string; quantity: number; createdAt: string; storeName: string | null }>;
 }
@@ -38,11 +39,25 @@ function MembershipPage() {
   const { me } = useMe({ required: true });
   const [d, setD] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [consentMsg, setConsentMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!me) return;
     api<Detail>(`/api/me/memberships/${id}`).then(setD).catch((e) => setError(errorMessage(e)));
   }, [id, me]);
+
+  async function consent(value: boolean) {
+    if (!d) return;
+    setD({ ...d, marketingConsent: value });
+    setConsentMsg(value ? `Combinado! O ${d.tenant.name} poderá enviar promoções para você.` : null);
+    try {
+      await api(`/api/me/memberships/${d.membershipId}/consent`, { method: 'PATCH', body: { marketingConsent: value } });
+    } catch (e) {
+      setD({ ...d, marketingConsent: null });
+      setConsentMsg(null);
+      setError(errorMessage(e));
+    }
+  }
 
   if (error)
     return (
@@ -86,6 +101,27 @@ function MembershipPage() {
         </div>
 
         {!d.tenant.active && <Alert kind="warning">O programa deste estabelecimento está pausado. Seu progresso continua guardado.</Alert>}
+
+        {/* RN-35: consentimento de marketing por estabelecimento, perguntado no app do cliente. */}
+        {d.marketingConsent === null && (
+          <Card>
+            <p className="font-medium">
+              Quer receber promoções do <strong>{d.tenant.name}</strong>?
+            </p>
+            <p className="mt-1 text-sm text-stone-600">
+              Só esse estabelecimento verá seu telefone para enviar ofertas. Você pode mudar isso quando quiser em Conta.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" onClick={() => consent(true)} style={{ background: color, color: fg }}>
+                Quero receber
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => consent(false)}>
+                Agora não
+              </Button>
+            </div>
+          </Card>
+        )}
+        {consentMsg && <Alert kind="success">{consentMsg}</Alert>}
 
         {available.length > 0 && (
           <Card className="border-emerald-200 bg-emerald-50">
