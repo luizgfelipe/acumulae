@@ -17,7 +17,7 @@ export class CheckoutClaimService {
     if (!/^[0-9A-Za-z]{10,64}$/.test(token)) throw notFound('Código inválido.', 'TOKEN_NOT_FOUND');
     const t = await this.prisma.checkoutToken.findUnique({
       where: { tokenHash: sha256(token) },
-      include: { tenant: { include: { branding: { select: BRANDING_SELECT }, programs: { where: { active: true } } } }, store: true },
+      include: { tenant: { include: { branding: { select: BRANDING_SELECT } } }, store: true, program: true },
     });
     if (!t) throw notFound('Código inválido.', 'TOKEN_NOT_FOUND');
     return t;
@@ -26,7 +26,7 @@ export class CheckoutClaimService {
   /** Informações públicas do QR temporário (estabelecimento, quantidade, validade). */
   async info(token: string) {
     const t = await this.find(token);
-    const program = t.tenant.programs[0];
+    const program = t.program;
     const status = t.usedAt ? 'USED' : t.cancelledAt ? 'CANCELLED' : t.expiresAt < new Date() ? 'EXPIRED' : 'PENDING';
     return {
       status,
@@ -44,6 +44,7 @@ export class CheckoutClaimService {
         unitLabel: program.unitLabel,
         unitLabelPlural: pluralize(program.unitLabel, program.unitLabelPlural),
         goal: program.goal,
+        name: program.name,
         rewardDescription: program.rewardDescription,
       },
     };
@@ -84,11 +85,15 @@ export class CheckoutClaimService {
     };
   }
 
-  private creditInput(t: { id: string; tenantId: string; storeId: string; staffUserId: string; quantity: number }, customerId: string) {
+  private creditInput(
+    t: { id: string; tenantId: string; storeId: string; programId: string; staffUserId: string; quantity: number },
+    customerId: string,
+  ) {
     return {
       tenantId: t.tenantId,
       storeId: t.storeId,
       customerId,
+      programId: t.programId,
       quantity: t.quantity,
       source: 'QR_TEMPORARIO' as const,
       staffUserId: t.staffUserId,

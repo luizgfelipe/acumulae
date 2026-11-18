@@ -25,6 +25,7 @@ export async function resetDb(app: INestApplication) {
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(', ')} CASCADE`);
+  await prisma.plan.create({ data: { code: 'PILOTO', name: 'Piloto', maxActivePrograms: 1 } });
   app.get(LoginRateLimiter).reset();
 }
 
@@ -93,7 +94,12 @@ export async function personalQr(agent: TestAgent) {
 
 export async function resolveQr(pos: TestAgent, qr: string) {
   const r = await pos.post('/api/pos/customers/resolve-qr').send({ qr }).expect(200);
-  return r.body as { customerRef: string; card: { balance: number; rewardsAvailable: number }; rewards: { id: string }[] };
+  const body = r.body as {
+    customerRef: string;
+    programs: Array<{ programId: string; programName: string; balance: number; rewardsAvailable: number; rewards: { id: string }[] }>;
+  };
+  // Atalhos para o caso comum de um programa só.
+  return { ...body, card: body.programs[0], rewards: body.programs[0]?.rewards ?? [] };
 }
 
 export function credit(pos: TestAgent, customerRef: string, quantity: number, key = randomUUID()) {

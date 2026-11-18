@@ -113,7 +113,10 @@ export class MeService {
       include: { tenant: { include: { branding: { select: BRANDING_SELECT } } }, program: true },
       orderBy: [{ lastVisitAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     });
-    return ms.map((m) => ({
+    // Programas desativados só continuam aparecendo enquanto houver saldo ou recompensa a usar.
+    return ms
+      .filter((m) => m.program.active || m.cachedBalance > 0 || m.cachedRewardsAvailable > 0)
+      .map((m) => ({
       ...summarize(m, m.program),
       tenant: {
         name: m.tenant.name,
@@ -133,9 +136,12 @@ export class MeService {
     const tenant = await this.prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) throw notFound('Estabelecimento não encontrado.');
     if (tenant.status !== 'ACTIVE') throw forbidden('Este estabelecimento não está aceitando novos participantes.', 'TENANT_SUSPENDED');
-    const program = await this.loyalty.activeProgram(this.prisma, tenant.id);
-    const m = await this.loyalty.ensureMembership(this.prisma, tenant.id, me.id, program.id);
-    return { membershipId: m.id };
+    const programs = await this.loyalty.activePrograms(this.prisma, tenant.id);
+    if (!programs.length) throw new AppError(409, 'NO_ACTIVE_PROGRAM', 'Este estabelecimento não tem programa ativo no momento.');
+    // Um cartão para cada programa ativo do estabelecimento.
+    const ids: string[] = [];
+    for (const p of programs) ids.push((await this.loyalty.ensureMembership(this.prisma, tenant.id, me.id, p.id)).id);
+    return { membershipId: ids[0], membershipIds: ids };
   }
 
   private async ownMembership(me: CustomerPrincipal, id: string) {
@@ -198,10 +204,11 @@ export class MeService {
     };
   }
 
+  /** Consentimento é por estabelecimento (seção 10): vale para todos os cartões do cliente nele. */
   async setConsent(me: CustomerPrincipal, id: string, consent: boolean) {
-    await this.ownMembership(me, id);
-    await this.prisma.membership.update({
-      where: { id },
+    const m = await this.ownMembership(me, id);
+    await this.prisma.membership.updateMany({
+      where: { tenantId: m.tenantId, customerId: me.id },
       data: { marketingConsent: consent, marketingConsentAt: new Date() },
     });
     return { membershipId: id, marketingConsent: consent };
@@ -252,10 +259,18 @@ export class MeService {
   async publicTenant(slug: string) {
     const t = await this.prisma.tenant.findUnique({
       where: { slug },
-      include: { branding: { select: BRANDING_SELECT }, programs: { where: { active: true } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true } } },
+      include: { branding: { select: BRANDING_SELECT }, programs: { where: { active: true }, orderBy: { createdAt: 'asc' } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true } } },
     });
     if (!t) throw notFound('Estabelecimento não encontrado.');
-    const p = t.programs[0];
+    const toPublic = (p: (typeof t.programs)[number]) => ({
+      id: p.id,
+      name: p.name,
+      goal: p.goal,
+      unitLabel: p.unitLabel,
+      unitLabelPlural: pluralize(p.unitLabel, p.unitLabelPlural),
+      rewardDescription: p.rewardDescription,
+      redeemWeekdaysText: p.redeemWeekdays.length ? describeWeekdays(p.redeemWeekdays) : null,
+    });
     return {
       name: t.name,
       slug: t.slug,
@@ -263,13 +278,7 @@ export class MeService {
       logoUrl: logoUrlOf(t.slug, t.branding),
       primaryColor: t.branding?.primaryColor ?? '#E85D04',
       stores: t.stores,
-      program: p && {
-        goal: p.goal,
-        unitLabel: p.unitLabel,
-        unitLabelPlural: pluralize(p.unitLabel, p.unitLabelPlural),
-        rewardDescription: p.rewardDescription,
-        redeemWeekdaysText: p.redeemWeekdays.length ? describeWeekdays(p.redeemWeekdays) : null,
-      },
+      programs: t.programs.map(toPublic),
     };
   }
 }

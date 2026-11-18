@@ -9,6 +9,8 @@ export interface CreditInput {
   tenantId: string;
   storeId: string;
   customerId: string;
+  /** Programa a creditar. Opcional quando o estabelecimento tem um único programa ativo. */
+  programId?: string | null;
   quantity: number;
   source: LedgerSource;
   staffUserId: string | null;
@@ -21,6 +23,8 @@ export interface RedeemInput {
   storeId: string;
   customerId: string;
   staffUserId: string;
+  /** Programa da recompensa. Opcional quando só um programa do cliente tem recompensa disponível. */
+  programId?: string | null;
   rewardId?: string | null;
   /** Quantas recompensas usar de uma vez (padrão 1). */
   quantity?: number;
@@ -31,6 +35,10 @@ export interface RedeemInput {
 
 export interface CardSummary {
   membershipId: string;
+  programId: string;
+  programName: string;
+  programActive: boolean;
+  carryOverExcess: boolean;
   balance: number;
   goal: number;
   rewardsAvailable: number;
@@ -48,12 +56,16 @@ export function pluralize(label: string, plural?: string | null) {
   return `${label}s`;
 }
 
-export function summarize(m: Membership, p: LoyaltyProgram): CardSummary {
+export function summarize(m: Pick<Membership, 'id' | 'cachedBalance' | 'cachedRewardsAvailable'> | null, p: LoyaltyProgram): CardSummary {
   return {
-    membershipId: m.id,
-    balance: m.cachedBalance,
+    membershipId: m?.id ?? '',
+    programId: p.id,
+    programName: p.name,
+    programActive: p.active,
+    carryOverExcess: p.carryOverExcess,
+    balance: m?.cachedBalance ?? 0,
     goal: p.goal,
-    rewardsAvailable: m.cachedRewardsAvailable,
+    rewardsAvailable: m?.cachedRewardsAvailable ?? 0,
     unitLabel: p.unitLabel,
     unitLabelPlural: pluralize(p.unitLabel, p.unitLabelPlural),
     rewardDescription: p.rewardDescription,
@@ -73,22 +85,54 @@ export function redeemRestriction(p: LoyaltyProgram, now = new Date()): string |
  * atualizados na mesma transação, com a linha da membership travada (FOR UPDATE).
  *
  * Convenção do ledger: `quantity` = variação de selos; `rewardsDelta` = variação de recompensas disponíveis.
+ * Cada membership é o cartão do cliente em UM programa do estabelecimento.
  */
 @Injectable()
 export class LoyaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async activeProgram(tx: Tx, tenantId: string): Promise<LoyaltyProgram> {
-    const p = await tx.loyaltyProgram.findFirst({ where: { tenantId, active: true }, orderBy: { createdAt: 'desc' } });
-    if (!p) throw new AppError(409, 'NO_ACTIVE_PROGRAM', 'O estabelecimento não tem programa de fidelidade ativo.');
+  // ───────────────────────── Programas ─────────────────────────
+
+  activePrograms(tx: Tx, tenantId: string) {
+    return tx.loyaltyProgram.findMany({ where: { tenantId, active: true }, orderBy: { createdAt: 'asc' } });
+  }
+
+  /** Programa do estabelecimento (ativo ou não). */
+  async programOf(tx: Tx, tenantId: string, programId: string) {
+    const p = await tx.loyaltyProgram.findFirst({ where: { id: programId, tenantId } });
+    if (!p) throw notFound('Programa não encontrado.', 'PROGRAM_NOT_FOUND');
     return p;
   }
 
-  /** RN-34 / Q-04: cria o vínculo se não existir. */
+  /** Programa que vai receber o crédito: o informado (precisa estar ativo) ou o único ativo. */
+  async programForCredit(tx: Tx, tenantId: string, programId?: string | null): Promise<LoyaltyProgram> {
+    if (programId) {
+      const p = await this.programOf(tx, tenantId, programId);
+      if (!p.active) throw new AppError(409, 'PROGRAM_INACTIVE', `O programa "${p.name}" está desativado.`);
+      return p;
+    }
+    const active = await this.activePrograms(tx, tenantId);
+    if (!active.length) throw new AppError(409, 'NO_ACTIVE_PROGRAM', 'O estabelecimento não tem programa de fidelidade ativo.');
+    if (active.length > 1) throw badRequest('PROGRAM_REQUIRED', 'Escolha o programa.');
+    return active[0];
+  }
+
+  /** RN-34 / Q-04: cria o cartão do cliente no programa, se não existir. */
   async ensureMembership(tx: Tx, tenantId: string, customerId: string, programId: string) {
+    // O consentimento de marketing é por estabelecimento: herda o de outro cartão do mesmo lugar.
+    const sibling = await tx.membership.findFirst({
+      where: { tenantId, customerId, marketingConsent: { not: null } },
+      select: { marketingConsent: true, marketingConsentAt: true },
+    });
     return tx.membership.upsert({
-      where: { tenantId_customerId: { tenantId, customerId } },
-      create: { tenantId, customerId, programId },
+      where: { programId_customerId: { programId, customerId } },
+      create: {
+        tenantId,
+        customerId,
+        programId,
+        marketingConsent: sibling?.marketingConsent ?? null,
+        marketingConsentAt: sibling?.marketingConsentAt ?? null,
+      },
       update: {},
     });
   }
@@ -129,13 +173,19 @@ export class LoyaltyService {
       where: { tenantId_idempotencyKey: { tenantId: input.tenantId, idempotencyKey: input.idempotencyKey } },
     });
     if (existing) {
-      const m = await tx.membership.findUniqueOrThrow({ where: { id: existing.membershipId } });
-      const p = await this.activeProgram(tx, input.tenantId);
-      const unlocked = await tx.ledgerEntry.count({ where: { parentEntryId: existing.id, type: 'RECOMPENSA_LIBERADA' } });
-      return { replay: true, entry: existing, rewardsUnlocked: unlocked, card: summarize(m, p), firstVisit: false };
+      const m = await tx.membership.findUniqueOrThrow({ where: { id: existing.membershipId }, include: { program: true } });
+      const children = await tx.ledgerEntry.findMany({ where: { parentEntryId: existing.id } });
+      return {
+        replay: true,
+        entry: existing,
+        rewardsUnlocked: children.filter((c) => c.type === 'RECOMPENSA_LIBERADA').length,
+        discarded: -children.filter((c) => c.type === 'EXCEDENTE_DESCARTADO').reduce((s, c) => s + c.quantity, 0),
+        card: summarize(m, m.program),
+        firstVisit: false,
+      };
     }
 
-    const program = await this.activeProgram(tx, input.tenantId);
+    const program = await this.programForCredit(tx, input.tenantId, input.programId);
     if (!Number.isInteger(input.quantity) || input.quantity < 1) {
       throw badRequest('INVALID_QUANTITY', 'A quantidade deve ser um inteiro maior ou igual a 1.');
     }
@@ -146,22 +196,24 @@ export class LoyaltyService {
     const ensured = await this.ensureMembership(tx, input.tenantId, input.customerId, program.id);
     const m = await this.lock(tx, ensured.id);
     const now = new Date();
+    const base = {
+      tenantId: input.tenantId,
+      storeId: input.storeId,
+      membershipId: m.id,
+      staffUserId: input.staffUserId,
+    };
 
     const entry = await tx.ledgerEntry.create({
       data: {
-        tenantId: input.tenantId,
-        storeId: input.storeId,
-        membershipId: m.id,
+        ...base,
         type: 'CREDITO',
         quantity: input.quantity,
         source: input.source,
-        staffUserId: input.staffUserId,
         checkoutTokenId: input.checkoutTokenId ?? null,
         idempotencyKey: input.idempotencyKey,
       },
     });
 
-    // RN-37: o excedente fica para o próximo ciclo; pode liberar mais de uma recompensa.
     let balance = m.cachedBalance + input.quantity;
     let available = m.cachedRewardsAvailable;
     let unlocked = 0;
@@ -170,14 +222,11 @@ export class LoyaltyService {
       const rewardId = randomUUID();
       const rl = await tx.ledgerEntry.create({
         data: {
-          tenantId: input.tenantId,
-          storeId: input.storeId,
-          membershipId: m.id,
+          ...base,
           type: 'RECOMPENSA_LIBERADA',
           quantity: -program.goal,
           rewardsDelta: 1,
           source: 'SISTEMA',
-          staffUserId: input.staffUserId,
           parentEntryId: entry.id,
           rewardId,
           idempotencyKey: `${input.idempotencyKey}:reward:${unlocked}`,
@@ -199,12 +248,28 @@ export class LoyaltyService {
       available++;
     }
 
+    // RN-37 configurável: sem "guardar excedente", o que passou da meta é descartado.
+    let discarded = 0;
+    if (unlocked > 0 && balance > 0 && !program.carryOverExcess) {
+      discarded = balance;
+      await tx.ledgerEntry.create({
+        data: {
+          ...base,
+          type: 'EXCEDENTE_DESCARTADO',
+          quantity: -discarded,
+          source: 'SISTEMA',
+          parentEntryId: entry.id,
+          idempotencyKey: `${input.idempotencyKey}:discard`,
+        },
+      });
+      balance = 0;
+    }
+
     const updated = await tx.membership.update({
       where: { id: m.id },
       data: {
         cachedBalance: balance,
         cachedRewardsAvailable: available,
-        programId: program.id,
         lastVisitAt: now,
         firstVisitAt: m.firstVisitAt ?? now,
       },
@@ -213,6 +278,7 @@ export class LoyaltyService {
       replay: false,
       entry,
       rewardsUnlocked: unlocked,
+      discarded,
       card: summarize(updated, program),
       firstVisit: !m.firstVisitAt,
     };
@@ -230,9 +296,24 @@ export class LoyaltyService {
     return Array.from({ length: n }, (_, i) => (i === 0 ? key : `${key}:${i + 1}`));
   }
 
+  /** Cartão de onde sai o resgate: o do programa informado, ou o único com recompensa disponível. */
+  private async membershipForRedeem(tx: Tx, input: RedeemInput) {
+    if (input.programId) {
+      const p = await this.programOf(tx, input.tenantId, input.programId);
+      const m = await tx.membership.findUnique({ where: { programId_customerId: { programId: p.id, customerId: input.customerId } } });
+      if (!m) throw new AppError(409, 'NO_REWARD', 'O cliente não tem recompensa disponível.');
+      return m;
+    }
+    const withRewards = await tx.membership.findMany({
+      where: { tenantId: input.tenantId, customerId: input.customerId, cachedRewardsAvailable: { gt: 0 } },
+    });
+    if (!withRewards.length) throw new AppError(409, 'NO_REWARD', 'O cliente não tem recompensa disponível.');
+    if (withRewards.length > 1) throw badRequest('PROGRAM_REQUIRED', 'Escolha o programa.');
+    return withRewards[0];
+  }
+
   private async redeemInTx(tx: Tx, input: RedeemInput) {
     const quantity = input.quantity ?? 1;
-    const program = await this.activeProgram(tx, input.tenantId);
     const keys = this.redeemKeys(input.idempotencyKey, quantity);
 
     const existing = await tx.ledgerEntry.findUnique({
@@ -240,16 +321,15 @@ export class LoyaltyService {
     });
     if (existing) {
       const entries = await tx.ledgerEntry.findMany({ where: { tenantId: input.tenantId, idempotencyKey: { in: keys } } });
-      const m = await tx.membership.findUniqueOrThrow({ where: { id: existing.membershipId } });
+      const m = await tx.membership.findUniqueOrThrow({ where: { id: existing.membershipId }, include: { program: true } });
       const rewards = await tx.reward.findMany({ where: { id: { in: entries.map((e) => e.rewardId!).filter(Boolean) } } });
-      return { replay: true, entries, rewards, card: summarize(m, program) };
+      return { replay: true, entries, rewards, card: summarize(m, m.program) };
     }
 
-    const membership = await tx.membership.findUnique({
-      where: { tenantId_customerId: { tenantId: input.tenantId, customerId: input.customerId } },
-    });
-    if (!membership) throw new AppError(409, 'NO_REWARD', 'O cliente não tem recompensa disponível.');
+    const membership = await this.membershipForRedeem(tx, input);
     const m = await this.lock(tx, membership.id);
+    // Recompensas já liberadas podem ser usadas mesmo com o programa desativado.
+    const program = await tx.loyaltyProgram.findUniqueOrThrow({ where: { id: m.programId } });
 
     const restriction = redeemRestriction(program);
     if (restriction) throw new AppError(409, 'REDEEM_NOT_ALLOWED_TODAY', restriction);
@@ -310,6 +390,7 @@ export class LoyaltyService {
    * Estorna um CREDITO ou um RESGATE criando a movimentação contrária.
    * Se o crédito liberou recompensas: as ainda disponíveis são canceladas (RECOMPENSA_CANCELADA);
    * se alguma já foi resgatada, o estorno é bloqueado até o resgate ser estornado.
+   * Excedente descartado por esse crédito é devolvido (ESTORNO_EXCEDENTE).
    */
   async reverse(params: { tenantId: string; entryId: string; staffUserId: string; reason: string }) {
     return this.prisma.$transaction(async (tx) => {
@@ -353,6 +434,17 @@ export class LoyaltyService {
         data: { ...base, type: 'ESTORNO_CREDITO', quantity: -entry.quantity, reversesEntryId: entry.id, idempotencyKey: key },
       });
       let balance = m.cachedBalance - entry.quantity;
+
+      const discards = await tx.ledgerEntry.findMany({
+        where: { parentEntryId: entry.id, type: 'EXCEDENTE_DESCARTADO', reversedBy: { is: null } },
+      });
+      for (const d of discards) {
+        await tx.ledgerEntry.create({
+          data: { ...base, type: 'ESTORNO_EXCEDENTE', quantity: -d.quantity, reversesEntryId: d.id, idempotencyKey: `${key}:discard:${d.id}` },
+        });
+        balance += -d.quantity;
+      }
+
       let available = m.cachedRewardsAvailable;
       let cancelled = 0;
       while (balance < 0) {
@@ -437,4 +529,3 @@ export class LoyaltyService {
     return new Map(rows.map((r) => [r.membershipId, r._count._all]));
   }
 }
-

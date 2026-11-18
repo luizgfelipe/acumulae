@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { TokensService } from '../auth/tokens.service';
 import { config } from '../common/config';
 import { randomToken, sha256 } from '../common/crypto';
-import { AppError, badRequest, forbidden, notFound } from '../common/errors';
+import { AppError, badRequest, notFound } from '../common/errors';
 import { maskName, shortName } from '../common/names';
 import { normalizePhone } from '../common/phone';
-import { LoyaltyService, pluralize, redeemRestriction, summarize } from '../loyalty/loyalty.service';
+import { LoyaltyService, redeemRestriction, summarize } from '../loyalty/loyalty.service';
 import { PersonalQrService } from '../loyalty/personal-qr.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -19,15 +19,21 @@ const REDEEM_WINDOW_SECONDS = 5 * 60;
 export const resolveQrSchema = z.object({ qr: z.string().trim().min(10).max(300) });
 export const creditSchema = z.object({
   customerRef: z.string().min(10).max(2000),
+  /** Obrigatório quando o estabelecimento tem mais de um programa ativo. */
+  programId: z.string().uuid().nullish(),
   quantity: z.number().int().min(1).max(100),
 });
 export const redeemSchema = z.object({
   customerRef: z.string().min(10).max(2000),
+  programId: z.string().uuid().nullish(),
   rewardId: z.string().uuid().nullish(),
   /** Quantas recompensas disponíveis usar agora (padrão 1). */
   quantity: z.number().int().min(1).max(50).default(1),
 });
-export const checkoutCreateSchema = z.object({ quantity: z.number().int().min(1).max(100) });
+export const checkoutCreateSchema = z.object({
+  programId: z.string().uuid().nullish(),
+  quantity: z.number().int().min(1).max(100),
+});
 export const idempotencyKeySchema = z
   .string({ required_error: 'header Idempotency-Key obrigatório' })
   .min(8, 'header Idempotency-Key obrigatório')
@@ -67,40 +73,50 @@ export class PosService {
     return r;
   }
 
-  /** O que o caixa vê sobre o cliente: apenas dados deste estabelecimento (RN-82). */
+  /** Programas ativos do estabelecimento (para escolher no caixa). */
+  async programs(ctx: PosCtx) {
+    const ps = await this.loyalty.activePrograms(this.prisma, ctx.tenantId);
+    return ps.map((p) => ({ ...summarize(null, p), maxPerEntry: p.maxPerEntry }));
+  }
+
+  /**
+   * O que o caixa vê sobre o cliente: apenas dados deste estabelecimento (RN-82).
+   * Um item por programa ativo, mais os programas desativados em que ainda há recompensa a usar.
+   */
   private async customerView(ctx: PosCtx, customerId: string, src: RefSource) {
     const customer = await this.prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer || customer.status !== 'ACTIVE') throw notFound('Cliente não encontrado.', 'CUSTOMER_NOT_FOUND');
-    const program = await this.loyalty.activeProgram(this.prisma, ctx.tenantId);
-    const membership = await this.prisma.membership.findUnique({
-      where: { tenantId_customerId: { tenantId: ctx.tenantId, customerId } },
-      include: { rewards: { where: { status: 'DISPONIVEL' }, orderBy: { createdAt: 'asc' } } },
-    });
-    const restriction = redeemRestriction(program);
+    const [active, memberships] = await Promise.all([
+      this.loyalty.activePrograms(this.prisma, ctx.tenantId),
+      this.prisma.membership.findMany({
+        where: { tenantId: ctx.tenantId, customerId },
+        include: { program: true, rewards: { where: { status: 'DISPONIVEL' }, orderBy: { createdAt: 'asc' } } },
+      }),
+    ]);
+    const byProgram = new Map(memberships.map((m) => [m.programId, m]));
+    const programs = [
+      ...active,
+      ...memberships.filter((m) => !m.program.active && m.cachedRewardsAvailable > 0).map((m) => m.program),
+    ];
     return {
       customerRef: await this.signRef(ctx.tenantId, customerId, src),
       source: src,
       name: src === 'TELEFONE' ? maskName(customer.name) : customer.name,
-      firstVisit: !membership?.firstVisitAt,
-      card: membership
-        ? summarize(membership, program)
-        : {
-            membershipId: null,
-            balance: 0,
-            goal: program.goal,
-            rewardsAvailable: 0,
-            unitLabel: program.unitLabel,
-            unitLabelPlural: pluralize(program.unitLabel, program.unitLabelPlural),
-            rewardDescription: program.rewardDescription,
+      firstVisit: !memberships.some((m) => m.firstVisitAt),
+      programs: programs.map((p) => {
+        const m = byProgram.get(p.id) ?? null;
+        const restriction = redeemRestriction(p);
+        return {
+          ...summarize(m, p),
+          maxPerEntry: p.maxPerEntry,
+          rewards: (m?.rewards ?? []).map((r) => ({ id: r.id, description: r.description, unlockedAt: r.createdAt })),
+          redeem: {
+            // RN-61 (revisada): resgate com o cliente identificado pelo QR pessoal ou pelo telefone.
+            allowed: !restriction,
+            reason: restriction,
           },
-      rewards: (membership?.rewards ?? []).map((r) => ({ id: r.id, description: r.description, unlockedAt: r.createdAt })),
-      maxPerEntry: program.maxPerEntry,
-      redeem: {
-        // RN-61 (revisada): o resgate vale com o cliente identificado pelo QR pessoal ou pelo
-        // telefone; na busca por telefone o atendente confirma a identidade antes de entregar.
-        allowed: !restriction,
-        reason: restriction,
-      },
+        };
+      }),
     };
   }
 
@@ -129,11 +145,12 @@ export class PosService {
       storeId: ctx.storeId,
       staffUserId: ctx.staffUserId,
       customerId: ref.cid,
+      programId: body.programId,
       quantity: body.quantity,
       source: ref.src,
       idempotencyKey: `pos:${idempotencyKey}`,
     });
-    return { entryId: r.entry.id, replay: r.replay, rewardsUnlocked: r.rewardsUnlocked, card: r.card };
+    return { entryId: r.entry.id, replay: r.replay, rewardsUnlocked: r.rewardsUnlocked, discarded: r.discarded, card: r.card };
   }
 
   async redeem(ctx: PosCtx, body: z.infer<typeof redeemSchema>, idempotencyKey: string) {
@@ -146,6 +163,7 @@ export class PosService {
       storeId: ctx.storeId,
       staffUserId: ctx.staffUserId,
       customerId: ref.cid,
+      programId: body.programId,
       rewardId: body.rewardId,
       quantity: body.quantity,
       source: ref.src,
@@ -162,8 +180,8 @@ export class PosService {
 
   // ───────────── QR temporário (RN-40 a RN-46) ─────────────
 
-  async createCheckout(ctx: PosCtx, quantity: number) {
-    const program = await this.loyalty.activeProgram(this.prisma, ctx.tenantId);
+  async createCheckout(ctx: PosCtx, quantity: number, programId?: string | null) {
+    const program = await this.loyalty.programForCredit(this.prisma, ctx.tenantId, programId);
     if (quantity > program.maxPerEntry) {
       throw badRequest('QUANTITY_ABOVE_LIMIT', `O máximo por lançamento é ${program.maxPerEntry}.`);
     }
@@ -172,13 +190,14 @@ export class PosService {
       data: {
         tenantId: ctx.tenantId,
         storeId: ctx.storeId,
+        programId: program.id,
         staffUserId: ctx.staffUserId,
         tokenHash: sha256(token),
         quantity,
         expiresAt: new Date(Date.now() + CHECKOUT_TTL_MINUTES * 60_000),
       },
     });
-    return { id: t.id, url: `${config.publicUrl}/c/${token}`, quantity, expiresAt: t.expiresAt };
+    return { id: t.id, url: `${config.publicUrl}/c/${token}`, quantity, expiresAt: t.expiresAt, programName: program.name };
   }
 
   async checkoutStatus(ctx: PosCtx, id: string) {
@@ -217,12 +236,13 @@ export class PosService {
       orderBy: { createdAt: 'desc' },
       take: 15,
       include: {
-        membership: { include: { customer: { select: { name: true } } } },
+        membership: { include: { customer: { select: { name: true } }, program: { select: { name: true } } } },
         staffUser: { select: { name: true } },
         reversedBy: { select: { id: true } },
       },
     });
     return entries.map((e) => ({
+      programName: e.membership.program.name,
       id: e.id,
       type: e.type,
       quantity: e.quantity,

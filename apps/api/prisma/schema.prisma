@@ -34,12 +34,27 @@ enum StaffRole {
   ATTENDANT
 }
 
+/// Plano de contratação do Acumulae (define limites por estabelecimento).
+model Plan {
+  code              String   @id
+  name              String
+  /// Quantos programas de fidelidade o estabelecimento pode ter ativos ao mesmo tempo.
+  maxActivePrograms Int      @default(1) @map("max_active_programs")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenants Tenant[]
+
+  @@map("plans")
+}
+
 model Tenant {
   id        String       @id @default(uuid()) @db.Uuid
   name      String
   slug      String       @unique
   status    TenantStatus @default(ACTIVE)
   plan      String       @default("PILOTO")
+  planRef   Plan         @relation(fields: [plan], references: [code])
   createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -310,6 +325,10 @@ enum LedgerType {
   RESGATE
   ESTORNO_RESGATE
   EXPIRACAO
+  /// Selos que passaram da meta num programa que não guarda o excedente.
+  EXCEDENTE_DESCARTADO
+  /// Devolve o excedente descartado quando o crédito que o gerou é estornado.
+  ESTORNO_EXCEDENTE
 }
 
 enum LedgerSource {
@@ -330,6 +349,9 @@ enum RewardStatus {
 model LoyaltyProgram {
   id                String       @id @default(uuid()) @db.Uuid
   tenantId          String       @map("tenant_id") @db.Uuid
+  name              String       @default("Programa de fidelidade")
+  /// true: o que passa da meta vai para o próximo cartão (RN-37). false: o excedente é descartado.
+  carryOverExcess   Boolean      @default(true) @map("carry_over_excess")
   unitLabel         String       @default("selo") @map("unit_label")
   unitLabelPlural   String?      @map("unit_label_plural")
   goal              Int          @default(10)
@@ -344,15 +366,16 @@ model LoyaltyProgram {
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id])
-  memberships Membership[]
-  rewards     Reward[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  memberships    Membership[]
+  rewards        Reward[]
+  checkoutTokens CheckoutToken[]
 
   @@index([tenantId, active])
   @@map("loyalty_programs")
 }
 
-/// O "cartão" do cliente no estabelecimento.
+/// O "cartão" do cliente num programa do estabelecimento (um por programa).
 model Membership {
   id                     String    @id @default(uuid()) @db.Uuid
   tenantId               String    @map("tenant_id") @db.Uuid
@@ -375,7 +398,8 @@ model Membership {
   ledgerEntries LedgerEntry[]
   rewards       Reward[]
 
-  @@unique([tenantId, customerId])
+  @@unique([programId, customerId])
+  @@index([tenantId, customerId])
   @@index([customerId])
   @@map("memberships")
 }
@@ -447,6 +471,7 @@ model CheckoutToken {
   id               String    @id @default(uuid()) @db.Uuid
   tenantId         String    @map("tenant_id") @db.Uuid
   storeId          String    @map("store_id") @db.Uuid
+  programId        String    @map("program_id") @db.Uuid
   staffUserId      String    @map("staff_user_id") @db.Uuid
   tokenHash        String    @unique @map("token_hash")
   quantity         Int
@@ -456,10 +481,11 @@ model CheckoutToken {
   cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  tenant        Tenant        @relation(fields: [tenantId], references: [id])
-  store         Store         @relation(fields: [storeId], references: [id])
-  staffUser     StaffUser     @relation(fields: [staffUserId], references: [id])
-  usedBy        Customer?     @relation(fields: [usedByCustomerId], references: [id])
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  store         Store          @relation(fields: [storeId], references: [id])
+  program       LoyaltyProgram @relation(fields: [programId], references: [id])
+  staffUser     StaffUser      @relation(fields: [staffUserId], references: [id])
+  usedBy        Customer?      @relation(fields: [usedByCustomerId], references: [id])
   ledgerEntries LedgerEntry[]
 
   @@index([tenantId, storeId, createdAt])

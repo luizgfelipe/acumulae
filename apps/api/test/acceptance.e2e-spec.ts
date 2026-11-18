@@ -181,7 +181,7 @@ describe('Consumo, recompensa e resgate', () => {
     const c = await customerAgent(app, { name: 'Maria Souza' });
     const found = await pos.get('/api/pos/customers').query({ phone: c.phone }).expect(200);
     expect(found.body.name).toBe('Maria S****');
-    expect(found.body.redeem.allowed).toBe(true);
+    expect(found.body.programs[0].redeem.allowed).toBe(true);
     await credit(pos, found.body.customerRef, 6).expect(201);
 
     // 3 recompensas disponíveis: usa 2 de uma vez.
@@ -427,7 +427,7 @@ describe('Entrada pelo QR do balcão e LGPD', () => {
     const t = await createTenant(app);
     const c = await customerAgent(app);
     const pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
-    expect(pub.body.program.goal).toBe(10);
+    expect(pub.body.programs[0].goal).toBe(10);
     await c.agent.post('/api/me/memberships').send({ slug: t.slug }).expect(201);
     const me = await c.agent.get('/api/me').expect(200);
     expect(me.body.pendingConsents).toBe(1);
@@ -493,5 +493,95 @@ describe('Perfil e logo do estabelecimento', () => {
     expect(r.body.store).toMatchObject({ name: 'Sushi X - Centro', address: 'Rua Nova, 10' });
     const me = await pos.get('/api/staff/auth/me').expect(200);
     expect(me.body.context.storeName).toBe('Sushi X - Centro');
+  });
+});
+
+describe('Programas e planos', () => {
+  const baseProgram = {
+    unitLabel: 'sobremesa',
+    unitLabelPlural: 'sobremesas',
+    goal: 5,
+    rewardDescription: '1 sobremesa grátis',
+    maxPerEntry: 10,
+    redeemWeekdays: [],
+    carryOverExcess: true,
+  };
+
+  it('o plano limita os programas ativos (PILOTO = 1)', async () => {
+    const t = await createTenant(app);
+    const pos = await managerAgent(app, t.managerInviteUrl);
+
+    const blocked = await pos.post('/api/admin/programs').send({ ...baseProgram, name: 'Sobremesas', active: true }).expect(409);
+    expect(blocked.body.code).toBe('PROGRAM_LIMIT_REACHED');
+
+    const created = await pos.post('/api/admin/programs').send({ ...baseProgram, name: 'Sobremesas', active: false }).expect(201);
+    expect(created.body.limit).toMatchObject({ plan: 'PILOTO', maxActive: 1, active: 1 });
+    const second = created.body.items.find((p: { name: string }) => p.name === 'Sobremesas');
+    await pos.post(`/api/admin/programs/${second.id}/activate`).expect(409);
+
+    // Troca: desativa o atual e ativa o novo.
+    await pos.post(`/api/admin/programs/${t.programId}/deactivate`).expect(200);
+    const after = await pos.post(`/api/admin/programs/${second.id}/activate`).expect(200);
+    expect(after.body.limit.active).toBe(1);
+
+    const c = await customerAgent(app);
+    const view = await resolveQr(pos, await personalQr(c.agent));
+    expect(view.programs.map((p) => p.programName)).toEqual(['Sobremesas']);
+    const r = await credit(pos, view.customerRef, 2).expect(201);
+    expect(r.body.card.programId).toBe(second.id);
+
+    // Programa com clientes não pode ser excluído; sem clientes, pode.
+    await pos.delete(`/api/admin/programs/${second.id}`).expect(409);
+    await pos.delete(`/api/admin/programs/${t.programId}`).expect(200);
+  });
+
+  it('com um plano que permite 2, o cliente tem um cartão por programa', async () => {
+    await http().put('/api/platform/plans/DUO').set('X-Platform-Key', PLATFORM_KEY).send({ name: 'Duo', maxActivePrograms: 2 }).expect(200);
+    const t = await createTenant(app, { plan: 'DUO' });
+    const pos = await managerAgent(app, t.managerInviteUrl);
+    const list = await pos.post('/api/admin/programs').send({ ...baseProgram, name: 'Sobremesas', active: true }).expect(201);
+    expect(list.body.limit).toMatchObject({ maxActive: 2, active: 2 });
+    const desserts = list.body.items.find((p: { name: string }) => p.name === 'Sobremesas');
+
+    const c = await customerAgent(app);
+    const view = await resolveQr(pos, await personalQr(c.agent));
+    expect(view.programs).toHaveLength(2);
+
+    // Com dois programas ativos, o caixa precisa dizer qual.
+    const missing = await credit(pos, view.customerRef, 1).expect(400);
+    expect(missing.body.code).toBe('PROGRAM_REQUIRED');
+    await pos.post('/api/pos/credits').set('Idempotency-Key', randomUUID()).send({ customerRef: view.customerRef, programId: t.programId, quantity: 3 }).expect(201);
+    await pos.post('/api/pos/credits').set('Idempotency-Key', randomUUID()).send({ customerRef: view.customerRef, programId: desserts.id, quantity: 5 }).expect(201);
+
+    const cards = await c.agent.get('/api/me/memberships').expect(200);
+    expect(cards.body).toHaveLength(2);
+    expect(cards.body.map((x: { balance: number }) => x.balance).sort()).toEqual([0, 3]);
+
+    // Consentimento é por estabelecimento: vale para os dois cartões.
+    await c.agent.patch(`/api/me/memberships/${cards.body[0].membershipId}/consent`).send({ marketingConsent: true }).expect(200);
+    const ms = await prisma.membership.findMany({ where: { tenantId: t.tenantId } });
+    expect(ms.every((m) => m.marketingConsent === true)).toBe(true);
+
+    // Plano inexistente é recusado.
+    await http().patch(`/api/platform/tenants/${t.tenantId}`).set('X-Platform-Key', PLATFORM_KEY).send({ plan: 'NAO_EXISTE' }).expect(400);
+  });
+
+  it('sem "guardar excedente", o que passa da meta é descartado e volta no estorno', async () => {
+    const t = await createTenant(app, { program: { rewardDescription: 'Brinde', goal: 10, carryOverExcess: false } });
+    const pos = await managerAgent(app, t.managerInviteUrl);
+    const c = await customerAgent(app);
+    const { customerRef } = await resolveQr(pos, await personalQr(c.agent));
+    await credit(pos, customerRef, 9).expect(201);
+    const cr = await credit(pos, customerRef, 3).expect(201);
+    expect(cr.body.rewardsUnlocked).toBe(1);
+    expect(cr.body.discarded).toBe(2);
+    expect(cr.body.card.balance).toBe(0);
+
+    await pos.post(`/api/admin/ledger/${cr.body.entryId}/reverse`).send({ reason: 'Erro' }).expect(200);
+    const m = await prisma.membership.findFirstOrThrow({ where: { tenantId: t.tenantId } });
+    expect(m.cachedBalance).toBe(9);
+    expect(m.cachedRewardsAvailable).toBe(0);
+    const rec = await app.get(LoyaltyService).reconcile({ tenantId: t.tenantId });
+    expect(rec.mismatches).toEqual([]);
   });
 });

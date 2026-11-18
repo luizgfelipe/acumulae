@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
   UseInterceptors,
@@ -20,6 +21,8 @@ import {
   PlatformService,
   createTenantSchema,
   inviteSchema,
+  planCodeSchema,
+  planSchema,
   storeInputSchema,
   updateTenantSchema,
 } from './platform.service';
@@ -37,6 +40,17 @@ export class PlatformController {
   @Post('tenants')
   create(@Body(new ZodPipe(createTenantSchema)) body: z.infer<typeof createTenantSchema>) {
     return this.platform.createTenant(body);
+  }
+
+  /** Planos de contratação e o limite de programas ativos de cada um. */
+  @Get('plans')
+  plans() {
+    return this.platform.listPlans();
+  }
+
+  @Put('plans/:code')
+  upsertPlan(@Param('code') code: string, @Body(new ZodPipe(planSchema)) body: z.infer<typeof planSchema>) {
+    return this.platform.upsertPlan(planCodeSchema.parse(code), body);
   }
 
   @Get('tenants')

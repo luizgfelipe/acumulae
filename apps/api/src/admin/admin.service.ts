@@ -11,14 +11,6 @@ import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service
 import { PrismaService } from '../prisma/prisma.service';
 import { InvitesService } from '../staff/invites.service';
 
-export const programUpdateSchema = z.object({
-  unitLabel: z.string().trim().min(1).max(30),
-  unitLabelPlural: z.string().trim().max(30).nullish(),
-  goal: z.number().int().min(2).max(50),
-  rewardDescription: z.string().trim().min(1).max(120),
-  maxPerEntry: z.number().int().min(1).max(100),
-  redeemWeekdays: weekdaysSchema,
-});
 export const brandingUpdateSchema = z.object({ primaryColor: hexColorSchema });
 export const logoUploadSchema = z.object({ image: logoDataUrlSchema.nullable() });
 export const profileUpdateSchema = z.object({
@@ -46,7 +38,10 @@ export const staffUpdateSchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   storeIds: z.array(z.string().uuid()).optional(),
 });
-export const customersQuerySchema = pageSchema.extend({ search: z.string().trim().max(100).optional() });
+export const customersQuerySchema = pageSchema.extend({
+  search: z.string().trim().max(100).optional(),
+  programId: z.string().uuid().optional(),
+});
 export const ledgerQuerySchema = pageSchema.extend({
   from: z.string().date().optional(),
   to: z.string().date().optional(),
@@ -54,6 +49,7 @@ export const ledgerQuerySchema = pageSchema.extend({
   staffUserId: z.string().uuid().optional(),
   type: z.nativeEnum(LedgerType).optional(),
   membershipId: z.string().uuid().optional(),
+  programId: z.string().uuid().optional(),
 });
 export const reverseSchema = z.object({ reason: z.string().trim().min(3, 'informe o motivo').max(300) });
 
@@ -76,8 +72,10 @@ export class AdminService {
     const t = ctx.tenantId;
     const since = startOfMonthSaoPaulo();
     const [members, newMembers, credits, reversedCredits, visits, unlocked, redeemed, available] = await Promise.all([
-      this.prisma.membership.count({ where: { tenantId: t } }),
-      this.prisma.membership.count({ where: { tenantId: t, createdAt: { gte: since } } }),
+      // Clientes distintos (um cliente pode ter cartão em mais de um programa).
+      this.prisma.membership.groupBy({ by: ['customerId'], where: { tenantId: t } }).then((r) => r.length),
+      this.prisma.membership.groupBy({ by: ['customerId'], where: { tenantId: t }, _min: { createdAt: true } })
+        .then((r) => r.filter((x) => x._min.createdAt && x._min.createdAt >= since).length),
       this.prisma.ledgerEntry.aggregate({ where: { tenantId: t, type: 'CREDITO', createdAt: { gte: since } }, _sum: { quantity: true } }),
       this.prisma.ledgerEntry.aggregate({ where: { tenantId: t, type: 'ESTORNO_CREDITO', createdAt: { gte: since } }, _sum: { quantity: true } }),
       this.prisma.ledgerEntry.count({ where: { tenantId: t, type: 'CREDITO', createdAt: { gte: since }, reversedBy: { is: null } } }),
@@ -85,7 +83,9 @@ export class AdminService {
       this.prisma.reward.count({ where: { tenantId: t, status: 'RESGATADA', redeemedAt: { gte: since } } }),
       this.prisma.reward.count({ where: { tenantId: t, status: 'DISPONIVEL' } }),
     ]);
-    const program = await this.loyalty.activeProgram(this.prisma, t);
+    const active = await this.loyalty.activePrograms(this.prisma, t);
+    // Com um programa, os selos usam o nome dele ("rodízios"); com vários, o termo genérico.
+    const unitLabelPlural = active.length === 1 ? pluralize(active[0].unitLabel, active[0].unitLabelPlural) : 'selos';
     return {
       since,
       members,
@@ -95,54 +95,12 @@ export class AdminService {
       rewardsUnlockedThisMonth: unlocked,
       rewardsRedeemedThisMonth: redeemed,
       rewardsAvailableNow: available,
-      unitLabelPlural: pluralize(program.unitLabel, program.unitLabelPlural),
+      unitLabelPlural,
+      activePrograms: active.length,
     };
   }
 
-  // ───────────── Programa e identidade visual ─────────────
-
-  async getProgram(ctx: AdminCtx) {
-    const [p, branding, tenant] = await Promise.all([
-      this.loyalty.activeProgram(this.prisma, ctx.tenantId),
-      this.prisma.tenantBranding.findUnique({ where: { tenantId: ctx.tenantId }, select: BRANDING_SELECT }),
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
-    ]);
-    return {
-      program: {
-        id: p.id,
-        unitLabel: p.unitLabel,
-        unitLabelPlural: p.unitLabelPlural,
-        goal: p.goal,
-        rewardDescription: p.rewardDescription,
-        maxPerEntry: p.maxPerEntry,
-        redeemWeekdays: p.redeemWeekdays,
-        scope: p.scope,
-      },
-      branding: {
-        logoUrl: logoUrlOf(tenant.slug, branding),
-        primaryColor: branding?.primaryColor ?? '#E85D04',
-        version: branding?.version ?? 1,
-      },
-      tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
-    };
-  }
-
-  /** RN-24: um programa ativo; alterar a meta não afeta recompensas já liberadas (custo gravado na recompensa). */
-  async updateProgram(ctx: AdminCtx, input: z.infer<typeof programUpdateSchema>) {
-    const p = await this.loyalty.activeProgram(this.prisma, ctx.tenantId);
-    await this.prisma.loyaltyProgram.update({
-      where: { id: p.id },
-      data: {
-        unitLabel: input.unitLabel,
-        unitLabelPlural: input.unitLabelPlural || null,
-        goal: input.goal,
-        rewardDescription: input.rewardDescription,
-        maxPerEntry: input.maxPerEntry,
-        redeemWeekdays: [...new Set(input.redeemWeekdays)].sort(),
-      },
-    });
-    return this.getProgram(ctx);
-  }
+  // ───────────── Identidade visual ─────────────
 
   /** Cor principal. A versão do branding sobe para invalidar caches (RN-108). */
   async updateBranding(ctx: AdminCtx, input: z.infer<typeof brandingUpdateSchema>) {
@@ -311,7 +269,7 @@ export class AdminService {
   }
 
   async customers(ctx: AdminCtx, q: z.infer<typeof customersQuerySchema>) {
-    const where: Prisma.MembershipWhereInput = { tenantId: ctx.tenantId };
+    const where: Prisma.MembershipWhereInput = { tenantId: ctx.tenantId, programId: q.programId };
     if (q.search) {
       const digits = q.search.replace(/\D/g, '');
       where.customer = {
@@ -339,6 +297,8 @@ export class AdminService {
       items: rows.map((m) => ({
         membershipId: m.id,
         name: m.customer.name,
+        programId: m.programId,
+        programName: m.program.name,
         phone: this.contact(m.marketingConsent, m.customer.phoneE164),
         marketingConsent: m.marketingConsent,
         balance: m.cachedBalance,
@@ -386,6 +346,7 @@ export class AdminService {
       staffUserId: q.staffUserId,
       type: q.type,
       membershipId: q.membershipId,
+      ...(q.programId ? { membership: { programId: q.programId } } : {}),
     };
     if (q.from || q.to) {
       where.createdAt = {
@@ -401,7 +362,7 @@ export class AdminService {
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize,
         include: {
-          membership: { include: { customer: { select: { name: true } } } },
+          membership: { include: { customer: { select: { name: true } }, program: { select: { name: true } } } },
           staffUser: { select: { name: true } },
           store: { select: { name: true } },
           reversedBy: { select: { id: true, createdAt: true, reason: true } },
@@ -421,6 +382,7 @@ export class AdminService {
         createdAt: e.createdAt,
         membershipId: e.membershipId,
         customerName: e.membership.customer.name,
+        programName: e.membership.program.name,
         staffName: e.staffUser?.name ?? null,
         storeName: e.store?.name ?? null,
         reason: e.reason,

@@ -10,13 +10,13 @@ import {
   ledgerQuerySchema,
   logoUploadSchema,
   profileUpdateSchema,
-  programUpdateSchema,
   reverseSchema,
   staffInviteSchema,
   staffUpdateSchema,
   storeCreateSchema,
   storeUpdateSchema,
 } from './admin.service';
+import { ProgramsService, programCreateSchema, programInputSchema } from './programs.service';
 
 function ctxOf(s: TenantStaff): AdminCtx {
   return { tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId };
@@ -26,21 +26,57 @@ function ctxOf(s: TenantStaff): AdminCtx {
 @Controller('api/admin')
 @Staff({ tenant: true, roles: ['MANAGER'] })
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly programsSvc: ProgramsService,
+  ) {}
 
   @Get('dashboard')
   dashboard(@CurrentStaff() s: TenantStaff) {
     return this.admin.dashboard(ctxOf(s));
   }
 
-  @Get('program')
-  program(@CurrentStaff() s: TenantStaff) {
-    return this.admin.getProgram(ctxOf(s));
+  // ───────────── Programas (limite de ativos definido pelo plano) ─────────────
+
+  @Get('programs')
+  programs(@CurrentStaff() s: TenantStaff) {
+    return this.programsSvc.list(ctxOf(s));
   }
 
-  @Put('program')
-  updateProgram(@CurrentStaff() s: TenantStaff, @Body(new ZodPipe(programUpdateSchema)) b: z.infer<typeof programUpdateSchema>) {
-    return this.admin.updateProgram(ctxOf(s), b);
+  @Get('programs/:id')
+  program(@CurrentStaff() s: TenantStaff, @Param('id', ParseUUIDPipe) id: string) {
+    return this.programsSvc.get(ctxOf(s), id);
+  }
+
+  @Post('programs')
+  createProgram(@CurrentStaff() s: TenantStaff, @Body(new ZodPipe(programCreateSchema)) b: z.infer<typeof programCreateSchema>) {
+    return this.programsSvc.create(ctxOf(s), b);
+  }
+
+  @Put('programs/:id')
+  updateProgram(
+    @CurrentStaff() s: TenantStaff,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(programInputSchema)) b: z.infer<typeof programInputSchema>,
+  ) {
+    return this.programsSvc.update(ctxOf(s), id, b);
+  }
+
+  @Post('programs/:id/activate')
+  @HttpCode(200)
+  activateProgram(@CurrentStaff() s: TenantStaff, @Param('id', ParseUUIDPipe) id: string) {
+    return this.programsSvc.setActive(ctxOf(s), id, true);
+  }
+
+  @Post('programs/:id/deactivate')
+  @HttpCode(200)
+  deactivateProgram(@CurrentStaff() s: TenantStaff, @Param('id', ParseUUIDPipe) id: string) {
+    return this.programsSvc.setActive(ctxOf(s), id, false);
+  }
+
+  @Delete('programs/:id')
+  removeProgram(@CurrentStaff() s: TenantStaff, @Param('id', ParseUUIDPipe) id: string) {
+    return this.programsSvc.remove(ctxOf(s), id);
   }
 
   @Put('branding')

@@ -56,7 +56,7 @@ export class PosController {
     @CurrentStaff() s: StoreStaff,
     @Body(new ZodPipe(checkoutCreateSchema)) body: z.infer<typeof checkoutCreateSchema>,
   ) {
-    return this.pos.createCheckout(ctxOf(s), body.quantity);
+    return this.pos.createCheckout(ctxOf(s), body.quantity, body.programId);
   }
 
   @Get('checkout-tokens/:id')
@@ -67,6 +67,11 @@ export class PosController {
   @Delete('checkout-tokens/:id')
   cancel(@CurrentStaff() s: StoreStaff, @Param('id', ParseUUIDPipe) id: string) {
     return this.pos.cancelCheckout(ctxOf(s), id);
+  }
+
+  @Get('programs')
+  programs(@CurrentStaff() s: StoreStaff) {
+    return this.pos.programs(ctxOf(s));
   }
 
   @Get('recent')
