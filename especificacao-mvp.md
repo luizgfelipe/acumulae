@@ -179,12 +179,12 @@ Uma plataforma SaaS multi-tenant em que:
 
 - **RN-50 [DECIDIDO]** O cliente tem um QR pessoal no app que o identifica em qualquer estabelecimento.
 - **RN-51 [RECOMENDADO]** O QR pessoal é **dinâmico**: rotaciona a cada 30 segundos (estilo TOTP, assinado pelo servidor). Um print ou foto do QR não serve para resgatar a recompensa de outra pessoa.
-- **RN-52 [RECOMENDADO]** Como alternativa ao QR, o atendente busca o cliente **pelo telefone**. A busca por telefone **permite lançar consumo, mas não resgatar** (ver RN-61).
+- **RN-52 [DECIDIDO]** Como alternativa ao QR, o atendente busca o cliente **pelo telefone**. A busca por telefone permite lançar consumo **e usar recompensas** (ver RN-61).
 
 ### 5.7 Resgate
 
 - **RN-60 [DECIDIDO]** O resgate é **presencial**, no estabelecimento.
-- **RN-61 [RECOMENDADO]** O resgate exige o **QR pessoal dinâmico** lido no caixa, o que prova que o cliente está com o celular logado. Busca por telefone não permite resgate.
+- **RN-61 [DECIDIDO]** O resgate é feito com o cliente identificado no caixa, **pelo QR pessoal ou pelo telefone**. O atendente toca em "Utilizar recompensa disponível", escolhe quantas recompensas o cliente vai usar e confirma. Na busca por telefone, o atendente confere o nome do cliente antes de entregar.
 - **RN-62 [RECOMENDADO]** Antes de confirmar, o atendente vê o nome do cliente, a recompensa e as restrições, e confirma.
 - **RN-63 [DECIDIDO]** Após o resgate, o ciclo **reinicia**: a recompensa vira "resgatada" e o progresso segue a partir do excedente (RN-37).
 - **RN-64 [RECOMENDADO]** O resgate respeita as restrições configuradas (ex.: dia da semana). Se estiver bloqueado, a tela explica o motivo.
@@ -252,7 +252,7 @@ Resposta `201 Created`:
 ### 5.11 Personalização visual dos cartões
 
 - **RN-100 [DECIDIDO]** A plataforma será **bem personalizável** por estabelecimento: cores, logo, fundo do cartão, selo personalizado e afins, para o cartão ficar bonito no app do cliente e na carteira do celular. A personalização completa entra na **Fase 2**.
-- **RN-101 [RECOMENDADO]** **Já no MVP**, o modelo de dados guarda a identidade visual numa tabela própria (`tenant_branding`, seção 8.1), e o app do cliente usa pelo menos **logo + cor principal** de cada estabelecimento. Assim a Fase 2 só acrescenta campos e telas, sem refatorar.
+- **RN-101 [DECIDIDO]** **Já no MVP**, o modelo de dados guarda a identidade visual numa tabela própria (`tenant_branding`, seção 8.1), e o app do cliente usa pelo menos **logo + cor principal** de cada estabelecimento. O logo é **enviado pelo gestor** (PNG/JPG/WebP, reduzido para 256 px, até 200 KB) e guardado no próprio banco; não há URL externa. Assim a Fase 2 só acrescenta campos e telas, sem refatorar.
 - **RN-102 [RECOMENDADO]** Itens personalizáveis na Fase 2:
 
   | Item | No app do cliente (PWA) | Na Google Wallet | Na Apple Wallet |
@@ -334,9 +334,9 @@ flowchart TD
 
 ### 6.6 Resgate
 
-1. O cliente mostra o **QR pessoal** (RN-61).
+1. O atendente identifica o cliente pelo **QR pessoal** ou pelo **telefone** (RN-61).
 2. O caixa mostra a recompensa disponível ("1 rodízio grátis") e as restrições.
-3. O atendente toca em **Resgatar** e confirma.
+3. O atendente toca em **Utilizar recompensa disponível**, escolhe a quantidade e confirma.
 4. O sistema lança `RESGATE`, a recompensa vira "resgatada" e o progresso reinicia (RN-63).
 5. O cliente vê no app "Recompensa resgatada em 18/11 no Sushi X".
 
@@ -498,7 +498,7 @@ checkout_tokens             -- QR temporário
 |---|---|
 | Cliente ganha selo sem consumir | Todo crédito parte do atendente: lançamento manual ou QR temporário gerado por ele. Não há QR estático que credite. |
 | QR temporário fotografado e usado depois | Uso único + expiração de 10 minutos + uso atômico. |
-| Alguém resgata a recompensa de outra pessoa | Resgate só com QR pessoal dinâmico (rotativo) do celular logado. A busca por telefone não resgata. |
+| Alguém resgata a recompensa de outra pessoa | O atendente confirma o nome do cliente antes de entregar (a busca por telefone mostra o nome parcialmente mascarado); todo resgate registra funcionário e origem, e o gestor pode estorná-lo. O QR pessoal dinâmico continua sendo a forma mais segura. |
 | Funcionário lança selos indevidos | Registro do funcionário em cada lançamento, limite por lançamento, relatório por funcionário, estorno pelo gestor. |
 | Lançamento duplicado (clique duplo, rede instável) | Chave de idempotência no lançamento. |
 | Acesso à conta por quem sabe telefone e nascimento | Login exige senha ou login social. Nascimento e telefone nunca servem de credencial. |
@@ -640,8 +640,8 @@ POST   /api/platform/tenants/{id}/invites     reenvia/gera convite de gestor
 - [ ] O atendente lê o QR pessoal e lança consumo em menos de 5 segundos.
 - [ ] Dois escaneamentos simultâneos do mesmo QR temporário geram um único crédito.
 - [ ] Um QR temporário expirado ou cancelado não gera crédito.
-- [ ] Um print do QR pessoal não permite resgate depois de 30 segundos.
-- [ ] A busca por telefone não permite resgate.
+- [ ] Um print do QR pessoal não identifica o cliente depois de 30 segundos.
+- [ ] O resgate funciona pelo QR pessoal e pelo telefone, permitindo usar mais de uma recompensa disponível de uma vez.
 - [ ] Um gestor do Tenant A não consegue ver, por nenhum endpoint, dados de vínculos do Tenant B.
 - [ ] O saldo de todos os vínculos bate com a soma do ledger (teste de reconciliação).
 - [ ] Ao atingir a meta, a recompensa é liberada e o excedente é carregado.

@@ -274,6 +274,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRedeem, setConfirmRedeem] = useState(false);
+  const [redeemQty, setRedeemQty] = useState(1);
   const creditKey = useRef(newIdempotencyKey());
   const redeemKey = useRef(newIdempotencyKey());
   const c = view.card;
@@ -305,12 +306,16 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
     setBusy(true);
     setError(null);
     try {
-      const r = await staffApi<{ reward: { description: string } }>('/api/pos/redemptions', {
+      const r = await staffApi<{ redeemed: number; rewards: { description: string }[] }>('/api/pos/redemptions', {
         method: 'POST',
         headers: { 'Idempotency-Key': redeemKey.current },
-        body: { customerRef: view.customerRef, rewardId: view.rewards[0]?.id },
+        body: { customerRef: view.customerRef, quantity: redeemQty },
       });
-      onDone({ kind: 'success', title: 'Recompensa resgatada', detail: `${r.reward.description} para ${view.name}` });
+      onDone({
+        kind: 'success',
+        title: r.redeemed === 1 ? 'Recompensa utilizada' : `${r.redeemed} recompensas utilizadas`,
+        detail: `${r.redeemed}× ${r.rewards[0]?.description ?? c.rewardDescription} para ${view.name}`,
+      });
     } catch (e) {
       setConfirmRedeem(false);
       setError(errorMessage(e));
@@ -365,8 +370,17 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
 
       {c.rewardsAvailable > 0 &&
         (view.redeem.allowed ? (
-          <Button size="lg" variant="dark" className="w-full" onClick={() => setConfirmRedeem(true)}>
-            Resgatar recompensa
+          <Button
+            size="lg"
+            variant="dark"
+            className="w-full"
+            onClick={() => {
+              setRedeemQty(1);
+              redeemKey.current = newIdempotencyKey();
+              setConfirmRedeem(true);
+            }}
+          >
+            Utilizar recompensa disponível
           </Button>
         ) : (
           <Alert kind="warning">{view.redeem.reason}</Alert>
@@ -374,7 +388,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
 
       {error && <Alert>{error}</Alert>}
 
-      <Modal open={confirmRedeem} onClose={() => setConfirmRedeem(false)} title="Confirmar resgate">
+      <Modal open={confirmRedeem} onClose={() => setConfirmRedeem(false)} title="Utilizar recompensa">
         <div className="space-y-2 text-stone-700">
           <p>
             Cliente: <strong>{view.name}</strong>
@@ -382,14 +396,34 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
           <p>
             Recompensa: <strong>{view.rewards[0]?.description ?? c.rewardDescription}</strong>
           </p>
-          <p className="text-sm text-stone-500">Entregue a recompensa ao cliente após confirmar.</p>
+          <p className="text-sm text-stone-500">
+            {c.rewardsAvailable === 1 ? '1 disponível' : `${c.rewardsAvailable} disponíveis`}. Quantas o cliente vai usar agora?
+          </p>
         </div>
+        <div className="my-4 flex items-center justify-center gap-4">
+          <Button variant="secondary" size="lg" className="w-14 text-2xl" onClick={() => setRedeemQty((q) => Math.max(1, q - 1))} disabled={redeemQty <= 1}>
+            −
+          </Button>
+          <span className="w-12 text-center text-4xl font-extrabold tabular-nums">{redeemQty}</span>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="w-14 text-2xl"
+            onClick={() => setRedeemQty((q) => Math.min(c.rewardsAvailable, q + 1))}
+            disabled={redeemQty >= c.rewardsAvailable}
+          >
+            +
+          </Button>
+        </div>
+        {view.source === 'TELEFONE' && (
+          <Alert kind="warning">Cliente encontrado pelo telefone: confirme o nome dele antes de entregar.</Alert>
+        )}
         <div className="mt-5 grid grid-cols-2 gap-3">
           <Button variant="secondary" onClick={() => setConfirmRedeem(false)}>
             Cancelar
           </Button>
           <Button variant="dark" onClick={redeem} loading={busy}>
-            Resgatar
+            Confirmar {redeemQty > 1 ? `(${redeemQty})` : ''}
           </Button>
         </div>
       </Modal>

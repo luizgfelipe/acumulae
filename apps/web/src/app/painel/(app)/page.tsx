@@ -39,11 +39,11 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">Olá, {me.user.name.split(' ')[0]}!</h1>
         <p className="text-stone-600">Resumo desde {formatDate(data.since)}.</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
         {tiles.map((t) => (
-          <Card key={t.label}>
-            <p className="text-sm text-stone-500">{t.label}</p>
-            <p className="mt-1 text-4xl font-extrabold tabular-nums">{t.value.toLocaleString('pt-BR')}</p>
+          <Card key={t.label} className="p-4 sm:p-5">
+            <p className="text-xs leading-snug text-stone-500 sm:text-sm">{t.label}</p>
+            <p className="mt-1 text-3xl font-extrabold tabular-nums sm:text-4xl">{t.value.toLocaleString('pt-BR')}</p>
             {t.hint && <p className="mt-1 text-xs text-stone-500">{t.hint}</p>}
           </Card>
         ))}

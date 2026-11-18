@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { LedgerItem, LedgerTable } from '@/components/ledger-table';
-import { Alert, Button, Card, Field, Input, Select } from '@/components/ui';
+import { Alert, Button, Card, Field, Input, Select, cx } from '@/components/ui';
 import { staffApi } from '@/lib/api';
 import { LEDGER_LABELS } from '@/lib/format';
 import { useLoad } from '@/lib/use-load';
@@ -19,8 +19,15 @@ interface Staff {
 }
 
 export default function LedgerPage() {
-  const [filters, setFilters] = useState({ from: '', to: '', storeId: '', staffUserId: '', type: '' });
+  const EMPTY = { from: '', to: '', storeId: '', staffUserId: '', type: '' };
+  const [filters, setFilters] = useState(EMPTY);
+  const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const activeFilters = Object.values(filters).filter(Boolean).length;
+  const clearFilters = () => {
+    setFilters(EMPTY);
+    setPage(1);
+  };
   const stores = useLoad(() => staffApi<Array<{ id: string; name: string }>>('/api/admin/stores'), []);
   const staff = useLoad(() => staffApi<Staff>('/api/admin/staff'), []);
   const { data, error, reload } = useLoad(
@@ -36,7 +43,24 @@ export default function LedgerPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">Movimentações</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Movimentações</h1>
+        <div className="flex items-center gap-2">
+          {activeFilters > 0 && (
+            <Button size="sm" variant="ghost" onClick={clearFilters}>
+              Limpar
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters}>
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 6h16M7 12h10M10 18h4" />
+            </svg>
+            Filtros{activeFilters > 0 ? ` (${activeFilters})` : ''}
+            <span className={cx('transition-transform', showFilters && 'rotate-180')}>▾</span>
+          </Button>
+        </div>
+      </div>
+      {showFilters && (
       <Card>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Field label="De">
@@ -77,6 +101,7 @@ export default function LedgerPage() {
           </Field>
         </div>
       </Card>
+      )}
       {error && <Alert>{error}</Alert>}
       <Card>
         <p className="mb-2 text-sm text-stone-500">{data?.total ?? 0} movimentação(ões)</p>

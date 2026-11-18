@@ -37,7 +37,7 @@ export default function StaffPage() {
     try {
       const r = await staffApi<{ inviteUrl: string }>('/api/admin/staff', {
         method: 'POST',
-        body: { ...form, name: form.name || null, storeIds: form.role === 'MANAGER' ? [] : form.storeIds },
+        body: { ...form, name: form.name || null, storeIds: form.role === 'MANAGER' ? [] : singleStore ? [singleStore.id] : form.storeIds },
       });
       setInviteUrl(r.inviteUrl);
       setForm({ name: '', email: '', role: 'ATTENDANT', storeIds: [] });
@@ -61,6 +61,8 @@ export default function StaffPage() {
   if (error) return <Alert>{error}</Alert>;
   if (!data) return <FullPageSpinner />;
   const activeStores = stores.data?.filter((s) => s.status === 'ACTIVE') ?? [];
+  // No MVP há uma unidade por estabelecimento: ela é atribuída automaticamente.
+  const singleStore = activeStores.length === 1 ? activeStores[0] : null;
 
   return (
     <div className="space-y-6">
@@ -76,7 +78,7 @@ export default function StaffPage() {
                   {m.name} {m.isMe && <span className="text-xs text-stone-500">(você)</span>}
                 </p>
                 <p className="text-sm text-stone-500">{m.email}</p>
-                {m.role === 'ATTENDANT' && <p className="text-xs text-stone-500">Unidades: {m.stores.map((s) => s.name).join(', ') || 'nenhuma'}</p>}
+                {m.role === 'ATTENDANT' && !singleStore && <p className="text-xs text-stone-500">Unidades: {m.stores.map((s) => s.name).join(', ') || 'nenhuma'}</p>}
               </div>
               <Badge color={m.role === 'MANAGER' ? 'brand' : 'stone'}>{m.role === 'MANAGER' ? 'Gestor' : 'Atendente'}</Badge>
               <Badge color={m.status === 'ACTIVE' ? 'green' : 'red'}>{m.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}</Badge>
@@ -129,7 +131,7 @@ export default function StaffPage() {
               <option value="MANAGER">Gestor (caixa + painel)</option>
             </Select>
           </Field>
-          {form.role === 'ATTENDANT' && (
+          {form.role === 'ATTENDANT' && !singleStore && (
             <div>
               <p className="mb-1.5 text-sm font-medium text-stone-700">Unidades permitidas</p>
               <div className="space-y-1.5">

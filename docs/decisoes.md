@@ -53,3 +53,9 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - Rate limit em Redis, caso a API rode em mais de uma instância.
 - Correção de telefone e mesclagem de contas pelo admin da plataforma (suporte).
 - Revisão jurídica dos Termos de Uso e da Política de Privacidade.
+
+## Revisões após o primeiro uso (19/11/2026)
+
+- **Resgate manual (RN-52/RN-61 revisadas):** o resgate passou a funcionar também com o cliente encontrado pelo telefone. Com o cliente identificado, o caixa mostra **"Utilizar recompensa disponível"**, e o atendente escolhe quantas recompensas usar e confirma. Cada recompensa usada gera uma movimentação `RESGATE` com a origem (`QR_PESSOAL` ou `TELEFONE`). *Contrapartida:* quem souber o telefone de outra pessoa pode tentar usar a recompensa dela; a mitigação é o atendente conferir o nome, e o gestor pode estornar.
+- **Logo enviado pelo gestor:** guardado no banco (`tenant_branding.logo_data`, `bytea`) em vez de URL. O navegador recorta o logo num quadrado de 256 px e o envia como data URL. A API aceita PNG, JPG ou WebP de até 200 KB e confere a assinatura do arquivo; SVG é recusado. O logo é servido em `GET /api/public/tenants/{slug}/logo?v={versão}` com cache longo. Quando a demanda crescer, dá para mover para um storage S3 sem mudar o frontend, porque o `logoUrl` continua sendo só uma URL.
+- **Uma unidade por estabelecimento no MVP:** a aba Unidades saiu do painel. A nova aba **Perfil** reúne logo, cor, nome e endereço da unidade e o QR do balcão. O atendente convidado recebe automaticamente a única unidade. A API de unidades continua existindo para quando houver redes com várias lojas.
