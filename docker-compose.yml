@@ -1,0 +1,59 @@
+# Ambiente de desenvolvimento local.
+#   docker compose up --build
+# App:     http://localhost:3000
+# API:     http://localhost:3001/api/health
+# Mailpit: http://localhost:8025
+name: acumulae-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-acumulae}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acumulae}
+      POSTGRES_DB: ${POSTGRES_DB:-acumulae}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-acumulae}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  api:
+    build:
+      context: ./apps/api
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        API_INTERNAL_URL: http://api:3001
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
