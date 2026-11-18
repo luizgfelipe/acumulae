@@ -48,7 +48,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 
 ## Pendências conhecidas (próximos passos)
 
-- Upload de logo (hoje o gestor informa uma URL) e o restante da personalização, previstos para a Fase 2.
+- Restante da personalização visual (fundo, selos, temas), previsto para a Fase 2.
 - Job de expiração de selos/recompensas (Q-05).
 - Rate limit em Redis, caso a API rode em mais de uma instância.
 - Correção de telefone e mesclagem de contas pelo admin da plataforma (suporte).
