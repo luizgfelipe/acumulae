@@ -63,7 +63,7 @@ function MembershipPage() {
       <div className="space-y-5 pt-2">
         {isNew && <Alert kind="success">Pronto! Agora é só acumular a cada visita ao {d.tenant.name}.</Alert>}
 
-        <div className="overflow-hidden rounded-3xl shadow-sm" style={{ background: color, color: fg }}>
+        <div className="overflow-hidden rounded-3xl border-2 shadow-lg shadow-stone-900/10" style={{ background: color, color: fg, borderColor: color }}>
           <div className="flex items-center gap-3 px-5 pt-5">
             <TenantAvatar name={d.tenant.name} logoUrl={d.tenant.logoUrl} color="rgba(255,255,255,0.25)" size={48} />
             <div className="min-w-0">

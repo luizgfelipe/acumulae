@@ -149,7 +149,11 @@ function MembershipTile({ card: c }: { card: MembershipCard }) {
   const fg = readableOn(color);
   const missing = Math.max(0, c.goal - c.balance);
   return (
-    <Link href={`/cartao/${c.membershipId}`} className="block overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition active:scale-[0.99]">
+    <Link
+      href={`/cartao/${c.membershipId}`}
+      className="block overflow-hidden rounded-2xl border-2 bg-white shadow-lg shadow-stone-900/10 transition hover:shadow-xl active:scale-[0.99]"
+      style={{ borderColor: color }}
+    >
       <div className="flex items-center gap-3 px-4 py-3" style={{ background: color, color: fg }}>
         <TenantAvatar name={c.tenant.name} logoUrl={c.tenant.logoUrl} color="rgba(255,255,255,0.25)" size={40} />
         <div className="min-w-0 flex-1">
