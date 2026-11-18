@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, StaffRole } from '@prisma/client';
 import { z } from 'zod';
+import { BRANDING_SELECT, logoUrlOf, parseLogo } from '../common/branding';
 import { config } from '../common/config';
 import { conflict, notFound } from '../common/errors';
 import {
@@ -65,10 +66,12 @@ export class PlatformService {
         const tenant = await tx.tenant.create({
           data: { name: input.name, slug: input.slug, plan: input.plan },
         });
+        const logo = input.branding?.logo ? parseLogo(input.branding.logo) : null;
         await tx.tenantBranding.create({
           data: {
             tenantId: tenant.id,
-            logoUrl: input.branding?.logoUrl ?? null,
+            logoData: logo?.data ?? null,
+            logoMime: logo?.mime ?? null,
             ...(input.branding?.primaryColor ? { primaryColor: input.branding.primaryColor } : {}),
           },
         });
@@ -146,7 +149,7 @@ export class PlatformService {
     const t = await this.prisma.tenant.findUnique({
       where: { id },
       include: {
-        branding: true,
+        branding: { select: BRANDING_SELECT },
         stores: { orderBy: { createdAt: 'asc' } },
         programs: { where: { active: true } },
         staff: { include: { staffUser: { select: { id: true, name: true, email: true } } } },
@@ -162,7 +165,11 @@ export class PlatformService {
       status: t.status,
       plan: t.plan,
       createdAt: t.createdAt,
-      branding: t.branding && { logoUrl: t.branding.logoUrl, primaryColor: t.branding.primaryColor, version: t.branding.version },
+      branding: t.branding && {
+        logoUrl: logoUrlOf(t.slug, t.branding),
+        primaryColor: t.branding.primaryColor,
+        version: t.branding.version,
+      },
       stores: t.stores.map((s) => ({ id: s.id, name: s.name, slug: s.slug, address: s.address, status: s.status })),
       program: t.programs[0] ?? null,
       staff: t.staff.map((m) => ({ ...m.staffUser, role: m.role, status: m.status })),
@@ -179,14 +186,15 @@ export class PlatformService {
         await tx.tenant.update({ where: { id }, data: { name: input.name, plan: input.plan } });
       }
       if (input.branding) {
+        // logo: data URL = troca; null = remove; ausente = mantém.
+        const b = input.branding;
+        const logo = b.logo ? parseLogo(b.logo) : null;
+        const logoFields =
+          b.logo === undefined ? {} : { logoData: logo?.data ?? null, logoMime: logo?.mime ?? null };
         await tx.tenantBranding.upsert({
           where: { tenantId: id },
-          create: { tenantId: id, logoUrl: input.branding.logoUrl ?? null, primaryColor: input.branding.primaryColor },
-          update: {
-            logoUrl: input.branding.logoUrl === undefined ? undefined : input.branding.logoUrl,
-            primaryColor: input.branding.primaryColor,
-            version: { increment: 1 },
-          },
+          create: { tenantId: id, primaryColor: b.primaryColor, ...logoFields },
+          update: { primaryColor: b.primaryColor, ...logoFields, version: { increment: 1 } },
         });
       }
     });

@@ -8,6 +8,8 @@ export function configureApp(app: NestExpressApplication) {
   app.set('trust proxy', true);
   app.disable('x-powered-by');
   app.use(cookieParser());
+  // Logo do estabelecimento chega como data URL (até ~270 KB em base64).
+  app.useBodyParser('json', { limit: '512kb' });
   app.useGlobalFilters(new AllExceptionsFilter());
   app.enableShutdownHooks();
 }

@@ -123,7 +123,10 @@ model StaffStoreAccess {
 /// Identidade visual. MVP: logo + cor principal. Fase 2: o resto.
 model TenantBranding {
   tenantId        String   @id @map("tenant_id") @db.Uuid
-  logoUrl         String?  @map("logo_url")
+  /// Logo guardado no próprio banco (MVP): imagem pequena, redimensionada no navegador.
+  /// Servido em GET /api/public/tenants/{slug}/logo?v={version}.
+  logoData        Bytes?   @map("logo_data")
+  logoMime        String?  @map("logo_mime")
   primaryColor    String   @default("#E85D04") @map("primary_color")
   // Fase 2
   backgroundColor String?  @map("background_color")

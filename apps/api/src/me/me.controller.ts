@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { z } from 'zod';
 import { clearAuthCookies } from '../auth/cookies';
@@ -97,5 +97,16 @@ export class PublicController {
   @Get('tenants/:slug')
   tenant(@Param('slug') slug: string) {
     return this.me.publicTenant(slug);
+  }
+
+  @Get('tenants/:slug/logo')
+  async logo(@Param('slug') slug: string, @Query('v') v: string | undefined, @Res() res: Response) {
+    const { data, mime } = await this.me.logo(slug);
+    res.setHeader('Content-Type', mime);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    // Com ?v= (versão do branding) a URL muda a cada troca de logo: cache longo é seguro.
+    res.setHeader('Cache-Control', v ? 'public, max-age=31536000, immutable' : 'public, max-age=300');
+    res.send(data);
   }
 }

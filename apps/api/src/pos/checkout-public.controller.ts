@@ -1,5 +1,6 @@
 import { Controller, Get, HttpCode, Injectable, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentCustomer, CustomerAuthGuard, CustomerPrincipal } from '../auth/customer-auth.guard';
+import { BRANDING_SELECT, logoUrlOf } from '../common/branding';
 import { sha256 } from '../common/crypto';
 import { AppError, forbidden, gone, notFound } from '../common/errors';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
@@ -16,7 +17,7 @@ export class CheckoutClaimService {
     if (!/^[0-9A-Za-z]{10,64}$/.test(token)) throw notFound('Código inválido.', 'TOKEN_NOT_FOUND');
     const t = await this.prisma.checkoutToken.findUnique({
       where: { tokenHash: sha256(token) },
-      include: { tenant: { include: { branding: true, programs: { where: { active: true } } } }, store: true },
+      include: { tenant: { include: { branding: { select: BRANDING_SELECT }, programs: { where: { active: true } } } }, store: true },
     });
     if (!t) throw notFound('Código inválido.', 'TOKEN_NOT_FOUND');
     return t;
@@ -34,7 +35,7 @@ export class CheckoutClaimService {
       tenant: {
         name: t.tenant.name,
         slug: t.tenant.slug,
-        logoUrl: t.tenant.branding?.logoUrl ?? null,
+        logoUrl: logoUrlOf(t.tenant.slug, t.tenant.branding),
         primaryColor: t.tenant.branding?.primaryColor ?? null,
         active: t.tenant.status === 'ACTIVE',
       },

@@ -22,6 +22,10 @@ export interface RedeemInput {
   customerId: string;
   staffUserId: string;
   rewardId?: string | null;
+  /** Quantas recompensas usar de uma vez (padrão 1). */
+  quantity?: number;
+  /** Como o cliente foi identificado no caixa. */
+  source: 'QR_PESSOAL' | 'TELEFONE';
   idempotencyKey: string;
 }
 
@@ -221,15 +225,24 @@ export class LoyaltyService {
     return this.withIdempotency(input.tenantId, input.idempotencyKey, run, () => this.prisma.$transaction(run));
   }
 
+  /** Chaves de idempotência das N movimentações de um resgate múltiplo. */
+  private redeemKeys(key: string, n: number) {
+    return Array.from({ length: n }, (_, i) => (i === 0 ? key : `${key}:${i + 1}`));
+  }
+
   private async redeemInTx(tx: Tx, input: RedeemInput) {
+    const quantity = input.quantity ?? 1;
     const program = await this.activeProgram(tx, input.tenantId);
+    const keys = this.redeemKeys(input.idempotencyKey, quantity);
+
     const existing = await tx.ledgerEntry.findUnique({
       where: { tenantId_idempotencyKey: { tenantId: input.tenantId, idempotencyKey: input.idempotencyKey } },
     });
     if (existing) {
+      const entries = await tx.ledgerEntry.findMany({ where: { tenantId: input.tenantId, idempotencyKey: { in: keys } } });
       const m = await tx.membership.findUniqueOrThrow({ where: { id: existing.membershipId } });
-      const reward = existing.rewardId ? await tx.reward.findUnique({ where: { id: existing.rewardId } }) : null;
-      return { replay: true, entry: existing, reward, card: summarize(m, program) };
+      const rewards = await tx.reward.findMany({ where: { id: { in: entries.map((e) => e.rewardId!).filter(Boolean) } } });
+      return { replay: true, entries, rewards, card: summarize(m, program) };
     }
 
     const membership = await tx.membership.findUnique({
@@ -241,44 +254,54 @@ export class LoyaltyService {
     const restriction = redeemRestriction(program);
     if (restriction) throw new AppError(409, 'REDEEM_NOT_ALLOWED_TODAY', restriction);
 
-    const reward = await tx.reward.findFirst({
-      where: {
-        membershipId: m.id,
-        tenantId: input.tenantId,
-        status: 'DISPONIVEL',
-        ...(input.rewardId ? { id: input.rewardId } : {}),
-      },
+    const available = await tx.reward.findMany({
+      where: { membershipId: m.id, tenantId: input.tenantId, status: 'DISPONIVEL' },
       orderBy: { createdAt: 'asc' },
     });
-    if (!reward) throw new AppError(409, 'NO_REWARD', 'O cliente não tem recompensa disponível.');
+    if (!available.length) throw new AppError(409, 'NO_REWARD', 'O cliente não tem recompensa disponível.');
+    if (quantity > available.length) {
+      throw new AppError(409, 'NOT_ENOUGH_REWARDS', `O cliente tem só ${available.length} recompensa(s) disponível(is).`);
+    }
+    // Se uma recompensa específica foi pedida, ela vai primeiro.
+    const chosen = input.rewardId
+      ? [...available.filter((r) => r.id === input.rewardId), ...available.filter((r) => r.id !== input.rewardId)]
+      : available;
+    if (input.rewardId && chosen[0]?.id !== input.rewardId) {
+      throw new AppError(409, 'NO_REWARD', 'A recompensa já foi resgatada.');
+    }
 
     const now = new Date();
-    const entry = await tx.ledgerEntry.create({
-      data: {
-        tenantId: input.tenantId,
-        storeId: input.storeId,
-        membershipId: m.id,
-        type: 'RESGATE',
-        quantity: 0,
-        rewardsDelta: -1,
-        source: 'QR_PESSOAL',
-        staffUserId: input.staffUserId,
-        rewardId: reward.id,
-        idempotencyKey: input.idempotencyKey,
-      },
-    });
-    const upd = await tx.reward.updateMany({
-      where: { id: reward.id, status: 'DISPONIVEL' },
-      data: { status: 'RESGATADA', redeemedEntryId: entry.id, redeemedAt: now, redeemedStoreId: input.storeId },
-    });
-    if (!upd.count) throw new AppError(409, 'NO_REWARD', 'A recompensa já foi resgatada.');
+    const entries = [];
+    for (let i = 0; i < quantity; i++) {
+      const reward = chosen[i];
+      const entry = await tx.ledgerEntry.create({
+        data: {
+          tenantId: input.tenantId,
+          storeId: input.storeId,
+          membershipId: m.id,
+          type: 'RESGATE',
+          quantity: 0,
+          rewardsDelta: -1,
+          source: input.source,
+          staffUserId: input.staffUserId,
+          rewardId: reward.id,
+          idempotencyKey: keys[i],
+        },
+      });
+      const upd = await tx.reward.updateMany({
+        where: { id: reward.id, status: 'DISPONIVEL' },
+        data: { status: 'RESGATADA', redeemedEntryId: entry.id, redeemedAt: now, redeemedStoreId: input.storeId },
+      });
+      if (!upd.count) throw new AppError(409, 'NO_REWARD', 'A recompensa já foi resgatada.');
+      entries.push(entry);
+    }
 
     const updated = await tx.membership.update({
       where: { id: m.id },
-      data: { cachedRewardsAvailable: m.cachedRewardsAvailable - 1, lastVisitAt: now },
+      data: { cachedRewardsAvailable: m.cachedRewardsAvailable - quantity, lastVisitAt: now },
     });
-    const redeemed = await tx.reward.findUniqueOrThrow({ where: { id: reward.id } });
-    return { replay: false, entry, reward: redeemed, card: summarize(updated, program) };
+    const rewards = await tx.reward.findMany({ where: { id: { in: chosen.slice(0, quantity).map((r) => r.id) } } });
+    return { replay: false, entries, rewards, card: summarize(updated, program) };
   }
 
   // ───────────────────────── Estorno (RN-70, RN-71) ─────────────────────────

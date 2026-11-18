@@ -151,7 +151,7 @@ describe('Consumo, recompensa e resgate', () => {
     const red = await pos.post('/api/pos/redemptions').set('Idempotency-Key', randomUUID()).send({ customerRef: ref }).expect(201);
     expect(red.body.card.rewardsAvailable).toBe(0);
     expect(red.body.card.balance).toBe(2);
-    expect(red.body.reward.description).toBe('1 rodízio grátis');
+    expect(red.body.rewards[0].description).toBe('1 rodízio grátis');
   });
 
   it('lançamento repetido com a mesma chave de idempotência credita uma vez', async () => {
@@ -175,20 +175,49 @@ describe('Consumo, recompensa e resgate', () => {
     expect(r.body.code).toBe('QUANTITY_ABOVE_LIMIT');
   });
 
-  it('busca por telefone permite lançar, mas não resgatar', async () => {
+  it('busca por telefone permite lançar e usar recompensas (resgate manual)', async () => {
     const t = await createTenant(app, { program: { rewardDescription: 'Brinde', goal: 2 } });
     const pos = await managerAgent(app, t.managerInviteUrl);
     const c = await customerAgent(app, { name: 'Maria Souza' });
     const found = await pos.get('/api/pos/customers').query({ phone: c.phone }).expect(200);
     expect(found.body.name).toBe('Maria S****');
-    expect(found.body.redeem.allowed).toBe(false);
-    await credit(pos, found.body.customerRef, 2).expect(201);
+    expect(found.body.redeem.allowed).toBe(true);
+    await credit(pos, found.body.customerRef, 6).expect(201);
+
+    // 3 recompensas disponíveis: usa 2 de uma vez.
     const r = await pos
       .post('/api/pos/redemptions')
       .set('Idempotency-Key', randomUUID())
-      .send({ customerRef: found.body.customerRef })
-      .expect(403);
-    expect(r.body.code).toBe('REDEEM_REQUIRES_QR');
+      .send({ customerRef: found.body.customerRef, quantity: 2 })
+      .expect(201);
+    expect(r.body.redeemed).toBe(2);
+    expect(r.body.card.rewardsAvailable).toBe(1);
+    const resgates = await prisma.ledgerEntry.findMany({ where: { tenantId: t.tenantId, type: 'RESGATE' } });
+    expect(resgates).toHaveLength(2);
+    expect(resgates.every((e) => e.source === 'TELEFONE')).toBe(true);
+
+    // Pedir mais do que há disponível é recusado.
+    const tooMany = await pos
+      .post('/api/pos/redemptions')
+      .set('Idempotency-Key', randomUUID())
+      .send({ customerRef: found.body.customerRef, quantity: 2 })
+      .expect(409);
+    expect(tooMany.body.code).toBe('NOT_ENOUGH_REWARDS');
+  });
+
+  it('resgate múltiplo repetido com a mesma chave não resgata de novo', async () => {
+    const t = await createTenant(app, { program: { rewardDescription: 'Brinde', goal: 2 } });
+    const pos = await managerAgent(app, t.managerInviteUrl);
+    const c = await customerAgent(app);
+    const { customerRef } = await resolveQr(pos, await personalQr(c.agent));
+    await credit(pos, customerRef, 6).expect(201);
+    const key = randomUUID();
+    const a = await pos.post('/api/pos/redemptions').set('Idempotency-Key', key).send({ customerRef, quantity: 2 }).expect(201);
+    const b = await pos.post('/api/pos/redemptions').set('Idempotency-Key', key).send({ customerRef, quantity: 2 }).expect(201);
+    expect(b.body.replay).toBe(true);
+    expect(b.body.entryIds.sort()).toEqual(a.body.entryIds.sort());
+    const m = await prisma.membership.findFirstOrThrow({ where: { tenantId: t.tenantId } });
+    expect(m.cachedRewardsAvailable).toBe(1);
   });
 
   it('um print do QR pessoal não vale depois de 30 segundos', async () => {
@@ -312,7 +341,7 @@ describe('Estorno e auditoria', () => {
     const blocked = await pos.post(`/api/admin/ledger/${cr.body.entryId}/reverse`).send({ reason: 'Erro' }).expect(409);
     expect(blocked.body.code).toBe('REWARD_ALREADY_REDEEMED');
 
-    await pos.post(`/api/admin/ledger/${red.body.entryId}/reverse`).send({ reason: 'Resgate indevido' }).expect(200);
+    await pos.post(`/api/admin/ledger/${red.body.entryIds[0]}/reverse`).send({ reason: 'Resgate indevido' }).expect(200);
     await pos.post(`/api/admin/ledger/${cr.body.entryId}/reverse`).send({ reason: 'Erro' }).expect(200);
     const m = await prisma.membership.findFirstOrThrow({ where: { tenantId: t.tenantId } });
     expect(m.cachedBalance).toBe(0);
@@ -421,5 +450,48 @@ describe('Entrada pelo QR do balcão e LGPD', () => {
     expect(await prisma.ledgerEntry.count({ where: { tenantId: t.tenantId } })).toBe(1);
     await c.agent.get('/api/me').expect(401);
     await http().post('/api/auth/login').send({ identifier: c.email, password: c.password }).expect(401);
+  });
+});
+
+describe('Perfil e logo do estabelecimento', () => {
+  const PNG_1PX =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+  it('o gestor envia o logo (guardado no banco) e ele é servido publicamente', async () => {
+    const t = await createTenant(app);
+    const pos = await managerAgent(app, t.managerInviteUrl);
+    const r = await pos.put('/api/admin/branding/logo').send({ image: PNG_1PX }).expect(200);
+    expect(r.body.branding.logoUrl.startsWith(`/api/public/tenants/${t.slug}/logo?v=`)).toBe(true);
+    const img = await http().get(r.body.branding.logoUrl).expect(200);
+    expect(img.headers['content-type']).toBe('image/png');
+    expect(img.headers['cache-control']).toContain('immutable');
+
+    // O logo aparece para o cliente.
+    const pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
+    expect(pub.body.logoUrl).toBe(r.body.branding.logoUrl);
+
+    await pos.delete('/api/admin/branding/logo').expect(200);
+    await http().get(`/api/public/tenants/${t.slug}/logo`).expect(404);
+  });
+
+  it('recusa SVG, URL externa e arquivo que não é imagem', async () => {
+    const t = await createTenant(app);
+    const pos = await managerAgent(app, t.managerInviteUrl);
+    await pos.put('/api/admin/branding/logo').send({ image: 'https://exemplo.com/logo.png' }).expect(400);
+    await pos.put('/api/admin/branding/logo').send({ image: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }).expect(400);
+    const fake = await pos
+      .put('/api/admin/branding/logo')
+      .send({ image: `data:image/png;base64,${Buffer.from('nao sou uma imagem').toString('base64')}` })
+      .expect(400);
+    expect(fake.body.code).toBe('INVALID_IMAGE');
+  });
+
+  it('o gestor edita o perfil da unidade', async () => {
+    const t = await createTenant(app);
+    const pos = await managerAgent(app, t.managerInviteUrl);
+    const r = await pos.put('/api/admin/profile').send({ storeName: 'Sushi X - Centro', address: 'Rua Nova, 10' }).expect(200);
+    expect(r.body.store).toMatchObject({ name: 'Sushi X - Centro', address: 'Rua Nova, 10' });
+    const me = await pos.get('/api/staff/auth/me').expect(200);
+    expect(me.body.context.storeName).toBe('Sushi X - Centro');
   });
 });

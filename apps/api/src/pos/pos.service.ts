@@ -13,8 +13,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export const CHECKOUT_TTL_MINUTES = 10;
 const REF_AUDIENCE = 'pos-customer';
 const REF_TTL_SECONDS = 10 * 60;
-/** Janela para confirmar um resgate após ler o QR pessoal. */
-const REDEEM_WINDOW_SECONDS = 120;
+/** Janela para confirmar um resgate depois de identificar o cliente. */
+const REDEEM_WINDOW_SECONDS = 5 * 60;
 
 export const resolveQrSchema = z.object({ qr: z.string().trim().min(10).max(300) });
 export const creditSchema = z.object({
@@ -24,6 +24,8 @@ export const creditSchema = z.object({
 export const redeemSchema = z.object({
   customerRef: z.string().min(10).max(2000),
   rewardId: z.string().uuid().nullish(),
+  /** Quantas recompensas disponíveis usar agora (padrão 1). */
+  quantity: z.number().int().min(1).max(50).default(1),
 });
 export const checkoutCreateSchema = z.object({ quantity: z.number().int().min(1).max(100) });
 export const idempotencyKeySchema = z
@@ -94,9 +96,10 @@ export class PosService {
       rewards: (membership?.rewards ?? []).map((r) => ({ id: r.id, description: r.description, unlockedAt: r.createdAt })),
       maxPerEntry: program.maxPerEntry,
       redeem: {
-        // RN-52 / RN-61: busca por telefone nunca permite resgate.
-        allowed: src === 'QR_PESSOAL' && !restriction,
-        reason: src !== 'QR_PESSOAL' ? 'Para resgatar, leia o QR pessoal do cliente.' : restriction,
+        // RN-61 (revisada): o resgate vale com o cliente identificado pelo QR pessoal ou pelo
+        // telefone; na busca por telefone o atendente confirma a identidade antes de entregar.
+        allowed: !restriction,
+        reason: restriction,
       },
     };
   }
@@ -135,11 +138,8 @@ export class PosService {
 
   async redeem(ctx: PosCtx, body: z.infer<typeof redeemSchema>, idempotencyKey: string) {
     const ref = await this.readRef(ctx, body.customerRef);
-    if (ref.src !== 'QR_PESSOAL') {
-      throw forbidden('Resgate só com o QR pessoal do cliente.', 'REDEEM_REQUIRES_QR');
-    }
     if (Date.now() / 1000 - ref.iat > REDEEM_WINDOW_SECONDS) {
-      throw new AppError(409, 'QR_READ_EXPIRED', 'A leitura expirou. Leia o QR pessoal do cliente novamente.');
+      throw new AppError(409, 'CUSTOMER_READ_EXPIRED', 'A identificação expirou. Busque o cliente novamente.');
     }
     const r = await this.loyalty.redeem({
       tenantId: ctx.tenantId,
@@ -147,12 +147,15 @@ export class PosService {
       staffUserId: ctx.staffUserId,
       customerId: ref.cid,
       rewardId: body.rewardId,
+      quantity: body.quantity,
+      source: ref.src,
       idempotencyKey: `pos:${idempotencyKey}`,
     });
     return {
-      entryId: r.entry.id,
+      entryIds: r.entries.map((e) => e.id),
       replay: r.replay,
-      reward: r.reward && { id: r.reward.id, description: r.reward.description, redeemedAt: r.reward.redeemedAt },
+      redeemed: r.rewards.length,
+      rewards: r.rewards.map((w) => ({ id: w.id, description: w.description, redeemedAt: w.redeemedAt })),
       card: r.card,
     };
   }

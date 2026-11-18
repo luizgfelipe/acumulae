@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { CustomerPrincipal } from '../auth/customer-auth.guard';
 import { CustomerAuthService, birthDateSchema, publicCustomer, toDate } from '../auth/customer-auth.service';
 import { SessionsService } from '../auth/sessions.service';
+import { BRANDING_SELECT, logoUrlOf } from '../common/branding';
 import { AppError, badRequest, forbidden, notFound, unauthorized } from '../common/errors';
 import { normalizePhone } from '../common/phone';
 import { hashPassword, passwordProblem, verifyPassword } from '../common/password';
@@ -109,7 +110,7 @@ export class MeService {
   async memberships(me: CustomerPrincipal) {
     const ms = await this.prisma.membership.findMany({
       where: { customerId: me.id },
-      include: { tenant: { include: { branding: true } }, program: true },
+      include: { tenant: { include: { branding: { select: BRANDING_SELECT } } }, program: true },
       orderBy: [{ lastVisitAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     });
     return ms.map((m) => ({
@@ -117,7 +118,7 @@ export class MeService {
       tenant: {
         name: m.tenant.name,
         slug: m.tenant.slug,
-        logoUrl: m.tenant.branding?.logoUrl ?? null,
+        logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
         primaryColor: m.tenant.branding?.primaryColor ?? '#E85D04',
         active: m.tenant.status === 'ACTIVE',
       },
@@ -140,7 +141,7 @@ export class MeService {
   private async ownMembership(me: CustomerPrincipal, id: string) {
     const m = await this.prisma.membership.findFirst({
       where: { id, customerId: me.id },
-      include: { tenant: { include: { branding: true } }, program: true },
+      include: { tenant: { include: { branding: { select: BRANDING_SELECT } } }, program: true },
     });
     if (!m) throw notFound('Cartão não encontrado.');
     return m;
@@ -165,7 +166,7 @@ export class MeService {
       tenant: {
         name: m.tenant.name,
         slug: m.tenant.slug,
-        logoUrl: m.tenant.branding?.logoUrl ?? null,
+        logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
         primaryColor: m.tenant.branding?.primaryColor ?? '#E85D04',
         active: m.tenant.status === 'ACTIVE',
       },
@@ -237,11 +238,21 @@ export class MeService {
     return { ok: true };
   }
 
+  /** Bytes do logo do estabelecimento (servidos com cache longo; a URL leva a versão). */
+  async logo(slug: string) {
+    const t = await this.prisma.tenant.findUnique({
+      where: { slug },
+      select: { branding: { select: { logoData: true, logoMime: true } } },
+    });
+    if (!t?.branding?.logoData || !t.branding.logoMime) throw notFound('Logo não encontrado.');
+    return { data: Buffer.from(t.branding.logoData), mime: t.branding.logoMime };
+  }
+
   /** Página pública do estabelecimento (QR do balcão, fluxo 6.1). */
   async publicTenant(slug: string) {
     const t = await this.prisma.tenant.findUnique({
       where: { slug },
-      include: { branding: true, programs: { where: { active: true } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true } } },
+      include: { branding: { select: BRANDING_SELECT }, programs: { where: { active: true } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true } } },
     });
     if (!t) throw notFound('Estabelecimento não encontrado.');
     const p = t.programs[0];
@@ -249,7 +260,7 @@ export class MeService {
       name: t.name,
       slug: t.slug,
       active: t.status === 'ACTIVE',
-      logoUrl: t.branding?.logoUrl ?? null,
+      logoUrl: logoUrlOf(t.slug, t.branding),
       primaryColor: t.branding?.primaryColor ?? '#E85D04',
       stores: t.stores,
       program: p && {

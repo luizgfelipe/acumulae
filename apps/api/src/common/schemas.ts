@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logoDataUrlSchema } from './branding';
 
 export const slugSchema = z
   .string()
@@ -28,7 +29,8 @@ export const programFieldsSchema = z.object({
 });
 
 export const brandingFieldsSchema = z.object({
-  logoUrl: z.string().url().max(500).nullish(),
+  /** Logo como data URL (PNG/JPG/WebP, até 200 KB). Não aceitamos URL externa. */
+  logo: logoDataUrlSchema.nullish(),
   primaryColor: hexColorSchema.optional(),
 });
 

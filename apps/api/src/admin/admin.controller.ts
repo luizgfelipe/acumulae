@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentStaff, Staff, TenantStaff } from '../auth/staff-auth.guard';
 import { ZodPipe } from '../common/zod.pipe';
@@ -8,6 +8,8 @@ import {
   brandingUpdateSchema,
   customersQuerySchema,
   ledgerQuerySchema,
+  logoUploadSchema,
+  profileUpdateSchema,
   programUpdateSchema,
   reverseSchema,
   staffInviteSchema,
@@ -44,6 +46,26 @@ export class AdminController {
   @Put('branding')
   updateBranding(@CurrentStaff() s: TenantStaff, @Body(new ZodPipe(brandingUpdateSchema)) b: z.infer<typeof brandingUpdateSchema>) {
     return this.admin.updateBranding(ctxOf(s), b);
+  }
+
+  @Put('branding/logo')
+  setLogo(@CurrentStaff() s: TenantStaff, @Body(new ZodPipe(logoUploadSchema)) b: z.infer<typeof logoUploadSchema>) {
+    return this.admin.setLogo(ctxOf(s), b.image);
+  }
+
+  @Delete('branding/logo')
+  removeLogo(@CurrentStaff() s: TenantStaff) {
+    return this.admin.setLogo(ctxOf(s), null);
+  }
+
+  @Get('profile')
+  profile(@CurrentStaff() s: TenantStaff) {
+    return this.admin.profile(ctxOf(s));
+  }
+
+  @Put('profile')
+  updateProfile(@CurrentStaff() s: TenantStaff, @Body(new ZodPipe(profileUpdateSchema)) b: z.infer<typeof profileUpdateSchema>) {
+    return this.admin.updateProfile(ctxOf(s), b);
   }
 
   @Get('stores')

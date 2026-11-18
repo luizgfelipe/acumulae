@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { BRANDING_SELECT, logoUrlOf } from '../common/branding';
 import { config } from '../common/config';
 import { randomToken, sha256 } from '../common/crypto';
 import { badRequest, forbidden, gone, notFound, unauthorized } from '../common/errors';
@@ -33,7 +34,7 @@ export class StaffAuthService {
     const ms = await this.prisma.staffMembership.findMany({
       where: { staffUserId, status: 'ACTIVE' },
       include: {
-        tenant: { include: { stores: { where: { status: 'ACTIVE' }, orderBy: { name: 'asc' } }, branding: true } },
+        tenant: { include: { stores: { where: { status: 'ACTIVE' }, orderBy: { name: 'asc' } }, branding: { select: BRANDING_SELECT } } },
         storeAccess: true,
       },
       orderBy: { createdAt: 'asc' },
@@ -46,7 +47,7 @@ export class StaffAuthService {
         tenantName: m.tenant.name,
         tenantSlug: m.tenant.slug,
         tenantStatus: m.tenant.status,
-        logoUrl: m.tenant.branding?.logoUrl ?? null,
+        logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
         primaryColor: m.tenant.branding?.primaryColor ?? null,
         role: m.role,
         stores: stores.map((s) => ({ id: s.id, name: s.name })),

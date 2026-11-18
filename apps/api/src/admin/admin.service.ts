@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
 import { maskPhone } from '../common/phone';
-import { brandingFieldsSchema, emailSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
+import { BRANDING_SELECT, logoDataUrlSchema, logoUrlOf, parseLogo } from '../common/branding';
+import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,7 +19,12 @@ export const programUpdateSchema = z.object({
   maxPerEntry: z.number().int().min(1).max(100),
   redeemWeekdays: weekdaysSchema,
 });
-export const brandingUpdateSchema = brandingFieldsSchema;
+export const brandingUpdateSchema = z.object({ primaryColor: hexColorSchema });
+export const logoUploadSchema = z.object({ image: logoDataUrlSchema.nullable() });
+export const profileUpdateSchema = z.object({
+  storeName: z.string().trim().min(1).max(120).optional(),
+  address: z.string().trim().max(300).nullish(),
+});
 export const storeCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   slug: slugSchema,
@@ -98,7 +104,7 @@ export class AdminService {
   async getProgram(ctx: AdminCtx) {
     const [p, branding, tenant] = await Promise.all([
       this.loyalty.activeProgram(this.prisma, ctx.tenantId),
-      this.prisma.tenantBranding.findUnique({ where: { tenantId: ctx.tenantId } }),
+      this.prisma.tenantBranding.findUnique({ where: { tenantId: ctx.tenantId }, select: BRANDING_SELECT }),
       this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
     ]);
     return {
@@ -112,7 +118,11 @@ export class AdminService {
         redeemWeekdays: p.redeemWeekdays,
         scope: p.scope,
       },
-      branding: { logoUrl: branding?.logoUrl ?? null, primaryColor: branding?.primaryColor ?? '#E85D04', version: branding?.version ?? 1 },
+      branding: {
+        logoUrl: logoUrlOf(tenant.slug, branding),
+        primaryColor: branding?.primaryColor ?? '#E85D04',
+        version: branding?.version ?? 1,
+      },
       tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
     };
   }
@@ -134,17 +144,63 @@ export class AdminService {
     return this.getProgram(ctx);
   }
 
+  /** Cor principal. A versão do branding sobe para invalidar caches (RN-108). */
   async updateBranding(ctx: AdminCtx, input: z.infer<typeof brandingUpdateSchema>) {
     await this.prisma.tenantBranding.upsert({
       where: { tenantId: ctx.tenantId },
-      create: { tenantId: ctx.tenantId, logoUrl: input.logoUrl ?? null, primaryColor: input.primaryColor },
-      update: {
-        logoUrl: input.logoUrl === undefined ? undefined : input.logoUrl,
-        primaryColor: input.primaryColor,
-        version: { increment: 1 },
-      },
+      create: { tenantId: ctx.tenantId, primaryColor: input.primaryColor },
+      update: { primaryColor: input.primaryColor, version: { increment: 1 } },
     });
-    return this.getProgram(ctx);
+    return this.profile(ctx);
+  }
+
+  /** Logo enviado como data URL; guardado no banco (MVP). `null` remove. */
+  async setLogo(ctx: AdminCtx, image: string | null) {
+    const logo = image ? parseLogo(image) : null;
+    const fields = { logoData: logo?.data ?? null, logoMime: logo?.mime ?? null };
+    await this.prisma.tenantBranding.upsert({
+      where: { tenantId: ctx.tenantId },
+      create: { tenantId: ctx.tenantId, ...fields },
+      update: { ...fields, version: { increment: 1 } },
+    });
+    return this.profile(ctx);
+  }
+
+  // ───────────── Perfil (estabelecimento + unidade principal) ─────────────
+
+  /** No MVP cada estabelecimento tem uma unidade; o perfil edita a primeira unidade ativa. */
+  private async mainStore(tenantId: string) {
+    const s =
+      (await this.prisma.store.findFirst({ where: { tenantId, status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } })) ??
+      (await this.prisma.store.findFirst({ where: { tenantId }, orderBy: { createdAt: 'asc' } }));
+    if (!s) throw notFound('Unidade não encontrada.');
+    return s;
+  }
+
+  async profile(ctx: AdminCtx) {
+    const [tenant, branding, store] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
+      this.prisma.tenantBranding.findUnique({ where: { tenantId: ctx.tenantId }, select: BRANDING_SELECT }),
+      this.mainStore(ctx.tenantId),
+    ]);
+    return {
+      tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
+      branding: {
+        logoUrl: logoUrlOf(tenant.slug, branding),
+        primaryColor: branding?.primaryColor ?? '#E85D04',
+        version: branding?.version ?? 1,
+      },
+      store: { id: store.id, name: store.name, address: store.address },
+    };
+  }
+
+  async updateProfile(ctx: AdminCtx, input: z.infer<typeof profileUpdateSchema>) {
+    const store = await this.mainStore(ctx.tenantId);
+    await this.prisma.store.update({
+      where: { id: store.id },
+      data: { name: input.storeName, address: input.address === undefined ? undefined : input.address || null },
+    });
+    return this.profile(ctx);
   }
 
   // ───────────── Unidades ─────────────
