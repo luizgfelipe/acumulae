@@ -11,6 +11,8 @@ import { LEDGER_LABELS, formatDate, formatDateTime, formatShortDate, plural, rea
 
 interface Detail {
   membershipId: string;
+  programName: string;
+  programActive: boolean;
   balance: number;
   goal: number;
   rewardsAvailable: number;
@@ -83,6 +85,7 @@ function MembershipPage() {
             <TenantAvatar name={d.tenant.name} logoUrl={d.tenant.logoUrl} color="rgba(255,255,255,0.25)" size={48} />
             <div className="min-w-0">
               <h1 className="truncate text-xl font-bold">{d.tenant.name}</h1>
+              <p className="truncate text-sm font-semibold opacity-90">{d.programName}</p>
               <p className="text-sm opacity-85">
                 A cada {d.goal} {d.unitLabelPlural}: {d.rewardDescription}
               </p>
@@ -100,6 +103,9 @@ function MembershipPage() {
           </div>
         </div>
 
+        {d.tenant.active && !d.programActive && (
+          <Alert kind="info">Este programa foi encerrado pelo estabelecimento. Recompensas já liberadas ainda podem ser usadas.</Alert>
+        )}
         {!d.tenant.active && <Alert kind="warning">O programa deste estabelecimento está pausado. Seu progresso continua guardado.</Alert>}
 
         {/* RN-35: consentimento de marketing por estabelecimento, perguntado no app do cliente. */}

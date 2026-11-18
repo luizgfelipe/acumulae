@@ -14,6 +14,7 @@ interface CustomersPage {
   items: Array<{
     membershipId: string;
     name: string;
+    programName: string;
     phone: string | null;
     marketingConsent: boolean | null;
     balance: number;
@@ -43,6 +44,7 @@ export default function CustomersPage() {
     [query, page],
   );
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const manyPrograms = new Set(data?.items.map((i) => i.programName)).size > 1;
 
   return (
     <div className="space-y-5">
@@ -73,6 +75,7 @@ export default function CustomersPage() {
                     <Link href={`/painel/clientes/${c.membershipId}`} className="font-medium hover:text-brand-700">
                       {c.name}
                     </Link>
+                    {manyPrograms && <span className="block text-xs text-stone-500">{c.programName}</span>}
                     {c.rewardsAvailable > 0 && (
                       <span className="ml-2">
                         <Badge color="green">{c.rewardsAvailable} a resgatar</Badge>

@@ -25,6 +25,10 @@ export interface TenantBrief {
 
 export interface MembershipCard {
   membershipId: string;
+  programId: string;
+  programName: string;
+  programActive: boolean;
+  carryOverExcess: boolean;
   balance: number;
   goal: number;
   rewardsAvailable: number;

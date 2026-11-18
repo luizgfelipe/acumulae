@@ -146,7 +146,7 @@ Uma plataforma SaaS multi-tenant em que:
   | Restrição de resgate | Nenhuma | [RECOMENDADO] Ex.: só de segunda a quinta. |
   | Máximo de selos por lançamento | 20 | [RECOMENDADO] Antifraude. |
 
-- **RN-24 [RECOMENDADO]** No MVP, cada tenant tem **um programa ativo** por vez. Alterar a meta não afeta recompensas já liberadas.
+- **RN-24 [DECIDIDO]** O estabelecimento pode ter vários programas (aba **Programas** do painel: criar, editar, ativar, desativar e excluir os que nunca tiveram clientes). O número de programas **ativos ao mesmo tempo** é limitado pelo **plano de contratação** (tabela `plans`, campo `max_active_programs`; no plano PILOTO, 1). O cliente tem um cartão por programa. Alterar a meta não afeta recompensas já liberadas; programa desativado não aceita lançamentos, mas as recompensas já liberadas continuam resgatáveis.
 
 ### 5.4 Consumo (crédito de selos)
 
@@ -159,7 +159,7 @@ Uma plataforma SaaS multi-tenant em que:
 - **RN-34 [DECIDIDO]** O **vínculo** cliente ↔ tenant é criado automaticamente no **primeiro consumo** do cliente naquele tenant.
 - **RN-35 [RECOMENDADO]** Ao criar o vínculo, o cliente é perguntado (no app dele, não no caixa) se aceita receber promoções daquele estabelecimento. O consentimento é **por tenant** (ver seção 10).
 - **RN-36 [RECOMENDADO]** Todo lançamento registra: tenant, unidade, funcionário, cliente, quantidade, origem (`QR_PESSOAL`, `TELEFONE` ou `QR_TEMPORARIO`), data e hora, e uma **chave de idempotência**.
-- **RN-37 [RECOMENDADO]** Excedente de selos é carregado para o próximo ciclo. Ex.: com meta 10, saldo 9 e crédito de 3, libera 1 recompensa e o saldo fica em 2.
+- **RN-37 [DECIDIDO]** Configurável por programa ("Guardar o excedente para o próximo cartão"). Ligado: o excedente é carregado (meta 10, saldo 9, crédito de 3 → 1 recompensa e saldo 2). Desligado: o cartão recomeça do zero e o excedente é registrado como `EXCEDENTE_DESCARTADO` (devolvido se o crédito for estornado); o caixa avisa antes de lançar.
 - **RN-38 [RECOMENDADO]** Ao atingir a meta, a recompensa fica **disponível** imediatamente e o cliente vê isso no app.
 
 ### 5.5 QR temporário (Checkout Token)

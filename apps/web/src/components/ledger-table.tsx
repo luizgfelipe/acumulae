@@ -15,6 +15,7 @@ export interface LedgerItem {
   createdAt: string;
   membershipId: string;
   customerName: string;
+  programName?: string;
   staffName: string | null;
   storeName: string | null;
   reason: string | null;
@@ -33,6 +34,8 @@ function amount(e: LedgerItem) {
 /** Tabela de movimentações do ledger com estorno (RN-70, RN-73). */
 export function LedgerTable({ items, onChanged, showCustomer = true }: { items: LedgerItem[]; onChanged: () => void; showCustomer?: boolean }) {
   const [target, setTarget] = useState<LedgerItem | null>(null);
+  // Só mostra o programa quando há movimentações de mais de um.
+  const manyPrograms = new Set(items.map((i) => i.programName)).size > 1;
 
   if (!items.length) return <p className="py-6 text-center text-sm text-stone-500">Nenhuma movimentação encontrada.</p>;
 
@@ -58,6 +61,7 @@ export function LedgerTable({ items, onChanged, showCustomer = true }: { items: 
                 <td className="py-2.5 pr-3 whitespace-nowrap">{formatDateTime(e.createdAt)}</td>
                 <td className="py-2.5 pr-3">
                   {LEDGER_LABELS[e.type] ?? e.type}
+                  {manyPrograms && e.programName && <span className="block text-xs text-stone-500">{e.programName}</span>}
                   {e.reason && <span className="block text-xs text-stone-500">Motivo: {e.reason}</span>}
                   {e.reversedBy && <span className="block text-xs text-red-600">Estornado em {formatDateTime(e.reversedBy.createdAt)}</span>}
                 </td>

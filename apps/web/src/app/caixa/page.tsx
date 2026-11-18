@@ -11,15 +11,29 @@ import { ApiError, errorMessage, newIdempotencyKey, staffApi } from '@/lib/api';
 import { formatTime, maskPhoneInput, plural } from '@/lib/format';
 import { staffLogout, useStaff } from '@/lib/staff';
 
+interface ProgramView {
+  programId: string;
+  programName: string;
+  programActive: boolean;
+  carryOverExcess: boolean;
+  balance: number;
+  goal: number;
+  rewardsAvailable: number;
+  unitLabel: string;
+  unitLabelPlural: string;
+  rewardDescription: string;
+  maxPerEntry: number;
+  rewards: { id: string; description: string; unlockedAt: string }[];
+  redeem: { allowed: boolean; reason: string | null };
+}
+
 interface CustomerView {
   customerRef: string;
   source: 'QR_PESSOAL' | 'TELEFONE';
   name: string;
   firstVisit: boolean;
-  card: { balance: number; goal: number; rewardsAvailable: number; unitLabel: string; unitLabelPlural: string; rewardDescription: string };
-  rewards: { id: string; description: string; unlockedAt: string }[];
-  maxPerEntry: number;
-  redeem: { allowed: boolean; reason: string | null };
+  /** Um item por programa ativo (e programas encerrados com recompensa a usar). */
+  programs: ProgramView[];
 }
 
 interface Recent {
@@ -269,7 +283,51 @@ function PhoneStep({ onBack, onFound, onCheckout }: { onBack: () => void; onFoun
 
 // ───────────── Cliente identificado: lançar / resgatar ─────────────
 
+/** Seletor de programa (só aparece quando há mais de um). */
+function ProgramPicker({
+  programs,
+  value,
+  onChange,
+}: {
+  programs: { programId: string; programName: string; programActive: boolean; rewardsAvailable?: number }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  if (programs.length <= 1) return null;
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-stone-700">Programa</p>
+      <div className="flex flex-wrap gap-2">
+        {programs.map((p) => (
+          <button
+            key={p.programId}
+            type="button"
+            onClick={() => onChange(p.programId)}
+            className={cx(
+              'rounded-xl border px-3 py-2 text-sm font-semibold',
+              value === p.programId ? 'border-brand-600 bg-brand-600 text-white' : 'border-stone-300 bg-white text-stone-700',
+            )}
+          >
+            {p.programName}
+            {!p.programActive && ' (encerrado)'}
+            {!!p.rewardsAvailable && <span className="ml-1.5 rounded-full bg-emerald-500 px-1.5 text-xs text-white">{p.rewardsAvailable}</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Quantos selos seriam descartados num programa que não guarda o excedente. */
+function discardPreview(p: ProgramView, qty: number) {
+  if (p.carryOverExcess) return 0;
+  const total = p.balance + qty;
+  return total >= p.goal ? total % p.goal : 0;
+}
+
 function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: () => void; onDone: (f: Flash) => void }) {
+  const initial = view.programs.find((p) => p.programActive) ?? view.programs[0];
+  const [programId, setProgramId] = useState(initial?.programId ?? '');
   const [qty, setQty] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,24 +335,44 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   const [redeemQty, setRedeemQty] = useState(1);
   const creditKey = useRef(newIdempotencyKey());
   const redeemKey = useRef(newIdempotencyKey());
-  const c = view.card;
+  const c = view.programs.find((p) => p.programId === programId) ?? initial;
+
+  if (!c) {
+    return (
+      <div className="space-y-4">
+        <StepHeader title="Cliente" onBack={onBack} />
+        <Alert kind="warning">Este estabelecimento não tem programa ativo. Ative um programa no painel.</Alert>
+      </div>
+    );
+  }
+
+  const discard = discardPreview(c, qty);
+
+  function selectProgram(id: string) {
+    setProgramId(id);
+    setQty(1);
+    setError(null);
+    creditKey.current = newIdempotencyKey();
+  }
 
   async function launch() {
     setBusy(true);
     setError(null);
     try {
-      const r = await staffApi<{ rewardsUnlocked: number; card: CustomerView['card'] }>('/api/pos/credits', {
+      const r = await staffApi<{ rewardsUnlocked: number; discarded: number; card: ProgramView }>('/api/pos/credits', {
         method: 'POST',
         headers: { 'Idempotency-Key': creditKey.current },
-        body: { customerRef: view.customerRef, quantity: qty },
+        body: { customerRef: view.customerRef, programId: c.programId, quantity: qty },
       });
+      const parts = [
+        r.rewardsUnlocked > 0 ? `🎉 Recompensa liberada: ${c.rewardDescription}!` : null,
+        r.discarded > 0 ? `${plural(r.discarded, c.unitLabel, c.unitLabelPlural)} além da meta descartado(s).` : null,
+        `Agora: ${r.card.balance}/${r.card.goal}`,
+      ];
       onDone({
         kind: 'success',
         title: `+${plural(qty, c.unitLabel, c.unitLabelPlural)} para ${view.name}`,
-        detail:
-          r.rewardsUnlocked > 0
-            ? `🎉 Recompensa liberada: ${c.rewardDescription}! Agora: ${r.card.balance}/${r.card.goal}`
-            : `Agora: ${r.card.balance}/${r.card.goal}`,
+        detail: [view.programs.length > 1 ? c.programName : null, ...parts].filter(Boolean).join(' · '),
       });
     } catch (e) {
       setError(errorMessage(e));
@@ -309,7 +387,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
       const r = await staffApi<{ redeemed: number; rewards: { description: string }[] }>('/api/pos/redemptions', {
         method: 'POST',
         headers: { 'Idempotency-Key': redeemKey.current },
-        body: { customerRef: view.customerRef, quantity: redeemQty },
+        body: { customerRef: view.customerRef, programId: c.programId, quantity: redeemQty },
       });
       onDone({
         kind: 'success',
@@ -334,9 +412,14 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
           </div>
           {view.firstVisit && <Badge color="brand">Primeira visita</Badge>}
         </div>
+
+        <div className="mt-4">
+          <ProgramPicker programs={view.programs} value={c.programId} onChange={selectProgram} />
+        </div>
+
         <div className="mt-4 space-y-2">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-stone-600">Progresso</span>
+            <span className="text-sm text-stone-600">{view.programs.length > 1 ? c.programName : 'Progresso'}</span>
             <span className="text-xl font-bold tabular-nums">
               {c.balance}/{c.goal}
             </span>
@@ -352,24 +435,38 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
         )}
       </div>
 
-      <div className="rounded-2xl border border-stone-200 bg-white p-5">
-        <p className="mb-3 text-sm font-medium text-stone-700">Quantos {c.unitLabelPlural}?</p>
-        <div className="flex items-center justify-center gap-4">
-          <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
-            −
-          </Button>
-          <span className="w-16 text-center text-5xl font-extrabold tabular-nums">{qty}</span>
-          <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.min(view.maxPerEntry, q + 1))} disabled={qty >= view.maxPerEntry}>
-            +
+      {c.programActive ? (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5">
+          <p className="mb-3 text-sm font-medium text-stone-700">Quantos {c.unitLabelPlural}?</p>
+          <div className="flex items-center justify-center gap-4">
+            <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
+              −
+            </Button>
+            <span className="w-16 text-center text-5xl font-extrabold tabular-nums">{qty}</span>
+            <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.min(c.maxPerEntry, q + 1))} disabled={qty >= c.maxPerEntry}>
+              +
+            </Button>
+          </div>
+          {discard > 0 && (
+            <div className="mt-4">
+              <Alert kind="warning">
+                Este programa não guarda o excedente: o cliente ganha a recompensa e {plural(discard, c.unitLabel, c.unitLabelPlural)}{' '}
+                {discard === 1 ? 'será descartado' : 'serão descartados'}.
+              </Alert>
+            </div>
+          )}
+          <Button size="xl" className="mt-4 w-full" loading={busy && !confirmRedeem} onClick={launch}>
+            Lançar {plural(qty, c.unitLabel, c.unitLabelPlural)}
           </Button>
         </div>
-        <Button size="xl" className="mt-4 w-full" loading={busy && !confirmRedeem} onClick={launch}>
-          Lançar {plural(qty, c.unitLabel, c.unitLabelPlural)}
-        </Button>
-      </div>
+      ) : (
+        <Alert kind="info">
+          O programa &quot;{c.programName}&quot; foi encerrado: não aceita novos lançamentos, mas as recompensas já liberadas podem ser usadas.
+        </Alert>
+      )}
 
       {c.rewardsAvailable > 0 &&
-        (view.redeem.allowed ? (
+        (c.redeem.allowed ? (
           <Button
             size="lg"
             variant="dark"
@@ -383,7 +480,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
             Utilizar recompensa disponível
           </Button>
         ) : (
-          <Alert kind="warning">{view.redeem.reason}</Alert>
+          <Alert kind="warning">{c.redeem.reason}</Alert>
         ))}
 
       {error && <Alert>{error}</Alert>}
@@ -394,7 +491,8 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
             Cliente: <strong>{view.name}</strong>
           </p>
           <p>
-            Recompensa: <strong>{view.rewards[0]?.description ?? c.rewardDescription}</strong>
+            Recompensa: <strong>{c.rewards[0]?.description ?? c.rewardDescription}</strong>
+            {view.programs.length > 1 && <span className="text-stone-500"> ({c.programName})</span>}
           </p>
           <p className="text-sm text-stone-500">
             {c.rewardsAvailable === 1 ? '1 disponível' : `${c.rewardsAvailable} disponíveis`}. Quantas o cliente vai usar agora?
@@ -438,20 +536,37 @@ interface CheckoutToken {
   url: string;
   quantity: number;
   expiresAt: string;
+  programName: string;
 }
 
 function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flash) => void }) {
   const [qty, setQty] = useState(1);
+  const [programs, setPrograms] = useState<ProgramView[] | null>(null);
+  const [programId, setProgramId] = useState('');
   const [token, setToken] = useState<CheckoutToken | null>(null);
   const [left, setLeft] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    staffApi<ProgramView[]>('/api/pos/programs')
+      .then((ps) => {
+        setPrograms(ps);
+        setProgramId(ps[0]?.programId ?? '');
+      })
+      .catch((e) => setError(errorMessage(e)));
+  }, []);
+
   async function generate() {
     setBusy(true);
     setError(null);
     try {
-      setToken(await staffApi<CheckoutToken>('/api/pos/checkout-tokens', { method: 'POST', body: { quantity: qty } }));
+      setToken(
+        await staffApi<CheckoutToken>('/api/pos/checkout-tokens', {
+          method: 'POST',
+          body: { quantity: qty, programId: programId || undefined },
+        }),
+      );
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -526,6 +641,16 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
       <StepHeader title="Gerar QR temporário" onBack={onBack} />
       <p className="text-sm text-stone-600">O cliente escaneia com a câmera do celular. Se ainda não tiver conta, ele se cadastra na hora e recebe o crédito.</p>
       <div className="rounded-2xl border border-stone-200 bg-white p-5">
+        {programs && programs.length > 1 && (
+          <div className="mb-4">
+            <ProgramPicker programs={programs} value={programId} onChange={setProgramId} />
+          </div>
+        )}
+        {programs && programs.length === 0 && (
+          <div className="mb-4">
+            <Alert kind="warning">Nenhum programa ativo. Ative um programa no painel.</Alert>
+          </div>
+        )}
         <p className="mb-3 text-sm font-medium text-stone-700">Quantidade</p>
         <div className="flex items-center justify-center gap-4">
           <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>

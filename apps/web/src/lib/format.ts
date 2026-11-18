@@ -63,6 +63,8 @@ export const LEDGER_LABELS: Record<string, string> = {
   RESGATE: 'Resgate',
   ESTORNO_RESGATE: 'Estorno de resgate',
   EXPIRACAO: 'Expiração',
+  EXCEDENTE_DESCARTADO: 'Excedente descartado',
+  ESTORNO_EXCEDENTE: 'Excedente devolvido',
 };
 
 export const SOURCE_LABELS: Record<string, string> = {

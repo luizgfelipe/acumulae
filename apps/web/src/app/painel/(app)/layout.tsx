@@ -11,7 +11,7 @@ const NAV = [
   { href: '/painel', label: 'Indicadores' },
   { href: '/painel/clientes', label: 'Clientes' },
   { href: '/painel/movimentacoes', label: 'Movimentações' },
-  { href: '/painel/programa', label: 'Programa' },
+  { href: '/painel/programas', label: 'Programas' },
   { href: '/painel/perfil', label: 'Perfil' },
   { href: '/painel/funcionarios', label: 'Funcionários' },
 ];

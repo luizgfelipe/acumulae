@@ -14,7 +14,7 @@ interface PublicTenant {
   active: boolean;
   logoUrl: string | null;
   primaryColor: string;
-  program: { goal: number; unitLabel: string; unitLabelPlural: string; rewardDescription: string; redeemWeekdaysText: string | null } | null;
+  programs: Array<{ id: string; name: string; goal: number; unitLabel: string; unitLabelPlural: string; rewardDescription: string; redeemWeekdaysText: string | null }>;
 }
 
 export default function Page() {
@@ -68,7 +68,7 @@ function StoreLanding() {
   }
   if (!tenant || loading) return <FullPageSpinner />;
 
-  const p = tenant.program;
+  const programs = tenant.programs;
   const back = encodeURIComponent(`/e/${slug}?join=1`);
 
   return (
@@ -78,13 +78,28 @@ function StoreLanding() {
           <TenantAvatar name={tenant.name} logoUrl={tenant.logoUrl} color="rgba(255,255,255,0.25)" size={72} />
           <h1 className="text-2xl font-bold">{tenant.name}</h1>
         </div>
-        {p && (
+        {programs.length === 1 && (
           <div className="space-y-5 p-6">
             <p className="text-center text-lg">
-              Participe do programa de fidelidade: a cada <strong>{p.goal} {p.unitLabelPlural}</strong>, ganhe <strong>{p.rewardDescription}</strong>.
+              Participe do programa de fidelidade: a cada <strong>{programs[0].goal} {programs[0].unitLabelPlural}</strong>, ganhe{' '}
+              <strong>{programs[0].rewardDescription}</strong>.
             </p>
-            <StampGrid filled={0} goal={p.goal} color={tenant.primaryColor} size={p.goal > 15 ? 'sm' : 'md'} />
-            {p.redeemWeekdaysText && <p className="text-center text-sm text-stone-500">Resgate: {p.redeemWeekdaysText}.</p>}
+            <StampGrid filled={0} goal={programs[0].goal} color={tenant.primaryColor} size={programs[0].goal > 15 ? 'sm' : 'md'} />
+            {programs[0].redeemWeekdaysText && <p className="text-center text-sm text-stone-500">Resgate: {programs[0].redeemWeekdaysText}.</p>}
+          </div>
+        )}
+        {programs.length > 1 && (
+          <div className="space-y-3 p-6">
+            <p className="text-center text-lg">Participe dos nossos programas de fidelidade:</p>
+            {programs.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-stone-200 px-4 py-3">
+                <p className="font-semibold">{p.name}</p>
+                <p className="text-sm text-stone-600">
+                  A cada {p.goal} {p.unitLabelPlural}, ganhe {p.rewardDescription}.
+                  {p.redeemWeekdaysText ? ` Resgate: ${p.redeemWeekdaysText}.` : ''}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>

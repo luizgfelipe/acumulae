@@ -112,13 +112,17 @@ function Cards({ firstName }: { firstName: string }) {
       )}
 
       {cards.map((c) => (
-        <MembershipTile key={c.membershipId} card={c} />
+        <MembershipTile
+          key={c.membershipId}
+          card={c}
+          showProgram={cards.filter((x) => x.tenant.slug === c.tenant.slug).length > 1}
+        />
       ))}
     </div>
   );
 }
 
-function MembershipTile({ card: c }: { card: MembershipCard }) {
+function MembershipTile({ card: c, showProgram }: { card: MembershipCard; showProgram: boolean }) {
   const color = c.tenant.primaryColor;
   const fg = readableOn(color);
   const missing = Math.max(0, c.goal - c.balance);
@@ -132,7 +136,7 @@ function MembershipTile({ card: c }: { card: MembershipCard }) {
         <TenantAvatar name={c.tenant.name} logoUrl={c.tenant.logoUrl} color="rgba(255,255,255,0.25)" size={40} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{c.tenant.name}</p>
-          <p className="truncate text-xs opacity-85">{c.rewardDescription}</p>
+          <p className="truncate text-xs opacity-85">{showProgram ? `${c.programName} · ${c.rewardDescription}` : c.rewardDescription}</p>
         </div>
         <span className="text-2xl font-extrabold tabular-nums">
           {c.balance}
@@ -149,6 +153,7 @@ function MembershipTile({ card: c }: { card: MembershipCard }) {
             <Badge color="green">{c.rewardsAvailable === 1 ? 'Recompensa disponível' : `${c.rewardsAvailable} recompensas disponíveis`}</Badge>
           )}
           {!c.tenant.active && <Badge color="amber">Pausado</Badge>}
+          {c.tenant.active && !c.programActive && <Badge color="stone">Encerrado</Badge>}
         </div>
       </div>
     </Link>
