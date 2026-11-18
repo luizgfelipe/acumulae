@@ -150,7 +150,6 @@ function MembershipPage() {
             <li>
               Meta: {d.goal} {d.unitLabelPlural} = {d.rewardDescription}.
             </li>
-            <li>O que passar da meta fica para o próximo cartão.</li>
             {d.rules.redeemWeekdaysText && <li>Resgate permitido: {d.rules.redeemWeekdaysText}.</li>}
             {d.firstVisitAt && <li>Primeira visita em {formatDate(d.firstVisitAt)}.</li>}
           </ul>
