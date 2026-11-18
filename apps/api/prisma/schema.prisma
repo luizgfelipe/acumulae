@@ -1,0 +1,460 @@
+// Modelo de dados do Acumulae (ver especificacao-mvp.md, seção 8).
+// Convenções: UUID, timestamps em UTC, tabelas em snake_case,
+// toda tabela de domínio do estabelecimento tem tenant_id.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Plataforma e estabelecimento ─────────────────────────
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum StoreStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StaffRole {
+  MANAGER
+  ATTENDANT
+}
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String       @unique
+  status    TenantStatus @default(ACTIVE)
+  plan      String       @default("PILOTO")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branding       TenantBranding?
+  stores         Store[]
+  staff          StaffMembership[]
+  invites        StaffInvite[]
+  programs       LoyaltyProgram[]
+  memberships    Membership[]
+  ledgerEntries  LedgerEntry[]
+  rewards        Reward[]
+  checkoutTokens CheckoutToken[]
+
+  @@map("tenants")
+}
+
+model Store {
+  id        String      @id @default(uuid()) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  name      String
+  slug      String
+  address   String?
+  status    StoreStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  staffAccess    StaffStoreAccess[]
+  ledgerEntries  LedgerEntry[]
+  checkoutTokens CheckoutToken[]
+
+  @@unique([tenantId, slug])
+  @@map("stores")
+}
+
+model StaffUser {
+  id           String      @id @default(uuid()) @db.Uuid
+  name         String
+  email        String      @unique
+  passwordHash String?     @map("password_hash")
+  status       StaffStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships    StaffMembership[]
+  sessions       StaffSession[]
+  resetTokens    StaffPasswordResetToken[]
+  ledgerEntries  LedgerEntry[]
+  checkoutTokens CheckoutToken[]
+
+  @@map("staff_users")
+}
+
+model StaffMembership {
+  id          String      @id @default(uuid()) @db.Uuid
+  staffUserId String      @map("staff_user_id") @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  role        StaffRole
+  status      StaffStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  staffUser   StaffUser          @relation(fields: [staffUserId], references: [id])
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  storeAccess StaffStoreAccess[]
+
+  @@unique([staffUserId, tenantId])
+  @@map("staff_memberships")
+}
+
+model StaffStoreAccess {
+  staffMembershipId String @map("staff_membership_id") @db.Uuid
+  storeId           String @map("store_id") @db.Uuid
+
+  staffMembership StaffMembership @relation(fields: [staffMembershipId], references: [id], onDelete: Cascade)
+  store           Store           @relation(fields: [storeId], references: [id])
+
+  @@id([staffMembershipId, storeId])
+  @@map("staff_store_access")
+}
+
+/// Identidade visual. MVP: logo + cor principal. Fase 2: o resto.
+model TenantBranding {
+  tenantId        String   @id @map("tenant_id") @db.Uuid
+  logoUrl         String?  @map("logo_url")
+  primaryColor    String   @default("#E85D04") @map("primary_color")
+  // Fase 2
+  backgroundColor String?  @map("background_color")
+  textColor       String?  @map("text_color")
+  labelColor      String?  @map("label_color")
+  coverImageUrl   String?  @map("cover_image_url")
+  stampFilledUrl  String?  @map("stamp_filled_url")
+  stampEmptyUrl   String?  @map("stamp_empty_url")
+  fontKey         String?  @map("font_key")
+  themeKey        String?  @map("theme_key")
+  version         Int      @default(1)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("tenant_branding")
+}
+
+model StaffInvite {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  email       String
+  name        String?
+  role        StaffRole
+  storeIds    String[]  @default([]) @map("store_ids") @db.Uuid
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt      DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, email])
+  @@map("staff_invites")
+}
+
+model StaffSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  staffUserId      String    @map("staff_user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  /// Contexto escolhido (estabelecimento e unidade) gravado na sessão.
+  tenantId         String?   @map("tenant_id") @db.Uuid
+  storeId          String?   @map("store_id") @db.Uuid
+  deviceLabel      String?   @map("device_label")
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  rotatedAt        DateTime? @map("rotated_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  staffUser StaffUser @relation(fields: [staffUserId], references: [id])
+
+  @@index([staffUserId])
+  @@map("staff_sessions")
+}
+
+model StaffPasswordResetToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  staffUserId String    @map("staff_user_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt      DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  staffUser StaffUser @relation(fields: [staffUserId], references: [id])
+
+  @@map("staff_password_reset_tokens")
+}
+
+model PlatformAuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  action         String
+  targetType     String?  @map("target_type")
+  targetId       String?  @map("target_id")
+  payloadSummary Json?    @map("payload_summary")
+  statusCode     Int?     @map("status_code")
+  sourceIp       String?  @map("source_ip")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("platform_audit_log")
+}
+
+// ───────────────────────── Cliente e autenticação ─────────────────────────
+
+enum CustomerStatus {
+  ACTIVE
+  DELETED
+}
+
+enum IdentityProvider {
+  GOOGLE
+  APPLE
+}
+
+/// Conta GLOBAL: não pertence a nenhum tenant.
+model Customer {
+  id           String         @id @default(uuid()) @db.Uuid
+  name         String
+  /// Nulo apenas enquanto o cadastro via login social não foi completado, ou após exclusão.
+  phoneE164    String?        @unique @map("phone_e164")
+  /// Sempre em minúsculas. Nulo após exclusão (anonimização).
+  email        String?        @unique
+  birthDate    DateTime?      @map("birth_date") @db.Date
+  passwordHash String?        @map("password_hash")
+  status       CustomerStatus @default(ACTIVE)
+  termsAcceptedAt DateTime?   @map("terms_accepted_at") @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  identities    CustomerIdentity[]
+  sessions      CustomerSession[]
+  resetTokens   PasswordResetToken[]
+  memberships   Membership[]
+  usedCheckouts CheckoutToken[]
+
+  @@map("customers")
+}
+
+model CustomerIdentity {
+  id              String           @id @default(uuid()) @db.Uuid
+  customerId      String           @map("customer_id") @db.Uuid
+  provider        IdentityProvider
+  providerSubject String           @map("provider_subject")
+  emailAtProvider String?          @map("email_at_provider")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@map("customer_identities")
+}
+
+model CustomerSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  customerId       String    @map("customer_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  deviceLabel      String?   @map("device_label")
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  rotatedAt        DateTime? @map("rotated_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@map("customer_sessions")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  customerId String    @map("customer_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt     DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("password_reset_tokens")
+}
+
+// ───────────────────────── Fidelidade ─────────────────────────
+
+enum ProgramScope {
+  TENANT
+  STORE
+}
+
+enum LedgerType {
+  CREDITO
+  ESTORNO_CREDITO
+  RECOMPENSA_LIBERADA
+  /// Recompensa ainda não resgatada cancelada por estorno do crédito que a liberou.
+  RECOMPENSA_CANCELADA
+  RESGATE
+  ESTORNO_RESGATE
+  EXPIRACAO
+}
+
+enum LedgerSource {
+  QR_PESSOAL
+  TELEFONE
+  QR_TEMPORARIO
+  SISTEMA
+  PAINEL
+}
+
+enum RewardStatus {
+  DISPONIVEL
+  RESGATADA
+  EXPIRADA
+  ESTORNADA
+}
+
+model LoyaltyProgram {
+  id                String       @id @default(uuid()) @db.Uuid
+  tenantId          String       @map("tenant_id") @db.Uuid
+  unitLabel         String       @default("selo") @map("unit_label")
+  unitLabelPlural   String?      @map("unit_label_plural")
+  goal              Int          @default(10)
+  rewardDescription String       @map("reward_description")
+  /// Q-05: campo existe, mas a expiração não é aplicada no MVP.
+  stampValidityDays Int?         @map("stamp_validity_days")
+  /// Dias da semana ISO (1 = segunda … 7 = domingo) em que o resgate é permitido. Vazio = todos.
+  redeemWeekdays    Int[]        @default([]) @map("redeem_weekdays")
+  maxPerEntry       Int          @default(20) @map("max_per_entry")
+  scope             ProgramScope @default(TENANT)
+  active            Boolean      @default(true)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  memberships Membership[]
+  rewards     Reward[]
+
+  @@index([tenantId, active])
+  @@map("loyalty_programs")
+}
+
+/// O "cartão" do cliente no estabelecimento.
+model Membership {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  customerId             String    @map("customer_id") @db.Uuid
+  programId              String    @map("program_id") @db.Uuid
+  /// null = ainda não perguntado.
+  marketingConsent       Boolean?  @map("marketing_consent")
+  marketingConsentAt     DateTime? @map("marketing_consent_at") @db.Timestamptz(3)
+  firstVisitAt           DateTime? @map("first_visit_at") @db.Timestamptz(3)
+  lastVisitAt            DateTime? @map("last_visit_at") @db.Timestamptz(3)
+  /// Caches derivados do ledger (reconstruíveis).
+  cachedBalance          Int       @default(0) @map("cached_balance")
+  cachedRewardsAvailable Int       @default(0) @map("cached_rewards_available")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  program       LoyaltyProgram @relation(fields: [programId], references: [id])
+  ledgerEntries LedgerEntry[]
+  rewards       Reward[]
+
+  @@unique([tenantId, customerId])
+  @@index([customerId])
+  @@map("memberships")
+}
+
+/// IMUTÁVEL. `quantity` = variação de selos; `rewardsDelta` = variação de recompensas disponíveis.
+model LedgerEntry {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  storeId         String?      @map("store_id") @db.Uuid
+  membershipId    String       @map("membership_id") @db.Uuid
+  type            LedgerType
+  quantity        Int
+  rewardsDelta    Int          @default(0) @map("rewards_delta")
+  source          LedgerSource
+  staffUserId     String?      @map("staff_user_id") @db.Uuid
+  checkoutTokenId String?      @map("checkout_token_id") @db.Uuid
+  reversesEntryId String?      @unique @map("reverses_entry_id") @db.Uuid
+  /// Lançamento que originou este (ex.: CREDITO que liberou a RECOMPENSA_LIBERADA).
+  parentEntryId   String?      @map("parent_entry_id") @db.Uuid
+  rewardId        String?      @map("reward_id") @db.Uuid
+  reason          String?
+  idempotencyKey  String       @map("idempotency_key")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  store         Store?         @relation(fields: [storeId], references: [id])
+  membership    Membership     @relation(fields: [membershipId], references: [id])
+  staffUser     StaffUser?     @relation(fields: [staffUserId], references: [id])
+  checkoutToken CheckoutToken? @relation(fields: [checkoutTokenId], references: [id])
+  reverses      LedgerEntry?   @relation("Reversal", fields: [reversesEntryId], references: [id])
+  reversedBy    LedgerEntry?   @relation("Reversal")
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt])
+  @@index([membershipId, createdAt])
+  @@index([parentEntryId])
+  @@map("ledger_entries")
+}
+
+model Reward {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  membershipId    String       @map("membership_id") @db.Uuid
+  programId       String       @map("program_id") @db.Uuid
+  description     String
+  /// Quantos selos foram convertidos nesta recompensa (meta vigente na liberação).
+  stampsCost      Int          @map("stamps_cost")
+  status          RewardStatus @default(DISPONIVEL)
+  unlockedEntryId String       @unique @map("unlocked_entry_id") @db.Uuid
+  /// CREDITO que levou à liberação.
+  sourceEntryId   String?      @map("source_entry_id") @db.Uuid
+  redeemedEntryId String?      @map("redeemed_entry_id") @db.Uuid
+  redeemedAt      DateTime?    @map("redeemed_at") @db.Timestamptz(3)
+  redeemedStoreId String?      @map("redeemed_store_id") @db.Uuid
+  expiresAt       DateTime?    @map("expires_at") @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
+  membership Membership     @relation(fields: [membershipId], references: [id])
+  program    LoyaltyProgram @relation(fields: [programId], references: [id])
+
+  @@index([membershipId, status])
+  @@map("rewards")
+}
+
+/// QR temporário.
+model CheckoutToken {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  storeId          String    @map("store_id") @db.Uuid
+  staffUserId      String    @map("staff_user_id") @db.Uuid
+  tokenHash        String    @unique @map("token_hash")
+  quantity         Int
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt           DateTime? @map("used_at") @db.Timestamptz(3)
+  usedByCustomerId String?   @map("used_by_customer_id") @db.Uuid
+  cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  store         Store         @relation(fields: [storeId], references: [id])
+  staffUser     StaffUser     @relation(fields: [staffUserId], references: [id])
+  usedBy        Customer?     @relation(fields: [usedByCustomerId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([tenantId, storeId, createdAt])
+  @@map("checkout_tokens")
+}

@@ -1,0 +1,84 @@
+/** Leitura centralizada das variáveis de ambiente. */
+function required(name: string, fallbackForDev: string): string {
+  const v = process.env[name]?.trim();
+  if (v) {
+    if (process.env.NODE_ENV === 'production' && v.startsWith('troque-')) {
+      console.warn(`[config] ${name} ainda está com o valor de exemplo. Troque em produção!`);
+    }
+    return v;
+  }
+  if (process.env.NODE_ENV !== 'production') return fallbackForDev;
+  throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
+}
+
+export const config = {
+  get publicUrl() {
+    return (process.env.PUBLIC_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+  },
+  get jwtSecret() {
+    return required('JWT_SECRET', 'dev-jwt-secret');
+  },
+  get qrSecret() {
+    return required('QR_SECRET', 'dev-qr-secret');
+  },
+  get platformApiKey() {
+    return process.env.PLATFORM_API_KEY?.trim() ?? '';
+  },
+  get platformAllowedIps(): string[] {
+    return (process.env.PLATFORM_ALLOWED_IPS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  },
+  get cookieSecure() {
+    return process.env.COOKIE_SECURE === 'true';
+  },
+  smtp: {
+    get host() {
+      return process.env.SMTP_HOST ?? '';
+    },
+    get port() {
+      return Number(process.env.SMTP_PORT ?? 587);
+    },
+    get secure() {
+      return process.env.SMTP_SECURE === 'true';
+    },
+    get user() {
+      return process.env.SMTP_USER ?? '';
+    },
+    get pass() {
+      return process.env.SMTP_PASS ?? '';
+    },
+    get from() {
+      return process.env.MAIL_FROM ?? 'Acumulae <nao-responda@acumulae.com.br>';
+    },
+  },
+  google: {
+    get clientId() {
+      return process.env.GOOGLE_CLIENT_ID ?? '';
+    },
+    get clientSecret() {
+      return process.env.GOOGLE_CLIENT_SECRET ?? '';
+    },
+    get enabled() {
+      return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+    },
+  },
+  apple: {
+    get enabled() {
+      return process.env.APPLE_ENABLED === 'true' && !!process.env.APPLE_CLIENT_ID;
+    },
+    get clientId() {
+      return process.env.APPLE_CLIENT_ID ?? '';
+    },
+    get teamId() {
+      return process.env.APPLE_TEAM_ID ?? '';
+    },
+    get keyId() {
+      return process.env.APPLE_KEY_ID ?? '';
+    },
+    get privateKey() {
+      return (process.env.APPLE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n');
+    },
+  },
+};
