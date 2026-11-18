@@ -214,7 +214,9 @@ export class StaffAuthService {
       return u;
     });
 
-    const session = await this.sessions.create('staff', user.id, device, { tenantId: inv.tenantId });
+    const wp = (await this.workplaces(user.id)).find((w) => w.tenantId === inv.tenantId);
+    const storeId = wp?.stores.length === 1 ? wp.stores[0].id : null;
+    const session = await this.sessions.create('staff', user.id, device, { tenantId: inv.tenantId, storeId });
     return { user, session, role: inv.role };
   }
 }
