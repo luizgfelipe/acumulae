@@ -10,7 +10,7 @@ Internet ──HTTPS──▶ Traefik (Dokploy) ──▶ web:3000 (Next.js) ─
 
 ```bash
 git remote add origin git@github.com:<seu-usuario>/acumulae.git
-git push -u origin master
+git push -u origin main
 ```
 
 No Dokploy: **Settings → Git → GitHub** e autorize o acesso ao repositório (repositório privado funciona).
@@ -27,7 +27,7 @@ No Registro.br (ou no provedor de DNS do domínio), crie os registros apontando 
 ## 3. Criar o serviço
 
 1. **Projects → Create Project** "Acumulae" → **Create Service → Compose**.
-2. Provider: **GitHub**, repositório `acumulae`, branch `master`.
+2. Provider: **GitHub**, repositório `acumulae`, branch `main`.
 3. Compose Path: `./docker-compose.prod.yml`.
 4. Aba **Environment**: cole as variáveis abaixo (gere os segredos com `openssl rand -base64 48`).
 
@@ -70,7 +70,7 @@ ACUMULAE_URL=https://acumulae.com.br PLATFORM_API_KEY=<chave> \
 
 A resposta traz:
 - `managerInviteUrl`: envie ao gestor (o link também vai por e-mail). Vale 72 h e só pode ser usado uma vez.
-- `storeSignupQrUrl`: o link do QR do balcão. O gestor também imprime o QR em **Painel → Unidades**.
+- `storeSignupQrUrl`: o link do QR do balcão. O gestor também imprime o QR em **Painel → Perfil**.
 
 Outras operações da API da plataforma (todas com o header `X-Platform-Key`):
 
