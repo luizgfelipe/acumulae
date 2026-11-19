@@ -146,13 +146,29 @@ function PasswordModal({ open, onClose, hasPassword, onDone }: { open: boolean; 
     <Modal open={open} onClose={onClose} title={hasPassword ? 'Trocar senha' : 'Criar senha'}>
       {ok ? (
         <div className="space-y-4">
-          <Alert kind="success">Senha alterada. As sessões em outros aparelhos foram encerradas.</Alert>
+          <Alert kind="success">
+            {hasPassword
+              ? 'Senha alterada. As sessões em outros aparelhos foram encerradas.'
+              : 'Senha criada. Agora você também pode entrar com seu telefone ou e-mail e essa senha.'}
+          </Alert>
           <Button className="w-full" onClick={onClose}>
             Fechar
           </Button>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
+          {!hasPassword && (
+            <div className="space-y-2 text-sm text-stone-600">
+              <p>
+                Você já entra com sua conta Google ou Apple e <strong>não precisa de senha</strong>. Criar uma é opcional.
+              </p>
+              <p>Com uma senha, você também pode entrar usando seu telefone ou e-mail. Isso ajuda quando:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>você perder o acesso à sua conta Google ou Apple;</li>
+                <li>estiver em um aparelho onde ela não está conectada.</li>
+              </ul>
+            </div>
+          )}
           {hasPassword && (
             <Field label="Senha atual">
               <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" required />
