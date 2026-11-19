@@ -101,12 +101,21 @@ export class PublicController {
 
   @Get('tenants/:slug/logo')
   async logo(@Param('slug') slug: string, @Query('v') v: string | undefined, @Res() res: Response) {
-    const { data, mime } = await this.me.logo(slug);
-    res.setHeader('Content-Type', mime);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', "default-src 'none'");
-    // Com ?v= (versão do branding) a URL muda a cada troca de logo: cache longo é seguro.
-    res.setHeader('Cache-Control', v ? 'public, max-age=31536000, immutable' : 'public, max-age=300');
-    res.send(data);
+    sendImage(res, await this.me.logo(slug), v);
   }
+
+  @Get('tenants/:slug/stamp')
+  async stamp(@Param('slug') slug: string, @Query('v') v: string | undefined, @Res() res: Response) {
+    sendImage(res, await this.me.stampImage(slug), v);
+  }
+}
+
+/** Imagem guardada no banco (logo, selo), servida com cabeçalhos que impedem execução de conteúdo. */
+function sendImage(res: Response, { data, mime }: { data: Buffer; mime: string }, v: string | undefined) {
+  res.setHeader('Content-Type', mime);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'");
+  // Com ?v= (versão do branding) a URL muda a cada troca de imagem: cache longo é seguro.
+  res.setHeader('Cache-Control', v ? 'public, max-age=31536000, immutable' : 'public, max-age=300');
+  res.send(data);
 }

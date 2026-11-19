@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { CustomerPrincipal } from '../auth/customer-auth.guard';
 import { CustomerAuthService, birthDateSchema, publicCustomer, toDate } from '../auth/customer-auth.service';
 import { SessionsService } from '../auth/sessions.service';
-import { BRANDING_SELECT, brandColors, logoUrlOf } from '../common/branding';
+import { BRANDING_SELECT, brandStyle, logoUrlOf } from '../common/branding';
 import { AppError, badRequest, forbidden, notFound, unauthorized } from '../common/errors';
 import { normalizePhone } from '../common/phone';
 import { hashPassword, passwordProblem, verifyPassword } from '../common/password';
@@ -122,7 +122,7 @@ export class MeService {
         name: m.tenant.name,
         slug: m.tenant.slug,
         logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
-        ...brandColors(m.tenant.branding),
+        ...brandStyle(m.tenant.slug, m.tenant.branding),
         active: m.tenant.status === 'ACTIVE',
       },
       marketingConsent: m.marketingConsent,
@@ -173,7 +173,7 @@ export class MeService {
         name: m.tenant.name,
         slug: m.tenant.slug,
         logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
-        ...brandColors(m.tenant.branding),
+        ...brandStyle(m.tenant.slug, m.tenant.branding),
         active: m.tenant.status === 'ACTIVE',
       },
       rules: {
@@ -255,6 +255,16 @@ export class MeService {
     return { data: Buffer.from(t.branding.logoData), mime: t.branding.logoMime };
   }
 
+  /** Bytes da imagem própria do selo (mesmo esquema de cache do logo). */
+  async stampImage(slug: string) {
+    const t = await this.prisma.tenant.findUnique({
+      where: { slug },
+      select: { branding: { select: { stampImageData: true, stampImageMime: true } } },
+    });
+    if (!t?.branding?.stampImageData || !t.branding.stampImageMime) throw notFound('Imagem do selo não encontrada.');
+    return { data: Buffer.from(t.branding.stampImageData), mime: t.branding.stampImageMime };
+  }
+
   /** Página pública do estabelecimento (QR do balcão, fluxo 6.1). */
   async publicTenant(slug: string) {
     const t = await this.prisma.tenant.findUnique({
@@ -276,7 +286,7 @@ export class MeService {
       slug: t.slug,
       active: t.status === 'ACTIVE',
       logoUrl: logoUrlOf(t.slug, t.branding),
-      ...brandColors(t.branding),
+      ...brandStyle(t.slug, t.branding),
       stores: t.stores,
       programs: t.programs.map(toPublic),
     };

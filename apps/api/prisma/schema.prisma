@@ -40,6 +40,10 @@ model Plan {
   name              String
   /// Quantos programas de fidelidade o estabelecimento pode ter ativos ao mesmo tempo.
   maxActivePrograms Int      @default(1) @map("max_active_programs")
+  /// Quantos ícones de selo do catálogo ficam liberados (os primeiros N; o básico tem 5, o catálogo tem 15).
+  maxStampIcons     Int      @default(5) @map("max_stamp_icons")
+  /// Permite enviar uma imagem própria para o selo.
+  customStampImage  Boolean  @default(false) @map("custom_stamp_image")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -154,6 +158,12 @@ model TenantBranding {
   secondaryColor  String?   @map("secondary_color")
   /// Como as duas cores se combinam no cartão do cliente.
   cardStyle       CardStyle @default(CLASSICO) @map("card_style")
+  /// Ícone do selo cheio (chave do catálogo em src/common/stamps.ts).
+  stampIcon       String    @default("check") @map("stamp_icon")
+  /// Imagem própria do selo (substitui o ícone). Pequena, guardada no banco como o logo.
+  /// Servida em GET /api/public/tenants/{slug}/stamp?v={version}.
+  stampImageData  Bytes?    @map("stamp_image_data")
+  stampImageMime  String?   @map("stamp_image_mime")
   // Fase 2
   backgroundColor String?   @map("background_color")
   textColor       String?   @map("text_color")

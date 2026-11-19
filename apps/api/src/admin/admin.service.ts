@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { LedgerType, Prisma, StaffRole } from '@prisma/client';
 import { z } from 'zod';
 import { config } from '../common/config';
-import { badRequest, conflict, notFound } from '../common/errors';
+import { AppError, badRequest, conflict, notFound } from '../common/errors';
 import { maskPhone } from '../common/phone';
-import { BRANDING_SELECT, brandColors, cardStyleSchema, logoDataUrlSchema, logoUrlOf, parseLogo } from '../common/branding';
+import { BRANDING_SELECT, brandStyle, cardStyleSchema, logoDataUrlSchema, logoUrlOf, parseLogo, stampImageDataUrlSchema } from '../common/branding';
+import { MAX_STAMP_IMAGE_BYTES, STAMP_ICONS, allowedStampIcons } from '../common/stamps';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service';
@@ -17,11 +18,16 @@ export const brandingUpdateSchema = z
     /** null = remove a secundária (a principal faz os dois papéis). */
     secondaryColor: hexColorSchema.nullable().optional(),
     cardStyle: cardStyleSchema.optional(),
+    stampIcon: z.enum(STAMP_ICONS).optional(),
   })
-  .refine((b) => b.primaryColor !== undefined || b.secondaryColor !== undefined || b.cardStyle !== undefined, {
-    message: 'informe ao menos um campo',
-  });
+  .refine((b) => Object.values(b).some((v) => v !== undefined), { message: 'informe ao menos um campo' });
 export const logoUploadSchema = z.object({ image: logoDataUrlSchema.nullable() });
+export const stampImageUploadSchema = z.object({ image: stampImageDataUrlSchema });
+
+/** Recurso fora do plano de contratação. */
+function planFeatureError(message: string) {
+  return new AppError(403, 'PLAN_FEATURE_UNAVAILABLE', message);
+}
 export const profileUpdateSchema = z.object({
   storeName: z.string().trim().min(1).max(120).optional(),
   address: z.string().trim().max(300).nullish(),
@@ -113,7 +119,14 @@ export class AdminService {
 
   /** Cores e modelo do cartão. A versão do branding sobe para invalidar caches (RN-108). */
   async updateBranding(ctx: AdminCtx, input: z.infer<typeof brandingUpdateSchema>) {
-    const data = { primaryColor: input.primaryColor, secondaryColor: input.secondaryColor, cardStyle: input.cardStyle };
+    if (input.stampIcon) {
+      const plan = await this.plan(ctx.tenantId);
+      // Só vale para escolhas novas: quem já usa um ícone e muda de plano continua com ele.
+      if (!allowedStampIcons(plan.maxStampIcons).includes(input.stampIcon)) {
+        throw planFeatureError('Este ícone de selo não está disponível no seu plano.');
+      }
+    }
+    const data = { primaryColor: input.primaryColor, secondaryColor: input.secondaryColor, cardStyle: input.cardStyle, stampIcon: input.stampIcon };
     await this.prisma.tenantBranding.upsert({
       where: { tenantId: ctx.tenantId },
       create: { tenantId: ctx.tenantId, ...data },
@@ -134,6 +147,27 @@ export class AdminService {
     return this.profile(ctx);
   }
 
+  /** Imagem própria do selo (substitui o ícone); `null` remove e volta para o ícone. */
+  async setStampImage(ctx: AdminCtx, image: string | null) {
+    if (image) {
+      const plan = await this.plan(ctx.tenantId);
+      if (!plan.customStampImage) throw planFeatureError('Imagem própria no selo não está disponível no seu plano.');
+    }
+    const img = image ? parseLogo(image, MAX_STAMP_IMAGE_BYTES) : null;
+    const fields = { stampImageData: img?.data ?? null, stampImageMime: img?.mime ?? null };
+    await this.prisma.tenantBranding.upsert({
+      where: { tenantId: ctx.tenantId },
+      create: { tenantId: ctx.tenantId, ...fields },
+      update: { ...fields, version: { increment: 1 } },
+    });
+    return this.profile(ctx);
+  }
+
+  private async plan(tenantId: string) {
+    const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, include: { planRef: true } });
+    return t.planRef;
+  }
+
   // ───────────── Perfil (estabelecimento + unidade principal) ─────────────
 
   /** No MVP cada estabelecimento tem uma unidade; o perfil edita a primeira unidade ativa. */
@@ -147,7 +181,7 @@ export class AdminService {
 
   async profile(ctx: AdminCtx) {
     const [tenant, branding, store] = await Promise.all([
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, include: { planRef: true } }),
       this.prisma.tenantBranding.findUnique({ where: { tenantId: ctx.tenantId }, select: BRANDING_SELECT }),
       this.mainStore(ctx.tenantId),
     ]);
@@ -155,8 +189,15 @@ export class AdminService {
       tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
       branding: {
         logoUrl: logoUrlOf(tenant.slug, branding),
-        ...brandColors(branding),
+        ...brandStyle(tenant.slug, branding),
         version: branding?.version ?? 1,
+      },
+      /** O que o plano libera para o selo (o painel mostra os demais ícones bloqueados). */
+      stampOptions: {
+        icons: STAMP_ICONS,
+        allowedIcons: allowedStampIcons(tenant.planRef.maxStampIcons),
+        customImage: tenant.planRef.customStampImage,
+        planName: tenant.planRef.name,
       },
       store: { id: store.id, name: store.name, address: store.address },
     };

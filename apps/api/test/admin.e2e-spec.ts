@@ -261,6 +261,77 @@ describe('Identidade visual (RN-101, RN-108)', () => {
   });
 });
 
+describe('Ícone e imagem do selo por plano', () => {
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const platform = () => ({
+    put: (url: string) => http().put(url).set('X-Platform-Key', PLATFORM_KEY),
+    patch: (url: string) => http().patch(url).set('X-Platform-Key', PLATFORM_KEY),
+  });
+
+  it('o básico libera só os 5 primeiros ícones e não aceita imagem própria', async () => {
+    const { t, pos } = await setup();
+    const profile = await pos.get('/api/admin/profile').expect(200);
+    expect(profile.body.branding.stampIcon).toBe('check');
+    expect(profile.body.stampOptions).toMatchObject({ customImage: false });
+    expect(profile.body.stampOptions.icons).toHaveLength(15);
+    expect(profile.body.stampOptions.allowedIcons).toEqual(['check', 'star', 'heart', 'coffee', 'utensils']);
+
+    const r = await pos.put('/api/admin/branding').send({ stampIcon: 'star' }).expect(200);
+    expect(r.body.branding.stampIcon).toBe('star');
+    const pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
+    expect(pub.body).toMatchObject({ stampIcon: 'star', stampImageUrl: null });
+
+    const blocked = await pos.put('/api/admin/branding').send({ stampIcon: 'pizza' }).expect(403);
+    expect(blocked.body.code).toBe('PLAN_FEATURE_UNAVAILABLE');
+    await pos.put('/api/admin/branding').send({ stampIcon: 'nao-existe' }).expect(400);
+    const img = await pos.put('/api/admin/branding/stamp-image').send({ image: PNG }).expect(403);
+    expect(img.body.code).toBe('PLAN_FEATURE_UNAVAILABLE');
+  });
+
+  it('plano acima libera os 15 ícones e a imagem própria, servida com cache pela versão', async () => {
+    const { t, pos } = await setup();
+    await platform().put('/api/platform/plans/MAIS').send({ name: 'Mais', maxActivePrograms: 1, maxStampIcons: 15, customStampImage: true }).expect(200);
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'MAIS' }).expect(200);
+
+    await pos.put('/api/admin/branding').send({ stampIcon: 'pizza' }).expect(200);
+    const r = await pos.put('/api/admin/branding/stamp-image').send({ image: PNG }).expect(200);
+    const url: string = r.body.branding.stampImageUrl;
+    expect(url).toMatch(new RegExp(`^/api/public/tenants/${t.slug}/stamp\\?v=\\d+$`));
+    const file = await http().get(url).expect(200);
+    expect(file.headers['content-type']).toBe('image/png');
+    expect(file.headers['cache-control']).toContain('immutable');
+
+    // Arquivo que não é imagem e imagem grande demais são recusados.
+    await pos
+      .put('/api/admin/branding/stamp-image')
+      .send({ image: `data:image/png;base64,${Buffer.from('nao sou uma imagem').toString('base64')}` })
+      .expect(400);
+    await pos
+      .put('/api/admin/branding/stamp-image')
+      .send({ image: `data:image/png;base64,${Buffer.alloc(70 * 1024).toString('base64')}` })
+      .expect(400);
+
+    const removed = await pos.delete('/api/admin/branding/stamp-image').expect(200);
+    expect(removed.body.branding).toMatchObject({ stampImageUrl: null, stampIcon: 'pizza' });
+    await http().get(`/api/public/tenants/${t.slug}/stamp`).expect(404);
+  });
+
+  it('ao voltar para o básico, quem já usa um ícone mantém; só escolhas novas são barradas', async () => {
+    const { t, pos } = await setup();
+    await platform().put('/api/platform/plans/MAIS').send({ name: 'Mais', maxActivePrograms: 1, maxStampIcons: 15, customStampImage: true }).expect(200);
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'MAIS' }).expect(200);
+    await pos.put('/api/admin/branding').send({ stampIcon: 'fish' }).expect(200);
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'PILOTO' }).expect(200);
+
+    const pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
+    expect(pub.body.stampIcon).toBe('fish');
+    await pos.put('/api/admin/branding').send({ stampIcon: 'crown' }).expect(403);
+    // Mudar só as cores continua funcionando.
+    await pos.put('/api/admin/branding').send({ primaryColor: '#123456' }).expect(200);
+  });
+});
+
 describe('Programas no painel (RN-23, RN-24)', () => {
   it('valida os campos do programa', async () => {
     const { pos } = await setup();

@@ -9,6 +9,7 @@ import {
   customersQuerySchema,
   ledgerQuerySchema,
   logoUploadSchema,
+  stampImageUploadSchema,
   profileUpdateSchema,
   reverseSchema,
   staffInviteSchema,
@@ -92,6 +93,16 @@ export class AdminController {
   @Delete('branding/logo')
   removeLogo(@CurrentStaff() s: TenantStaff) {
     return this.admin.setLogo(ctxOf(s), null);
+  }
+
+  @Put('branding/stamp-image')
+  setStampImage(@CurrentStaff() s: TenantStaff, @Body(new ZodPipe(stampImageUploadSchema)) b: z.infer<typeof stampImageUploadSchema>) {
+    return this.admin.setStampImage(ctxOf(s), b.image);
+  }
+
+  @Delete('branding/stamp-image')
+  removeStampImage(@CurrentStaff() s: TenantStaff) {
+    return this.admin.setStampImage(ctxOf(s), null);
   }
 
   @Get('profile')

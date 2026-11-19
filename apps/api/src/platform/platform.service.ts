@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, StaffRole } from '@prisma/client';
 import { z } from 'zod';
-import { BRANDING_SELECT, brandColors, logoUrlOf, parseLogo } from '../common/branding';
+import { BRANDING_SELECT, brandStyle, logoUrlOf, parseLogo } from '../common/branding';
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
+import { STAMP_ICONS } from '../common/stamps';
 import {
   brandingFieldsSchema,
   emailSchema,
@@ -33,7 +34,21 @@ export const planCodeSchema = z.string().regex(/^[A-Z0-9_]{2,40}$/, 'use letras 
 export const planSchema = z.object({
   name: z.string().trim().min(1).max(60),
   maxActivePrograms: z.number().int().min(1).max(50),
+  /** Quantos ícones do catálogo o plano libera (os primeiros N). Padrão na criação: 5. */
+  maxStampIcons: z.number().int().min(1).max(STAMP_ICONS.length).optional(),
+  /** Libera a imagem própria no selo. Padrão na criação: false. */
+  customStampImage: z.boolean().optional(),
 });
+
+function planView(p: { code: string; name: string; maxActivePrograms: number; maxStampIcons: number; customStampImage: boolean }) {
+  return {
+    code: p.code,
+    name: p.name,
+    maxActivePrograms: p.maxActivePrograms,
+    maxStampIcons: p.maxStampIcons,
+    customStampImage: p.customStampImage,
+  };
+}
 
 export const updateTenantSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
@@ -82,6 +97,7 @@ export class PlatformService {
             ...(input.branding?.primaryColor ? { primaryColor: input.branding.primaryColor } : {}),
             secondaryColor: input.branding?.secondaryColor ?? null,
             ...(input.branding?.cardStyle ? { cardStyle: input.branding.cardStyle } : {}),
+            ...(input.branding?.stampIcon ? { stampIcon: input.branding.stampIcon } : {}),
           },
         });
         const store = await tx.store.create({
@@ -178,7 +194,7 @@ export class PlatformService {
       createdAt: t.createdAt,
       branding: t.branding && {
         logoUrl: logoUrlOf(t.slug, t.branding),
-        ...brandColors(t.branding),
+        ...brandStyle(t.slug, t.branding),
         version: t.branding.version,
       },
       stores: t.stores.map((s) => ({ id: s.id, name: s.name, slug: s.slug, address: s.address, status: s.status })),
@@ -203,7 +219,7 @@ export class PlatformService {
         const logo = b.logo ? parseLogo(b.logo) : null;
         const logoFields =
           b.logo === undefined ? {} : { logoData: logo?.data ?? null, logoMime: logo?.mime ?? null };
-        const colors = { primaryColor: b.primaryColor, secondaryColor: b.secondaryColor, cardStyle: b.cardStyle };
+        const colors = { primaryColor: b.primaryColor, secondaryColor: b.secondaryColor, cardStyle: b.cardStyle, stampIcon: b.stampIcon };
         await tx.tenantBranding.upsert({
           where: { tenantId: id },
           create: { tenantId: id, ...colors, ...logoFields },
@@ -224,17 +240,23 @@ export class PlatformService {
 
   async listPlans() {
     const plans = await this.prisma.plan.findMany({ orderBy: { code: 'asc' }, include: { _count: { select: { tenants: true } } } });
-    return plans.map((p) => ({ code: p.code, name: p.name, maxActivePrograms: p.maxActivePrograms, tenants: p._count.tenants }));
+    return plans.map((p) => ({ ...planView(p), tenants: p._count.tenants }));
   }
 
   /** Cria ou altera um plano. Reduzir o limite não desativa programas já ativos; só impede ativar novos. */
   async upsertPlan(code: string, input: z.infer<typeof planSchema>) {
+    const limits = {
+      name: input.name,
+      maxActivePrograms: input.maxActivePrograms,
+      maxStampIcons: input.maxStampIcons,
+      customStampImage: input.customStampImage,
+    };
     const p = await this.prisma.plan.upsert({
       where: { code },
-      create: { code, name: input.name, maxActivePrograms: input.maxActivePrograms },
-      update: { name: input.name, maxActivePrograms: input.maxActivePrograms },
+      create: { code, ...limits },
+      update: limits,
     });
-    return { code: p.code, name: p.name, maxActivePrograms: p.maxActivePrograms };
+    return planView(p);
   }
 
   async setStatus(id: string, status: 'ACTIVE' | 'SUSPENDED') {

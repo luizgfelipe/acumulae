@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { cardStyleSchema, logoDataUrlSchema } from './branding';
+import { STAMP_ICONS } from './stamps';
 
 export const slugSchema = z
   .string()
@@ -37,6 +38,8 @@ export const brandingFieldsSchema = z.object({
   /** null = remove a secundária (a principal faz os dois papéis). */
   secondaryColor: hexColorSchema.nullish(),
   cardStyle: cardStyleSchema.optional(),
+  /** A plataforma pode escolher qualquer ícone do catálogo, sem o limite do plano. */
+  stampIcon: z.enum(STAMP_ICONS).optional(),
 });
 
 export const pageSchema = z.object({

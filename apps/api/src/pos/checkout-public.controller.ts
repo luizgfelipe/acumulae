@@ -1,6 +1,6 @@
 import { Controller, Get, HttpCode, Injectable, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentCustomer, CustomerAuthGuard, CustomerPrincipal } from '../auth/customer-auth.guard';
-import { BRANDING_SELECT, brandColors, logoUrlOf } from '../common/branding';
+import { BRANDING_SELECT, brandStyle, logoUrlOf } from '../common/branding';
 import { sha256 } from '../common/crypto';
 import { AppError, forbidden, gone, notFound } from '../common/errors';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
@@ -36,7 +36,7 @@ export class CheckoutClaimService {
         name: t.tenant.name,
         slug: t.tenant.slug,
         logoUrl: logoUrlOf(t.tenant.slug, t.tenant.branding),
-        ...brandColors(t.tenant.branding),
+        ...brandStyle(t.tenant.slug, t.tenant.branding),
         active: t.tenant.status === 'ACTIVE',
       },
       storeName: t.store.name,

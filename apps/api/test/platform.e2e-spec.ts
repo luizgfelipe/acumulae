@@ -149,6 +149,15 @@ describe('Manutenção pelo admin (RN-95)', () => {
   it('código de plano inválido é recusado', async () => {
     await platform().put('/api/platform/plans/minusculo').send({ name: 'X', maxActivePrograms: 1 }).expect(400);
     await platform().put('/api/platform/plans/ZERO').send({ name: 'X', maxActivePrograms: 0 }).expect(400);
+    await platform().put('/api/platform/plans/MUITOS').send({ name: 'X', maxActivePrograms: 1, maxStampIcons: 16 }).expect(400);
+  });
+
+  it('limites do selo: padrão do básico na criação e mantidos quando o plano é editado sem eles', async () => {
+    const created = await platform().put('/api/platform/plans/SELO').send({ name: 'Selo', maxActivePrograms: 1 }).expect(200);
+    expect(created.body).toMatchObject({ maxStampIcons: 5, customStampImage: false });
+    await platform().put('/api/platform/plans/SELO').send({ name: 'Selo', maxActivePrograms: 1, maxStampIcons: 15, customStampImage: true }).expect(200);
+    const edited = await platform().put('/api/platform/plans/SELO').send({ name: 'Selo 2', maxActivePrograms: 2 }).expect(200);
+    expect(edited.body).toMatchObject({ name: 'Selo 2', maxStampIcons: 15, customStampImage: true });
   });
 
   it('estabelecimento inexistente responde 404', async () => {
