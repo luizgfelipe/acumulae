@@ -136,24 +136,35 @@ model StaffStoreAccess {
 }
 
 /// Identidade visual. MVP: logo + cor principal. Fase 2: o resto.
+/// Modelos de cartão: CLASSICO (selos e barra na secundária), DEGRADE (topo em degradê), MOLDURA (borda na secundária).
+enum CardStyle {
+  CLASSICO
+  DEGRADE
+  MOLDURA
+}
+
 model TenantBranding {
-  tenantId        String   @id @map("tenant_id") @db.Uuid
+  tenantId        String    @id @map("tenant_id") @db.Uuid
   /// Logo guardado no próprio banco (MVP): imagem pequena, redimensionada no navegador.
   /// Servido em GET /api/public/tenants/{slug}/logo?v={version}.
-  logoData        Bytes?   @map("logo_data")
-  logoMime        String?  @map("logo_mime")
-  primaryColor    String   @default("#E85D04") @map("primary_color")
+  logoData        Bytes?    @map("logo_data")
+  logoMime        String?   @map("logo_mime")
+  primaryColor    String    @default("#E85D04") @map("primary_color")
+  /// null = a principal faz também o papel da secundária.
+  secondaryColor  String?   @map("secondary_color")
+  /// Como as duas cores se combinam no cartão do cliente.
+  cardStyle       CardStyle @default(CLASSICO) @map("card_style")
   // Fase 2
-  backgroundColor String?  @map("background_color")
-  textColor       String?  @map("text_color")
-  labelColor      String?  @map("label_color")
-  coverImageUrl   String?  @map("cover_image_url")
-  stampFilledUrl  String?  @map("stamp_filled_url")
-  stampEmptyUrl   String?  @map("stamp_empty_url")
-  fontKey         String?  @map("font_key")
-  themeKey        String?  @map("theme_key")
-  version         Int      @default(1)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  backgroundColor String?   @map("background_color")
+  textColor       String?   @map("text_color")
+  labelColor      String?   @map("label_color")
+  coverImageUrl   String?   @map("cover_image_url")
+  stampFilledUrl  String?   @map("stamp_filled_url")
+  stampEmptyUrl   String?   @map("stamp_empty_url")
+  fontKey         String?   @map("font_key")
+  themeKey        String?   @map("theme_key")
+  version         Int       @default(1)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 

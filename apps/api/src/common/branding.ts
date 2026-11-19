@@ -1,8 +1,22 @@
+import { CardStyle } from '@prisma/client';
 import { z } from 'zod';
 import { badRequest } from './errors';
 
 /** Campos da identidade visual carregados nas listagens (sem os bytes do logo). */
-export const BRANDING_SELECT = { primaryColor: true, logoMime: true, version: true } as const;
+export const BRANDING_SELECT = { primaryColor: true, secondaryColor: true, cardStyle: true, logoMime: true, version: true } as const;
+
+export const DEFAULT_PRIMARY_COLOR = '#E85D04';
+
+export const cardStyleSchema = z.nativeEnum(CardStyle);
+
+/** Cores e modelo do cartão, com os padrões. `secondaryColor` null = a principal faz os dois papéis. */
+export function brandColors(b: { primaryColor: string; secondaryColor: string | null; cardStyle: CardStyle } | null | undefined) {
+  return {
+    primaryColor: b?.primaryColor ?? DEFAULT_PRIMARY_COLOR,
+    secondaryColor: b?.secondaryColor ?? null,
+    cardStyle: b?.cardStyle ?? CardStyle.CLASSICO,
+  };
+}
 
 /** Tamanho máximo do logo já decodificado. O navegador reduz para 256 px antes de enviar. */
 export const MAX_LOGO_BYTES = 200 * 1024;

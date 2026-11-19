@@ -4,14 +4,23 @@ import { z } from 'zod';
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
 import { maskPhone } from '../common/phone';
-import { BRANDING_SELECT, logoDataUrlSchema, logoUrlOf, parseLogo } from '../common/branding';
+import { BRANDING_SELECT, brandColors, cardStyleSchema, logoDataUrlSchema, logoUrlOf, parseLogo } from '../common/branding';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvitesService } from '../staff/invites.service';
 
-export const brandingUpdateSchema = z.object({ primaryColor: hexColorSchema });
+export const brandingUpdateSchema = z
+  .object({
+    primaryColor: hexColorSchema.optional(),
+    /** null = remove a secundária (a principal faz os dois papéis). */
+    secondaryColor: hexColorSchema.nullable().optional(),
+    cardStyle: cardStyleSchema.optional(),
+  })
+  .refine((b) => b.primaryColor !== undefined || b.secondaryColor !== undefined || b.cardStyle !== undefined, {
+    message: 'informe ao menos um campo',
+  });
 export const logoUploadSchema = z.object({ image: logoDataUrlSchema.nullable() });
 export const profileUpdateSchema = z.object({
   storeName: z.string().trim().min(1).max(120).optional(),
@@ -102,12 +111,13 @@ export class AdminService {
 
   // ───────────── Identidade visual ─────────────
 
-  /** Cor principal. A versão do branding sobe para invalidar caches (RN-108). */
+  /** Cores e modelo do cartão. A versão do branding sobe para invalidar caches (RN-108). */
   async updateBranding(ctx: AdminCtx, input: z.infer<typeof brandingUpdateSchema>) {
+    const data = { primaryColor: input.primaryColor, secondaryColor: input.secondaryColor, cardStyle: input.cardStyle };
     await this.prisma.tenantBranding.upsert({
       where: { tenantId: ctx.tenantId },
-      create: { tenantId: ctx.tenantId, primaryColor: input.primaryColor },
-      update: { primaryColor: input.primaryColor, version: { increment: 1 } },
+      create: { tenantId: ctx.tenantId, ...data },
+      update: { ...data, version: { increment: 1 } },
     });
     return this.profile(ctx);
   }
@@ -145,7 +155,7 @@ export class AdminService {
       tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
       branding: {
         logoUrl: logoUrlOf(tenant.slug, branding),
-        primaryColor: branding?.primaryColor ?? '#E85D04',
+        ...brandColors(branding),
         version: branding?.version ?? 1,
       },
       store: { id: store.id, name: store.name, address: store.address },

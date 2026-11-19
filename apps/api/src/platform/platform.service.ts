@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, StaffRole } from '@prisma/client';
 import { z } from 'zod';
-import { BRANDING_SELECT, logoUrlOf, parseLogo } from '../common/branding';
+import { BRANDING_SELECT, brandColors, logoUrlOf, parseLogo } from '../common/branding';
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
 import {
@@ -80,6 +80,8 @@ export class PlatformService {
             logoData: logo?.data ?? null,
             logoMime: logo?.mime ?? null,
             ...(input.branding?.primaryColor ? { primaryColor: input.branding.primaryColor } : {}),
+            secondaryColor: input.branding?.secondaryColor ?? null,
+            ...(input.branding?.cardStyle ? { cardStyle: input.branding.cardStyle } : {}),
           },
         });
         const store = await tx.store.create({
@@ -176,7 +178,7 @@ export class PlatformService {
       createdAt: t.createdAt,
       branding: t.branding && {
         logoUrl: logoUrlOf(t.slug, t.branding),
-        primaryColor: t.branding.primaryColor,
+        ...brandColors(t.branding),
         version: t.branding.version,
       },
       stores: t.stores.map((s) => ({ id: s.id, name: s.name, slug: s.slug, address: s.address, status: s.status })),
@@ -201,10 +203,11 @@ export class PlatformService {
         const logo = b.logo ? parseLogo(b.logo) : null;
         const logoFields =
           b.logo === undefined ? {} : { logoData: logo?.data ?? null, logoMime: logo?.mime ?? null };
+        const colors = { primaryColor: b.primaryColor, secondaryColor: b.secondaryColor, cardStyle: b.cardStyle };
         await tx.tenantBranding.upsert({
           where: { tenantId: id },
-          create: { tenantId: id, primaryColor: b.primaryColor, ...logoFields },
-          update: { primaryColor: b.primaryColor, ...logoFields, version: { increment: 1 } },
+          create: { tenantId: id, ...colors, ...logoFields },
+          update: { ...colors, ...logoFields, version: { increment: 1 } },
         });
       }
     });

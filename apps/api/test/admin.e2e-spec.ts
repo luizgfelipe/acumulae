@@ -239,6 +239,26 @@ describe('Identidade visual (RN-101, RN-108)', () => {
     expect(pub.body.primaryColor).toBe('#123456');
     await pos.put('/api/admin/branding').send({ primaryColor: 'azul' }).expect(400);
   });
+
+  it('cor secundária e modelo de cartão: sem secundária por padrão, salvar, remover e validar', async () => {
+    const { t, pos } = await setup();
+    const before = await pos.get('/api/admin/profile').expect(200);
+    expect(before.body.branding).toMatchObject({ secondaryColor: null, cardStyle: 'CLASSICO' });
+
+    const r = await pos.put('/api/admin/branding').send({ secondaryColor: '#FFD166', cardStyle: 'DEGRADE' }).expect(200);
+    expect(r.body.branding).toMatchObject({ secondaryColor: '#FFD166', cardStyle: 'DEGRADE', version: before.body.branding.version + 1 });
+    // Só a secundária e o modelo mudaram; a principal fica como estava.
+    expect(r.body.branding.primaryColor).toBe(before.body.branding.primaryColor);
+    const pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
+    expect(pub.body).toMatchObject({ secondaryColor: '#FFD166', cardStyle: 'DEGRADE' });
+
+    const cleared = await pos.put('/api/admin/branding').send({ secondaryColor: null }).expect(200);
+    expect(cleared.body.branding).toMatchObject({ secondaryColor: null, cardStyle: 'DEGRADE' });
+
+    await pos.put('/api/admin/branding').send({ secondaryColor: 'amarelo' }).expect(400);
+    await pos.put('/api/admin/branding').send({ cardStyle: 'NEON' }).expect(400);
+    await pos.put('/api/admin/branding').send({}).expect(400);
+  });
 });
 
 describe('Programas no painel (RN-23, RN-24)', () => {

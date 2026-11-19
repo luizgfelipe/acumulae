@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { CustomerPrincipal } from '../auth/customer-auth.guard';
 import { CustomerAuthService, birthDateSchema, publicCustomer, toDate } from '../auth/customer-auth.service';
 import { SessionsService } from '../auth/sessions.service';
-import { BRANDING_SELECT, logoUrlOf } from '../common/branding';
+import { BRANDING_SELECT, brandColors, logoUrlOf } from '../common/branding';
 import { AppError, badRequest, forbidden, notFound, unauthorized } from '../common/errors';
 import { normalizePhone } from '../common/phone';
 import { hashPassword, passwordProblem, verifyPassword } from '../common/password';
@@ -122,7 +122,7 @@ export class MeService {
         name: m.tenant.name,
         slug: m.tenant.slug,
         logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
-        primaryColor: m.tenant.branding?.primaryColor ?? '#E85D04',
+        ...brandColors(m.tenant.branding),
         active: m.tenant.status === 'ACTIVE',
       },
       marketingConsent: m.marketingConsent,
@@ -173,7 +173,7 @@ export class MeService {
         name: m.tenant.name,
         slug: m.tenant.slug,
         logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
-        primaryColor: m.tenant.branding?.primaryColor ?? '#E85D04',
+        ...brandColors(m.tenant.branding),
         active: m.tenant.status === 'ACTIVE',
       },
       rules: {
@@ -276,7 +276,7 @@ export class MeService {
       slug: t.slug,
       active: t.status === 'ACTIVE',
       logoUrl: logoUrlOf(t.slug, t.branding),
-      primaryColor: t.branding?.primaryColor ?? '#E85D04',
+      ...brandColors(t.branding),
       stores: t.stores,
       programs: t.programs.map(toPublic),
     };
