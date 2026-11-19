@@ -11,7 +11,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "test:e2e": "jest --config test/jest-e2e.json --runInBand"
+    "test": "jest --config test/jest-unit.json",
+    "test:cov": "jest --config test/jest-unit.json --coverage",
+    "test:e2e": "jest --config test/jest-e2e.json --runInBand",
+    "test:all": "npm test && npm run test:e2e"
   },
   "dependencies": {
     "@nestjs/common": "11.2.11",
