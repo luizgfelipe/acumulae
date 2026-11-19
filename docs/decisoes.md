@@ -80,5 +80,33 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 
 - **Ícone do selo:** cada estabelecimento escolhe, na aba Perfil, o ícone que aparece nos selos cheios (`tenant_branding.stamp_icon`, padrão `check`). O catálogo tem 15 ícones do lucide, em ordem fixa (`apps/api/src/common/stamps.ts`, espelhado em `apps/web/src/lib/stamp-icons.tsx`): os 5 primeiros (visto, estrela, coração, café, talheres) são do plano básico, e os outros 10 vêm nos planos acima.
 - **Imagem própria do selo:** substitui o ícone. PNG, JPG ou WebP, reduzida a 128 px no navegador, até 64 KB, guardada no banco como o logo e servida em `GET /api/public/tenants/{slug}/stamp?v={versão}`.
-- **Limites por plano:** `plans.max_stamp_icons` (quantos ícones do catálogo ficam liberados, os primeiros N; padrão 5) e `plans.custom_stamp_image` (padrão `false`), definidos em `PUT /api/platform/plans/{CODE}`. O `PILOTO` fica com o básico. Como nos programas, a regra vale só para escolhas novas: quem muda para um plano menor mantém o ícone ou a imagem que já usa.
+- **Limites por plano:** `plans.max_stamp_icons` (quantos ícones do catálogo ficam liberados, os primeiros N; padrão 5) e `plans.custom_stamp_image` (padrão `false`), definidos em `PUT /api/platform/plans/{CODE}`. O `PILOTO` fica com o básico. Fora do plano vigente, o ícone e a imagem deixam de aparecer (o selo volta ao ✓), mas ficam guardados e voltam num upgrade (ver "Planos e limites" abaixo).
 - **Convite para instalar o app:** aparece só no celular e nunca com o app já instalado. Abre logo depois do cadastro (inclusive pelo login social), a cada selo ganho pelo QR temporário e como faixa na tela de cartões, que volta 3 dias depois de fechada. No Android o botão abre a instalação nativa (`beforeinstallprompt`); no iPhone, onde a Apple não permite isso, o convite mostra o passo a passo do Safari.
+
+## Planos e limites (20/11/2026)
+
+- **Grade:** semeada pela migration `20261120090000_plans_grid` (os mesmos valores estão em `apps/api/src/plans/plans.ts`, usados pelos testes). Preços só informativos: a cobrança, o plano anual (2 meses grátis) e o kit de balcão ficam fora do sistema.
+
+  | | PILOTO | ESSENCIAL | PROFISSIONAL | REDE |
+  |---|---|---|---|---|
+  | Preço/mês | grátis | R$ 69,90 | R$ 79,90 | R$ 199,90 |
+  | Clientes ativos (90 dias) | 300 | 300 | 1.500 | ilimitado |
+  | Programas ativos | 1 | 1 | 3 | ilimitado |
+  | Unidades inclusas / extra | 1 / — | 1 / — | 1 / R$ 39,90 | 3 / R$ 49,90 |
+  | Funcionários | 3 | 3 | ilimitado | ilimitado |
+  | Ícones de selo / imagem própria | 5 / não | 5 / não | 15 / sim | 15 / sim |
+  | Cor secundária e modelos | não | não | sim | sim |
+  | Relatórios e CSV | não | não | sim | sim |
+  | Painel da rede | não | não | não | sim |
+  | Suporte | e-mail | e-mail | WhatsApp | WhatsApp prioritário |
+
+  O Essencial fica de propósito só R$ 10 abaixo do Profissional (estratégia do "chamariz"), para o Profissional parecer o melhor negócio.
+- **Validade:** `tenants.plan_expires_at` (opcional). Depois dela vale o ESSENCIAL até a plataforma trocar o plano ou desativar o estabelecimento; o painel avisa 7 dias antes e mostra o plano vencido. Os pilotos ficam no `PILOTO` (mesmos recursos do Essencial) com validade de 3 meses, definida pela plataforma.
+- **Unidades extras:** `tenants.extra_stores` soma às inclusas no plano (não valem com o plano vencido).
+- **Clientes ativos:** clientes distintos com visita nos últimos 90 dias. Passar do limite nunca trava o cadastro nem o caixa; o painel avisa a partir de 90% e sugere o upgrade.
+- **Funcionários:** contam gestores e atendentes ativos e os convites pendentes (um por e-mail).
+- **Downgrade ou vencimento:** limites de quantidade (programas, unidades, funcionários) só bloqueiam criar, ativar, convidar ou reativar além do limite; nada é desativado. Recursos visuais fora do plano (cor secundária, modelo, ícones além dos liberados, imagem do selo) deixam de aparecer para o cliente, mas ficam guardados e voltam num upgrade.
+- **Relatórios (Profissional e Rede):** aniversariantes do mês, inativos há 30/60/90 dias e por funcionário (lançamentos, % pelo telefone, créditos estornados e resgates; destaca quem usa o telefone 2× acima da média da equipe, com pelo menos 5 lançamentos). O CSV de clientes traz só quem aceitou receber promoções daquele estabelecimento (LGPD), protege as células contra fórmulas e registra no log quem exportou.
+- **Painel da rede (Rede):** compara as unidades no mês (visitas, selos, clientes novos pelo primeiro selo na unidade, resgates) e os clientes ativos de cada uma; o total de clientes ativos conta uma vez quem frequenta mais de uma unidade.
+- **Como a plataforma administra:** `PUT /api/platform/plans/{CODE}` altera preços, limites (`null` = ilimitado) e recursos; `PATCH /api/platform/tenants/{id}` com `plan`, `planExpiresAt` (data, vale até o fim do dia, ou `null`) e `extraStores`.
+- **Pendente:** o painel ainda não mostra um contato do suporte (e-mail ou WhatsApp) para pedir a troca de plano; e o `?u=` do QR de cada unidade ainda não é usado para registrar em qual unidade o cliente se cadastrou.

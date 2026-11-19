@@ -146,7 +146,7 @@ Uma plataforma SaaS multi-tenant em que:
   | Restrição de resgate | Nenhuma | [RECOMENDADO] Ex.: só de segunda a quinta. |
   | Máximo de selos por lançamento | 20 | [RECOMENDADO] Antifraude. |
 
-- **RN-24 [DECIDIDO]** O estabelecimento pode ter vários programas (aba **Programas** do painel: criar, editar, ativar, desativar e excluir os que nunca tiveram clientes). O número de programas **ativos ao mesmo tempo** é limitado pelo **plano de contratação** (tabela `plans`, campo `max_active_programs`; no plano PILOTO, 1). O cliente tem um cartão por programa. Alterar a meta não afeta recompensas já liberadas; programa desativado não aceita lançamentos, mas as recompensas já liberadas continuam resgatáveis.
+- **RN-24 [DECIDIDO]** O estabelecimento pode ter vários programas (aba **Programas** do painel: criar, editar, ativar, desativar e excluir os que nunca tiveram clientes). O número de programas **ativos ao mesmo tempo** é limitado pelo **plano de contratação** (tabela `plans`, campo `max_active_programs`: 1 no PILOTO e no Essencial, 3 no Profissional, ilimitado no Rede; grade completa em `docs/decisoes.md`). O cliente tem um cartão por programa. Alterar a meta não afeta recompensas já liberadas; programa desativado não aceita lançamentos, mas as recompensas já liberadas continuam resgatáveis.
 
 ### 5.4 Consumo (crédito de selos)
 
@@ -387,8 +387,15 @@ Convenções [RECOMENDADO]: PostgreSQL; IDs em UUID; `created_at`/`updated_at` e
 
 ```text
 tenants
-  id, name, slug (único), status (ACTIVE|SUSPENDED), plan, created_at
+  id, name, slug (único), status (ACTIVE|SUSPENDED), plan → plans,
+  plan_expires_at (depois dela vale o ESSENCIAL), extra_stores, created_at
   -- logo e cores ficam em tenant_branding
+
+plans                       -- planos de contratação (limites null = ilimitado)
+  code (PK), name, price_cents, max_active_customers, max_active_programs,
+  included_stores, extra_store_price_cents, max_staff, max_stamp_icons,
+  custom_stamp_image, card_customization, reports, customer_export,
+  network_dashboard, support_channel (EMAIL|WHATSAPP|WHATSAPP_PRIORITARIO)
 
 stores                      -- unidades
   id, tenant_id → tenants, name, slug, address, status, created_at
