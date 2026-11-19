@@ -528,3 +528,32 @@ describe('Relatórios e exportação (Profissional)', () => {
     expect(body).not.toContain('Sem Consentimento');
   });
 });
+
+describe('Painel consolidado da rede (plano Rede)', () => {
+  it('Profissional não tem o painel da rede', async () => {
+    const { pos } = await setup({ plan: 'PROFISSIONAL' });
+    const r = await pos.get('/api/admin/network').expect(403);
+    expect(r.body.code).toBe('PLAN_FEATURE_UNAVAILABLE');
+  });
+
+  it('compara as unidades no mês e conta cada cliente uma vez no total', async () => {
+    const { t, pos } = await setup({ plan: 'REDE' });
+    await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(201);
+    const c = await customerAgent(app);
+    const ref = (await resolveQr(pos, await personalQr(c.agent))).customerRef;
+    await credit(pos, ref, 2).expect(201);
+
+    // Mesmo cliente compra também na outra unidade.
+    const stores = await pos.get('/api/admin/stores').expect(200);
+    const shopping = stores.body.find((s: { slug: string }) => s.slug === 'shopping');
+    await pos.post('/api/staff/auth/context').send({ tenantId: t.tenantId, storeId: shopping.id }).expect(200);
+    const ref2 = (await resolveQr(pos, await personalQr(c.agent))).customerRef;
+    await credit(pos, ref2, 3).expect(201);
+
+    const r = await pos.get('/api/admin/network').expect(200);
+    const byName = Object.fromEntries(r.body.items.map((i: { name: string }) => [i.name, i]));
+    expect(byName.Centro).toMatchObject({ stamps: 2, visits: 1, newCustomers: 1, activeCustomers: 1 });
+    expect(byName.Shopping).toMatchObject({ stamps: 3, visits: 1, newCustomers: 0, activeCustomers: 1 });
+    expect(r.body.totals).toMatchObject({ stamps: 5, visits: 2, newCustomers: 1, activeCustomers: 1 });
+  });
+});

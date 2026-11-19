@@ -125,6 +125,11 @@ export class AdminController {
     return this.reports.staff(ctxOf(s), q);
   }
 
+  @Get('network')
+  network(@CurrentStaff() s: TenantStaff) {
+    return this.reports.network(ctxOf(s));
+  }
+
   @Get('customers/export.csv')
   async exportCustomers(@CurrentStaff() s: TenantStaff, @Res() res: Response) {
     const { csv, filename } = await this.reports.exportCustomers(ctxOf(s));

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { maskPhone } from '../common/phone';
 import { pageSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
-import { effectivePlan, planFeatureError } from '../plans/plans';
+import { ACTIVE_CUSTOMER_DAYS, activeCustomers, effectivePlan, planFeatureError } from '../plans/plans';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AdminCtx } from './admin.service';
 
@@ -24,13 +24,91 @@ export class ReportsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async require(ctx: AdminCtx, feature: 'reports' | 'customerExport') {
+  private async require(ctx: AdminCtx, feature: 'reports' | 'customerExport' | 'networkDashboard') {
     const { plan } = await effectivePlan(this.prisma, ctx.tenantId);
     if (!plan[feature]) {
-      throw planFeatureError(
-        feature === 'reports' ? 'Relatórios estão disponíveis a partir do plano Profissional.' : 'Exportar clientes está disponível a partir do plano Profissional.',
-      );
+      const messages = {
+        reports: 'Relatórios estão disponíveis a partir do plano Profissional.',
+        customerExport: 'Exportar clientes está disponível a partir do plano Profissional.',
+        networkDashboard: 'O painel consolidado da rede está disponível no plano Rede.',
+      };
+      throw planFeatureError(messages[feature]);
     }
+  }
+
+  /**
+   * Painel consolidado da rede: o mês corrente por unidade (selos, visitas, clientes novos, resgates)
+   * e os clientes ativos de cada unidade nos últimos 90 dias. Unidade inativa aparece se teve movimento.
+   */
+  async network(ctx: AdminCtx) {
+    await this.require(ctx, 'networkDashboard');
+    const t = ctx.tenantId;
+    const since = startOfMonthSaoPaulo();
+    const activeSince = new Date(Date.now() - ACTIVE_CUSTOMER_DAYS * 86_400_000);
+    const [stores, stamps, visits, redeemed, newCustomers, active] = await Promise.all([
+      this.prisma.store.findMany({ where: { tenantId: t }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, status: true } }),
+      // Estornos têm quantidade negativa: a soma já desconta.
+      this.prisma.ledgerEntry.groupBy({
+        by: ['storeId'],
+        where: { tenantId: t, type: { in: ['CREDITO', 'ESTORNO_CREDITO'] }, createdAt: { gte: since } },
+        _sum: { quantity: true },
+      }),
+      this.prisma.ledgerEntry.groupBy({
+        by: ['storeId'],
+        where: { tenantId: t, type: 'CREDITO', createdAt: { gte: since }, reversedBy: { is: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.reward.groupBy({
+        by: ['redeemedStoreId'],
+        where: { tenantId: t, status: 'RESGATADA', redeemedAt: { gte: since } },
+        _count: { _all: true },
+      }),
+      // Cliente novo = o primeiro selo dele no estabelecimento foi neste mês, nesta unidade.
+      this.prisma.$queryRaw<{ storeId: string | null; n: bigint }[]>`
+        SELECT f.store_id AS "storeId", COUNT(*) AS n FROM (
+          SELECT DISTINCT ON (m.customer_id) e.store_id, e.created_at
+          FROM ledger_entries e JOIN memberships m ON m.id = e.membership_id
+          WHERE e.tenant_id = ${t}::uuid AND e.type = 'CREDITO'
+          ORDER BY m.customer_id, e.created_at
+        ) f WHERE f.created_at >= ${since} GROUP BY f.store_id`,
+      this.prisma.$queryRaw<{ storeId: string | null; n: bigint }[]>`
+        SELECT e.store_id AS "storeId", COUNT(DISTINCT m.customer_id) AS n
+        FROM ledger_entries e JOIN memberships m ON m.id = e.membership_id
+        WHERE e.tenant_id = ${t}::uuid AND e.type = 'CREDITO' AND e.created_at >= ${activeSince}
+        GROUP BY e.store_id`,
+    ]);
+    const stampsBy = new Map(stamps.map((r) => [r.storeId, r._sum.quantity ?? 0]));
+    const visitsBy = new Map(visits.map((r) => [r.storeId, r._count._all]));
+    const redeemedBy = new Map(redeemed.map((r) => [r.redeemedStoreId, r._count._all]));
+    const newBy = new Map(newCustomers.map((r) => [r.storeId, Number(r.n)]));
+    const activeBy = new Map(active.map((r) => [r.storeId, Number(r.n)]));
+
+    const items = stores
+      .map((s) => ({
+        storeId: s.id,
+        name: s.name,
+        active: s.status === 'ACTIVE',
+        stamps: stampsBy.get(s.id) ?? 0,
+        visits: visitsBy.get(s.id) ?? 0,
+        newCustomers: newBy.get(s.id) ?? 0,
+        rewardsRedeemed: redeemedBy.get(s.id) ?? 0,
+        activeCustomers: activeBy.get(s.id) ?? 0,
+      }))
+      .filter((s) => s.active || s.stamps || s.visits || s.rewardsRedeemed);
+    const sum = (k: 'stamps' | 'visits' | 'newCustomers' | 'rewardsRedeemed') => items.reduce((acc, s) => acc + s[k], 0);
+    return {
+      since,
+      activeCustomerDays: ACTIVE_CUSTOMER_DAYS,
+      items,
+      // Clientes ativos da rede não são a soma das unidades: quem vai a duas conta uma vez.
+      totals: {
+        stamps: sum('stamps'),
+        visits: sum('visits'),
+        newCustomers: sum('newCustomers'),
+        rewardsRedeemed: sum('rewardsRedeemed'),
+        activeCustomers: await activeCustomers(this.prisma, t),
+      },
+    };
   }
 
   /** Telefone completo só com consentimento de marketing (seção 10), como na lista de clientes. */
