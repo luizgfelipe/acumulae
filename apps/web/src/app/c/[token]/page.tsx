@@ -9,6 +9,7 @@ import { StampGrid } from '@/components/stamps';
 import { Alert, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
+import type { StampStyle } from '@/lib/stamp-icons';
 import { useMe } from '@/lib/customer';
 import { plural } from '@/lib/format';
 
@@ -16,7 +17,7 @@ interface TokenInfo {
   status: 'PENDING' | 'USED' | 'CANCELLED' | 'EXPIRED';
   quantity: number;
   expiresAt: string;
-  tenant: BrandColors & { name: string; slug: string; logoUrl: string | null; active: boolean };
+  tenant: BrandColors & StampStyle & { name: string; slug: string; logoUrl: string | null; active: boolean };
   storeName: string;
   program: { unitLabel: string; unitLabelPlural: string; goal: number; rewardDescription: string } | null;
 }
@@ -95,7 +96,7 @@ export default function CheckoutClaimPage() {
               🎉 Você ganhou <strong>{c.rewardDescription}</strong>! Mostre seu QR no caixa para resgatar.
             </Alert>
           )}
-          <StampGrid filled={c.balance} goal={c.goal} color={th.accent} checkColor={th.accentFg} size={c.goal > 15 ? 'sm' : 'md'} />
+          <StampGrid filled={c.balance} goal={c.goal} color={th.accent} checkColor={th.accentFg} icon={info?.tenant.stampIcon} imageUrl={info?.tenant.stampImageUrl} size={c.goal > 15 ? 'sm' : 'md'} />
           <LinkButton href={`/cartao/${c.membershipId}`} className="h-13 w-full text-lg">
             Ver meu cartão
           </LinkButton>

@@ -7,12 +7,14 @@ import { CardPreview } from '@/components/card-preview';
 import { Alert, Button, Card, Field, FullPageSpinner, Input, TenantAvatar, cx } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { BrandColors, CARD_STYLES, CardStyle, cardTheme, contrastRatio } from '@/lib/card-theme';
+import { STAMP_ICONS, StampStyle, stampIconOf } from '@/lib/stamp-icons';
 import { prepareLogo } from '@/lib/image';
 import { useLoad } from '@/lib/use-load';
 
 interface Profile {
   tenant: { name: string; slug: string; signupUrl: string };
-  branding: BrandColors & { logoUrl: string | null; version: number };
+  branding: BrandColors & StampStyle & { logoUrl: string | null; version: number };
+  stampOptions: { icons: string[]; allowedIcons: string[]; customImage: boolean; planName: string };
   store: { id: string; name: string; address: string | null };
 }
 
@@ -36,6 +38,7 @@ export default function ProfilePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <LogoCard profile={data} onSaved={update} />
+          <StampCard profile={data} onSaved={update} />
           <StoreCard profile={data} onSaved={update} />
         </div>
         <div className="space-y-6">
@@ -185,6 +188,129 @@ function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile
           Salvar cores e modelo
         </Button>
       </form>
+      {msg && (
+        <div className="mt-4">
+          <Alert kind={msg.kind}>{msg.text}</Alert>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ───────────── Selo ─────────────
+
+function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<Msg>(null);
+  const { branding, stampOptions } = profile;
+  const th = cardTheme(branding);
+  const hasImage = branding.stampImageUrl !== null;
+  const locked = stampOptions.icons.length - stampOptions.allowedIcons.length;
+
+  async function run(key: string, call: () => Promise<Profile>, success: string) {
+    setBusy(key);
+    setMsg(null);
+    try {
+      onSaved(await call());
+      setMsg({ kind: 'success', text: success });
+    } catch (err) {
+      setMsg({ kind: 'error', text: err instanceof Error && !('status' in err) ? err.message : errorMessage(err) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const chooseIcon = (icon: string) =>
+    run(icon, () => staffApi<Profile>('/api/admin/branding', { method: 'PUT', body: { stampIcon: icon } }), 'Ícone do selo atualizado.');
+
+  async function onFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    // Selo é pequeno na tela: 128 px e até ~64 KB.
+    await run(
+      'image',
+      async () => staffApi<Profile>('/api/admin/branding/stamp-image', { method: 'PUT', body: { image: await prepareLogo(file, 128, 85_000) } }),
+      'Imagem do selo atualizada.',
+    );
+  }
+
+  const removeImage = () =>
+    run('image', () => staffApi<Profile>('/api/admin/branding/stamp-image', { method: 'DELETE' }), 'Imagem removida. O selo voltou a usar o ícone.');
+
+  return (
+    <Card>
+      <h2 className="mb-1 font-semibold">Selo</h2>
+      <p className="mb-4 text-sm text-stone-600">
+        É o que aparece em cada selo cheio do cartão. {hasImage ? 'Hoje o selo usa a sua imagem; remova para voltar ao ícone.' : ''}
+      </p>
+
+      <div className={cx('grid grid-cols-5 gap-2', hasImage && 'opacity-50')}>
+        {stampOptions.icons.map((key) => {
+          const Icon = stampIconOf(key);
+          const allowed = stampOptions.allowedIcons.includes(key);
+          const selected = !hasImage && branding.stampIcon === key;
+          const label = STAMP_ICONS[key]?.label ?? key;
+          return (
+            <button
+              key={key}
+              type="button"
+              title={allowed ? label : `${label}: disponível em planos acima do ${stampOptions.planName}`}
+              aria-label={label}
+              aria-pressed={selected}
+              disabled={!allowed || busy !== null}
+              onClick={() => chooseIcon(key)}
+              className={cx(
+                'relative grid h-14 place-items-center rounded-xl border-2 transition',
+                selected ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400',
+                !allowed && 'cursor-not-allowed hover:border-stone-200',
+              )}
+            >
+              <span
+                className={cx('grid h-9 w-9 place-items-center rounded-full', !allowed && 'opacity-30 grayscale')}
+                style={{ background: th.accent, color: th.accentFg }}
+              >
+                <Icon className="h-5 w-5" strokeWidth={key === 'check' ? 3 : 2.25} aria-hidden />
+              </span>
+              {!allowed && (
+                <span className="absolute right-1 top-1 text-xs" aria-hidden>
+                  🔒
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {locked > 0 && (
+        <p className="mt-2 text-xs text-stone-500">
+          O plano {stampOptions.planName} libera {stampOptions.allowedIcons.length} ícones. Os outros {locked} e a imagem própria vêm nos planos acima.
+        </p>
+      )}
+
+      <div className="mt-5 border-t border-stone-100 pt-4">
+        <p className="mb-2 text-sm font-medium">Imagem própria</p>
+        {stampOptions.customImage ? (
+          <div className="flex items-center gap-3">
+            {hasImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={branding.stampImageUrl!} alt="Selo atual" className="h-12 w-12 rounded-full border-2 object-cover" style={{ borderColor: th.accent }} />
+            )}
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onFile} />
+            <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} loading={busy === 'image'}>
+              {hasImage ? 'Trocar imagem' : 'Enviar imagem'}
+            </Button>
+            {hasImage && (
+              <Button size="sm" variant="ghost" className="text-red-700" onClick={removeImage} disabled={busy !== null}>
+                Remover
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-stone-500">🔒 Disponível em planos acima do {stampOptions.planName}. Fale com o suporte do Acumulae para mudar de plano.</p>
+        )}
+        {stampOptions.customImage && <p className="mt-2 text-xs text-stone-500">PNG, JPG ou WebP. A imagem é recortada num quadrado de 128 px; fica melhor com o desenho centralizado.</p>}
+      </div>
       {msg && (
         <div className="mt-4">
           <Alert kind={msg.kind}>{msg.text}</Alert>

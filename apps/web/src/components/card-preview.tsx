@@ -1,4 +1,5 @@
 import { BrandColors, cardTheme } from '@/lib/card-theme';
+import type { StampStyle } from '@/lib/stamp-icons';
 import { ProgressBar, StampGrid } from './stamps';
 import { TenantAvatar, cx } from './ui';
 
@@ -13,7 +14,7 @@ export function CardPreview({
   name: string;
   subtitle?: string;
   logoUrl: string | null;
-  brand: BrandColors;
+  brand: BrandColors & Partial<StampStyle>;
   compact?: boolean;
 }) {
   const th = cardTheme(brand);
@@ -31,7 +32,7 @@ export function CardPreview({
       </div>
       <div className={cx('space-y-3', compact ? 'px-2.5 py-2' : 'px-4 py-3')}>
         <ProgressBar value={7} max={10} color={th.accent} />
-        {!compact && <StampGrid filled={7} goal={10} color={th.accent} checkColor={th.accentFg} size="sm" />}
+        {!compact && <StampGrid filled={7} goal={10} color={th.accent} checkColor={th.accentFg} icon={brand.stampIcon} imageUrl={brand.stampImageUrl} size="sm" />}
       </div>
     </div>
   );

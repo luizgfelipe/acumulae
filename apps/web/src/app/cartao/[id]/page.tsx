@@ -8,6 +8,7 @@ import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, TenantAvatar }
 import { api, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/customer';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
+import type { StampStyle } from '@/lib/stamp-icons';
 import { LEDGER_LABELS, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
 
 interface Detail {
@@ -20,7 +21,7 @@ interface Detail {
   unitLabel: string;
   unitLabelPlural: string;
   rewardDescription: string;
-  tenant: BrandColors & { name: string; logoUrl: string | null; active: boolean };
+  tenant: BrandColors & StampStyle & { name: string; logoUrl: string | null; active: boolean };
   rules: { redeemWeekdaysText: string | null; redeemBlockedToday: string | null };
   firstVisitAt: string | null;
   marketingConsent: boolean | null;
@@ -99,7 +100,7 @@ function MembershipPage() {
               </span>
               <span className="text-sm text-stone-600">{missing === 0 ? 'Meta atingida!' : `Faltam ${plural(missing, d.unitLabel, d.unitLabelPlural)}`}</span>
             </div>
-            <StampGrid filled={d.balance} goal={d.goal} color={th.accent} checkColor={th.accentFg} size={d.goal > 15 ? 'sm' : 'md'} />
+            <StampGrid filled={d.balance} goal={d.goal} color={th.accent} checkColor={th.accentFg} icon={d.tenant.stampIcon} imageUrl={d.tenant.stampImageUrl} size={d.goal > 15 ? 'sm' : 'md'} />
           </div>
         </div>
 

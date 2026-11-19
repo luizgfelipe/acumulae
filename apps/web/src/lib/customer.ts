@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 import type { BrandColors } from './card-theme';
+import type { StampStyle } from './stamp-icons';
 
 export interface Me {
   id: string;
@@ -16,7 +17,7 @@ export interface Me {
   pendingConsents: number;
 }
 
-export interface TenantBrief extends BrandColors {
+export interface TenantBrief extends BrandColors, StampStyle {
   name: string;
   slug: string;
   logoUrl: string | null;

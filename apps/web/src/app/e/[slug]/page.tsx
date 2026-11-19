@@ -7,9 +7,10 @@ import { StampGrid } from '@/components/stamps';
 import { Alert, Button, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
+import type { StampStyle } from '@/lib/stamp-icons';
 import { useMe } from '@/lib/customer';
 
-interface PublicTenant extends BrandColors {
+interface PublicTenant extends BrandColors, StampStyle {
   name: string;
   slug: string;
   active: boolean;
