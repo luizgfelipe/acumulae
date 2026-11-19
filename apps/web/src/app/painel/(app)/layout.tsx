@@ -51,7 +51,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
           {brand}
           <button
             onClick={() => setMenuOpen(true)}
-            className="grid h-10 w-10 place-items-center rounded-xl text-stone-700 hover:bg-stone-100"
+            className="grid h-10 w-10 place-items-center rounded-xl text-stone-700 hover:bg-stone-100 transition-colors"
             aria-label="Abrir menu"
             aria-expanded={menuOpen}
           >
@@ -70,7 +70,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
                 {brand}
                 <button
                   onClick={() => setMenuOpen(false)}
-                  className="grid h-10 w-10 place-items-center rounded-xl text-2xl leading-none text-stone-600 hover:bg-stone-100"
+                  className="grid h-10 w-10 place-items-center rounded-xl text-2xl leading-none text-stone-600 hover:bg-stone-100 transition-colors"
                   aria-label="Fechar menu"
                 >
                   ×
@@ -111,7 +111,13 @@ function SideMenu({ pathname, hasManyWorkplaces, userName }: { pathname: string;
             <Link
               key={n.href}
               href={n.href}
-              className={cx('rounded-lg px-3 py-2.5 text-sm font-medium', active ? 'bg-brand-50 text-brand-700' : 'text-stone-600 hover:bg-stone-100')}
+              aria-current={active ? 'page' : undefined}
+              className={cx(
+                'relative rounded-lg px-3 py-2.5 text-sm font-medium transition duration-150',
+                active
+                  ? 'bg-brand-50 text-brand-700 before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-brand-600'
+                  : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900 motion-safe:hover:translate-x-0.5',
+              )}
             >
               {n.label}
             </Link>
@@ -119,11 +125,11 @@ function SideMenu({ pathname, hasManyWorkplaces, userName }: { pathname: string;
         })}
       </nav>
       <div className="mt-auto space-y-1 border-t border-stone-100 px-3 py-3 text-sm">
-        <Link href="/caixa" className="block rounded-lg px-3 py-2.5 font-semibold text-brand-700 hover:bg-brand-50">
+        <Link href="/caixa" className="block rounded-lg px-3 py-2.5 font-semibold text-brand-700 hover:bg-brand-50 transition-colors">
           Abrir o caixa →
         </Link>
         {hasManyWorkplaces && (
-          <Link href="/caixa/unidade?next=/painel" className="block rounded-lg px-3 py-2.5 text-stone-600 hover:bg-stone-100">
+          <Link href="/caixa/unidade?next=/painel" className="block rounded-lg px-3 py-2.5 text-stone-600 hover:bg-stone-100 transition-colors">
             Trocar estabelecimento
           </Link>
         )}
@@ -132,7 +138,7 @@ function SideMenu({ pathname, hasManyWorkplaces, userName }: { pathname: string;
             await staffLogout();
             router.replace('/painel/entrar');
           }}
-          className="block w-full rounded-lg px-3 py-2.5 text-left text-stone-600 hover:bg-stone-100"
+          className="block w-full rounded-lg px-3 py-2.5 text-left text-stone-600 hover:bg-stone-100 transition-colors"
         >
           Sair ({userName.split(' ')[0]})
         </button>

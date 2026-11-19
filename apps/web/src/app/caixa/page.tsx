@@ -100,11 +100,11 @@ export default function PosPage() {
           </p>
         </div>
         {ctx.role === 'MANAGER' && (
-          <Link href="/painel" className="rounded-lg px-2 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-50">
+          <Link href="/painel" className="rounded-lg px-2 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-50 transition-colors">
             Painel
           </Link>
         )}
-        <Link href="/caixa/unidade" className="rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100">
+        <Link href="/caixa/unidade" className="rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100 transition-colors">
           Unidade
         </Link>
         <button
@@ -112,7 +112,7 @@ export default function PosPage() {
             await staffLogout();
             router.replace('/caixa/entrar');
           }}
-          className="rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100"
+          className="rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100 transition-colors"
         >
           Sair
         </button>
@@ -173,7 +173,7 @@ function QrIcon() {
 function StepHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <div className="flex items-center gap-2">
-      <button onClick={onBack} className="rounded-lg px-2 py-1 text-2xl leading-none text-stone-600 hover:bg-stone-200" aria-label="Voltar">
+      <button onClick={onBack} className="rounded-lg px-2 py-1 text-2xl leading-none text-stone-600 hover:bg-stone-200 transition-colors" aria-label="Voltar">
         ←
       </button>
       <h2 className="text-lg font-bold">{title}</h2>

@@ -70,9 +70,9 @@ export default function CustomersPage() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {data?.items.map((c) => (
-                <tr key={c.membershipId} className="hover:bg-stone-50">
+                <tr key={c.membershipId} className="hover:bg-stone-50 transition-colors">
                   <td className="px-5 py-3">
-                    <Link href={`/painel/clientes/${c.membershipId}`} className="font-medium hover:text-brand-700">
+                    <Link href={`/painel/clientes/${c.membershipId}`} className="font-medium hover:text-brand-700 transition-colors">
                       {c.name}
                     </Link>
                     {manyPrograms && <span className="block text-xs text-stone-500">{c.programName}</span>}

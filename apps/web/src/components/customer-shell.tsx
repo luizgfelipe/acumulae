@@ -43,7 +43,11 @@ export function CustomerShell({ children, title }: { children: ReactNode; title?
               <Link
                 key={n.href}
                 href={n.href}
-                className={cx('flex w-20 flex-col items-center gap-1 rounded-xl py-1 text-xs font-medium', active ? 'text-brand-600' : 'text-stone-500')}
+                aria-current={active ? 'page' : undefined}
+                className={cx(
+                  'flex w-20 flex-col items-center gap-1 rounded-xl py-1 text-xs font-medium transition duration-150 motion-safe:active:scale-95',
+                  active ? 'text-brand-600' : 'text-stone-500 hover:bg-stone-100 hover:text-stone-800',
+                )}
               >
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   {n.icon}
@@ -69,8 +73,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
       </header>
       <main className="flex-1">{children}</main>
       <footer className="mt-10 flex justify-center gap-4 text-xs text-stone-500">
-        <Link href="/termos">Termos de Uso</Link>
-        <Link href="/privacidade">Privacidade</Link>
+        <Link href="/termos" className="transition-colors hover:text-stone-800 hover:underline">
+          Termos de Uso
+        </Link>
+        <Link href="/privacidade" className="transition-colors hover:text-stone-800 hover:underline">
+          Privacidade
+        </Link>
       </footer>
     </div>
   );

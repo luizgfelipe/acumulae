@@ -10,12 +10,16 @@ export function cx(...c: Array<string | false | null | undefined>) {
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-200',
-  secondary: 'bg-white text-stone-800 border border-stone-300 hover:bg-stone-50 disabled:text-stone-400',
-  ghost: 'bg-transparent text-stone-700 hover:bg-stone-100',
-  danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300',
-  dark: 'bg-stone-900 text-white hover:bg-stone-800 disabled:bg-stone-400',
+  primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-md hover:shadow-brand-600/30 disabled:bg-brand-200',
+  secondary: 'bg-white text-stone-800 border border-stone-300 hover:border-stone-400 hover:bg-stone-50 disabled:text-stone-400',
+  ghost: 'bg-transparent text-stone-700 hover:bg-stone-100 hover:text-stone-900',
+  danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md hover:shadow-red-600/30 disabled:bg-red-300',
+  dark: 'bg-stone-900 text-white shadow-sm hover:bg-stone-800 hover:shadow-md hover:shadow-stone-900/25 disabled:bg-stone-400',
 };
+
+/** Transição, "afundar" ao clicar e nada disso quando desabilitado. */
+const INTERACTIVE =
+  'transition duration-150 ease-out motion-safe:active:scale-[0.98] disabled:shadow-none disabled:active:scale-100';
 
 export function Button({
   variant = 'primary',
@@ -31,7 +35,8 @@ export function Button({
       {...rest}
       disabled={rest.disabled || loading}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold disabled:cursor-not-allowed',
+        INTERACTIVE,
         VARIANTS[variant],
         sizes[size],
         className,
@@ -57,7 +62,7 @@ export function LinkButton({
   return (
     <Link
       href={href}
-      className={cx('inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold transition-colors', VARIANTS[variant], className)}
+      className={cx('inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold', INTERACTIVE, VARIANTS[variant], className)}
     >
       {children}
     </Link>

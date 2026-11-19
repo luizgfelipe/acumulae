@@ -66,7 +66,7 @@ export default function MyQrPage() {
     <div className="flex min-h-dvh flex-col items-center bg-white px-6 py-6">
       <div className="flex w-full max-w-sm items-center justify-between">
         <Logo />
-        <Link href="/" className="rounded-xl px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-100">
+        <Link href="/" className="rounded-xl px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-100 transition-colors">
           Fechar
         </Link>
       </div>

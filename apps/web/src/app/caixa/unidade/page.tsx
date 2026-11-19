@@ -68,7 +68,7 @@ function ChooseStore() {
                   key={s.id}
                   disabled={busy}
                   onClick={() => choose(w, s.id)}
-                  className="flex h-12 items-center justify-between rounded-xl border border-stone-200 px-4 text-left font-medium hover:border-brand-500 hover:bg-brand-50"
+                  className="flex h-12 items-center justify-between rounded-xl border border-stone-200 px-4 text-left font-medium hover:border-brand-500 hover:bg-brand-50 transition-colors"
                 >
                   {s.name}
                   <span className="text-stone-400">→</span>
@@ -76,7 +76,7 @@ function ChooseStore() {
               ))}
               {w.stores.length === 0 && <p className="text-sm text-stone-500">Nenhuma unidade ativa liberada para você.</p>}
               {w.role === 'MANAGER' && (
-                <button disabled={busy} onClick={() => choose(w, null)} className="h-10 rounded-xl text-sm font-semibold text-brand-700 hover:bg-brand-50">
+                <button disabled={busy} onClick={() => choose(w, null)} className="h-10 rounded-xl text-sm font-semibold text-brand-700 hover:bg-brand-50 transition-colors">
                   Só o painel (sem caixa)
                 </button>
               )}

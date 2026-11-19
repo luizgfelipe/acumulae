@@ -18,6 +18,28 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+@layer base {
+  /* O Tailwind 4 deixou de pôr a "mãozinha" nos botões; devolvemos para tudo que é clicável. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  select:not(:disabled),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='color']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Anel de foco só para quem navega pelo teclado (o clique do mouse não mostra). */
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+}
+
 /* Área segura em iPhones com a PWA instalada */
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));

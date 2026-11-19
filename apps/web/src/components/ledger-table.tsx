@@ -67,7 +67,7 @@ export function LedgerTable({ items, onChanged, showCustomer = true }: { items: 
                 </td>
                 {showCustomer && (
                   <td className="py-2.5 pr-3">
-                    <Link href={`/painel/clientes/${e.membershipId}`} className="font-medium text-stone-800 hover:text-brand-700">
+                    <Link href={`/painel/clientes/${e.membershipId}`} className="font-medium text-stone-800 hover:text-brand-700 transition-colors">
                       {e.customerName}
                     </Link>
                   </td>

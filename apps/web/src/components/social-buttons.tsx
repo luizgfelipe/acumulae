@@ -19,7 +19,7 @@ export function SocialButtons({ next }: { next: string }) {
       {providers.google && (
         <a
           href={href('google')}
-          className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-stone-300 bg-white font-semibold text-stone-800 hover:bg-stone-50"
+          className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-stone-300 bg-white font-semibold text-stone-800 hover:bg-stone-50 transition-colors"
         >
           <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden>
             <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
@@ -31,7 +31,7 @@ export function SocialButtons({ next }: { next: string }) {
         </a>
       )}
       {providers.apple && (
-        <a href={href('apple')} className="flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-black font-semibold text-white hover:bg-stone-800">
+        <a href={href('apple')} className="flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-black font-semibold text-white hover:bg-stone-800 transition-colors">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
             <path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.8 1.2 1.8 2.6 3.1 2.5 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.5.9-1.4 1.3-2.7 1.3-2.8 0 0-2.6-1-2.6-4.1zM13.9 4.9c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z" />
           </svg>
