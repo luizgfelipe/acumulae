@@ -33,6 +33,15 @@ export const config = {
   get cookieSecure() {
     return process.env.COOKIE_SECURE === 'true';
   },
+  /**
+   * Quantos proxies confiáveis repassam o X-Forwarded-For. Padrão 1: o Traefik do Dokploy acrescenta o IP
+   * real ao final e o Next.js repassa o cabeçalho sem mexer, então vale a última entrada.
+   * Se puser o Cloudflare (proxy laranja) na frente, use 2.
+   */
+  get trustProxyHops() {
+    const n = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+    return Number.isInteger(n) && n >= 0 ? n : 1;
+  },
   smtp: {
     get host() {
       return process.env.SMTP_HOST ?? '';
