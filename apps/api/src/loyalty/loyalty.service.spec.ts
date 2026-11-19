@@ -106,7 +106,7 @@ function fakeTx(p: LoyaltyProgram, initial = { balance: 0, rewards: 0, firstVisi
     },
     membership: {
       findFirst: jest.fn(async () => null),
-      upsert: jest.fn(async () => membership()),
+      createMany: jest.fn(async () => (membership(), { count: 1 })),
       findUniqueOrThrow: jest.fn(async () => ({ ...membership(), program: p })),
       update: jest.fn(async ({ data }: any) => Object.assign(membership(), data)),
     },

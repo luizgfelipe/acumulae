@@ -125,17 +125,21 @@ export class LoyaltyService {
       where: { tenantId, customerId, marketingConsent: { not: null } },
       select: { marketingConsent: true, marketingConsentAt: true },
     });
-    return tx.membership.upsert({
-      where: { programId_customerId: { programId, customerId } },
-      create: {
-        tenantId,
-        customerId,
-        programId,
-        marketingConsent: sibling?.marketingConsent ?? null,
-        marketingConsentAt: sibling?.marketingConsentAt ?? null,
-      },
-      update: {},
+    // INSERT ... ON CONFLICT DO NOTHING: dois lançamentos simultâneos na primeira visita
+    // não podem falhar na chave única (programa, cliente); o segundo espera e reaproveita o cartão.
+    await tx.membership.createMany({
+      data: [
+        {
+          tenantId,
+          customerId,
+          programId,
+          marketingConsent: sibling?.marketingConsent ?? null,
+          marketingConsentAt: sibling?.marketingConsentAt ?? null,
+        },
+      ],
+      skipDuplicates: true,
     });
+    return tx.membership.findUniqueOrThrow({ where: { programId_customerId: { programId, customerId } } });
   }
 
   private async lock(tx: Tx, membershipId: string): Promise<Membership> {
