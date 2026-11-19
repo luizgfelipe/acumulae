@@ -3,16 +3,16 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { usePanel } from '@/components/panel-context';
-import { ProgressBar } from '@/components/stamps';
-import { Alert, Button, Card, Field, FullPageSpinner, Input, TenantAvatar } from '@/components/ui';
+import { CardPreview } from '@/components/card-preview';
+import { Alert, Button, Card, Field, FullPageSpinner, Input, TenantAvatar, cx } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
-import { readableOn } from '@/lib/format';
+import { BrandColors, CARD_STYLES, CardStyle, cardTheme, contrastRatio } from '@/lib/card-theme';
 import { prepareLogo } from '@/lib/image';
 import { useLoad } from '@/lib/use-load';
 
 interface Profile {
   tenant: { name: string; slug: string; signupUrl: string };
-  branding: { logoUrl: string | null; primaryColor: string; version: number };
+  branding: BrandColors & { logoUrl: string | null; version: number };
   store: { id: string; name: string; address: string | null };
 }
 
@@ -51,11 +51,20 @@ export default function ProfilePage() {
 
 function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [color, setColor] = useState(profile.branding.primaryColor);
+  const saved = profile.branding;
+  const [color, setColor] = useState(saved.primaryColor);
+  const [useSecondary, setUseSecondary] = useState(saved.secondaryColor !== null);
+  const [secondary, setSecondary] = useState(saved.secondaryColor ?? saved.primaryColor);
+  const [style, setStyle] = useState<CardStyle>(saved.cardStyle);
   const [busy, setBusy] = useState<'logo' | 'color' | null>(null);
   const [msg, setMsg] = useState<Msg>(null);
 
-  useEffect(() => setColor(profile.branding.primaryColor), [profile.branding.primaryColor]);
+  useEffect(() => {
+    setColor(saved.primaryColor);
+    setUseSecondary(saved.secondaryColor !== null);
+    setSecondary(saved.secondaryColor ?? saved.primaryColor);
+    setStyle(saved.cardStyle);
+  }, [saved.primaryColor, saved.secondaryColor, saved.cardStyle]);
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -91,8 +100,8 @@ function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile
     setBusy('color');
     setMsg(null);
     try {
-      onSaved(await staffApi<Profile>('/api/admin/branding', { method: 'PUT', body: { primaryColor: color.toUpperCase() } }));
-      setMsg({ kind: 'success', text: 'Cor atualizada.' });
+      onSaved(await staffApi<Profile>('/api/admin/branding', { method: 'PUT', body: draft }));
+      setMsg({ kind: 'success', text: 'Cores e modelo atualizados. Os cartões dos clientes já mostram a nova versão.' });
     } catch (err) {
       setMsg({ kind: 'error', text: errorMessage(err) });
     } finally {
@@ -100,7 +109,19 @@ function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile
     }
   }
 
-  const validColor = /^#[0-9a-fA-F]{6}$/.test(color);
+  const isHex = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c);
+  const valid = isHex(color) && (!useSecondary || isHex(secondary));
+  const draft: BrandColors = {
+    primaryColor: color.toUpperCase(),
+    secondaryColor: useSecondary ? secondary.toUpperCase() : null,
+    cardStyle: style,
+  };
+  const changed =
+    draft.primaryColor !== saved.primaryColor.toUpperCase() ||
+    draft.secondaryColor !== (saved.secondaryColor?.toUpperCase() ?? null) ||
+    draft.cardStyle !== saved.cardStyle;
+  // Selos e barra ficam sobre fundo branco: avisa quando a cor deles quase some.
+  const lowContrast = valid && contrastRatio(cardTheme(draft).accent, '#ffffff') < 3;
 
   return (
     <Card>
@@ -122,19 +143,46 @@ function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile
       </div>
 
       <form onSubmit={saveColor} className="mt-5 space-y-3">
-        <Field label="Cor principal">
-          <div className="flex gap-2">
-            <input
-              type="color"
-              value={validColor ? color : '#E85D04'}
-              onChange={(e) => setColor(e.target.value.toUpperCase())}
-              className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-stone-300"
-            />
-            <Input value={color} onChange={(e) => setColor(e.target.value)} maxLength={7} />
+        <ColorField label="Cor principal" value={color} onChange={setColor} />
+        <div>
+          <label className="mb-2 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={useSecondary} onChange={(e) => setUseSecondary(e.target.checked)} className="h-4 w-4" />
+            Usar uma cor secundária
+          </label>
+          {useSecondary ? (
+            <ColorField label="Cor secundária" value={secondary} onChange={setSecondary} />
+          ) : (
+            <p className="text-xs text-stone-500">Sem secundária, a cor principal é usada no cartão inteiro.</p>
+          )}
+        </div>
+
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium">Modelo do cartão</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {CARD_STYLES.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setStyle(o.value)}
+                aria-pressed={style === o.value}
+                className={cx(
+                  'rounded-xl border-2 p-1.5 text-center transition',
+                  style === o.value ? 'border-stone-900' : 'border-transparent hover:border-stone-300',
+                )}
+              >
+                <CardPreview compact name={profile.tenant.name} logoUrl={null} brand={{ ...draft, cardStyle: o.value }} />
+                <span className="mt-1.5 block text-xs font-semibold">{o.label}</span>
+              </button>
+            ))}
           </div>
-        </Field>
-        <Button type="submit" variant="secondary" loading={busy === 'color'} disabled={!validColor || color.toUpperCase() === profile.branding.primaryColor.toUpperCase()}>
-          Salvar cor
+          <p className="mt-2 text-xs text-stone-500">{CARD_STYLES.find((o) => o.value === style)?.hint}</p>
+        </fieldset>
+
+        {lowContrast && (
+          <Alert kind="warning">Os selos e a barra de progresso ficam sobre fundo branco, e essa cor pode ficar difícil de enxergar. Prefira um tom mais escuro.</Alert>
+        )}
+        <Button type="submit" variant="secondary" loading={busy === 'color'} disabled={!valid || !changed}>
+          Salvar cores e modelo
         </Button>
       </form>
       {msg && (
@@ -193,26 +241,27 @@ function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
 // ───────────── Pré-visualização e QR do balcão ─────────────
 
 function PreviewCard({ profile }: { profile: Profile }) {
-  const color = profile.branding.primaryColor;
   return (
     <Card>
       <h2 className="mb-3 text-sm font-semibold text-stone-500">Como o cartão aparece no app do cliente</h2>
-      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex items-center gap-3 px-4 py-3" style={{ background: color, color: readableOn(color) }}>
-          <TenantAvatar name={profile.tenant.name} logoUrl={profile.branding.logoUrl} color="rgba(255,255,255,0.25)" size={40} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{profile.tenant.name}</p>
-            <p className="truncate text-xs opacity-85">{profile.store.name}</p>
-          </div>
-          <span className="text-2xl font-extrabold">
-            7<span className="text-base opacity-80">/10</span>
-          </span>
-        </div>
-        <div className="px-4 py-3">
-          <ProgressBar value={7} max={10} color={color} />
-        </div>
-      </div>
+      <CardPreview name={profile.tenant.name} subtitle={profile.store.name} logoUrl={profile.branding.logoUrl} brand={profile.branding} />
     </Card>
+  );
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <Field label={label}>
+      <div className="flex gap-2">
+        <input
+          type="color"
+          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#E85D04'}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-stone-300"
+        />
+        <Input value={value} onChange={(e) => onChange(e.target.value)} maxLength={7} />
+      </div>
+    </Field>
   );
 }
 

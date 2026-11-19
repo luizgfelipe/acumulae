@@ -6,14 +6,14 @@ import { PublicShell } from '@/components/customer-shell';
 import { StampGrid } from '@/components/stamps';
 import { Alert, Button, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { BrandColors, cardTheme } from '@/lib/card-theme';
 import { useMe } from '@/lib/customer';
 
-interface PublicTenant {
+interface PublicTenant extends BrandColors {
   name: string;
   slug: string;
   active: boolean;
   logoUrl: string | null;
-  primaryColor: string;
   programs: Array<{ id: string; name: string; goal: number; unitLabel: string; unitLabelPlural: string; rewardDescription: string; redeemWeekdaysText: string | null }>;
 }
 
@@ -69,12 +69,13 @@ function StoreLanding() {
   if (!tenant || loading) return <FullPageSpinner />;
 
   const programs = tenant.programs;
+  const th = cardTheme(tenant);
   const back = encodeURIComponent(`/e/${slug}?join=1`);
 
   return (
     <PublicShell>
-      <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex flex-col items-center gap-3 px-6 pt-8 pb-6 text-center text-white" style={{ background: tenant.primaryColor }}>
+      <div className="overflow-hidden rounded-3xl border-2 bg-white shadow-sm" style={{ borderColor: th.border }}>
+        <div className="flex flex-col items-center gap-3 px-6 pt-8 pb-6 text-center" style={th.header}>
           <TenantAvatar name={tenant.name} logoUrl={tenant.logoUrl} color="rgba(255,255,255,0.25)" size={72} />
           <h1 className="text-2xl font-bold">{tenant.name}</h1>
         </div>
@@ -84,7 +85,7 @@ function StoreLanding() {
               Participe do programa de fidelidade: a cada <strong>{programs[0].goal} {programs[0].unitLabelPlural}</strong>, ganhe{' '}
               <strong>{programs[0].rewardDescription}</strong>.
             </p>
-            <StampGrid filled={0} goal={programs[0].goal} color={tenant.primaryColor} size={programs[0].goal > 15 ? 'sm' : 'md'} />
+            <StampGrid filled={0} goal={programs[0].goal} color={th.accent} checkColor={th.accentFg} size={programs[0].goal > 15 ? 'sm' : 'md'} />
             {programs[0].redeemWeekdaysText && <p className="text-center text-sm text-stone-500">Resgate: {programs[0].redeemWeekdaysText}.</p>}
           </div>
         )}

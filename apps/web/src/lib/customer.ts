@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from './api';
+import type { BrandColors } from './card-theme';
 
 export interface Me {
   id: string;
@@ -15,11 +16,10 @@ export interface Me {
   pendingConsents: number;
 }
 
-export interface TenantBrief {
+export interface TenantBrief extends BrandColors {
   name: string;
   slug: string;
   logoUrl: string | null;
-  primaryColor: string;
   active: boolean;
 }
 

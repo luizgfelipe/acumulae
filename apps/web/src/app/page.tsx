@@ -8,7 +8,8 @@ import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { MembershipCard, useMe } from '@/lib/customer';
-import { plural, readableOn } from '@/lib/format';
+import { cardTheme } from '@/lib/card-theme';
+import { plural } from '@/lib/format';
 
 export default function HomePage() {
   const router = useRouter();
@@ -123,16 +124,15 @@ function Cards({ firstName }: { firstName: string }) {
 }
 
 function MembershipTile({ card: c, showProgram }: { card: MembershipCard; showProgram: boolean }) {
-  const color = c.tenant.primaryColor;
-  const fg = readableOn(color);
+  const th = cardTheme(c.tenant);
   const missing = Math.max(0, c.goal - c.balance);
   return (
     <Link
       href={`/cartao/${c.membershipId}`}
       className="block overflow-hidden rounded-2xl border-2 bg-white shadow-lg shadow-stone-900/10 transition hover:shadow-xl active:scale-[0.99]"
-      style={{ borderColor: color }}
+      style={{ borderColor: th.border }}
     >
-      <div className="flex items-center gap-3 px-4 py-3" style={{ background: color, color: fg }}>
+      <div className="flex items-center gap-3 px-4 py-3" style={th.header}>
         <TenantAvatar name={c.tenant.name} logoUrl={c.tenant.logoUrl} color="rgba(255,255,255,0.25)" size={40} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{c.tenant.name}</p>
@@ -144,7 +144,7 @@ function MembershipTile({ card: c, showProgram }: { card: MembershipCard; showPr
         </span>
       </div>
       <div className="space-y-2 px-4 py-3">
-        <ProgressBar value={c.balance} max={c.goal} color={color} />
+        <ProgressBar value={c.balance} max={c.goal} color={th.accent} />
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="text-stone-600">
             {missing === 0 ? 'Meta atingida!' : `Faltam ${plural(missing, c.unitLabel, c.unitLabelPlural)}`}

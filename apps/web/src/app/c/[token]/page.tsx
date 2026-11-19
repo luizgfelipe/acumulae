@@ -7,6 +7,7 @@ import { PublicShell } from '@/components/customer-shell';
 import { StampGrid } from '@/components/stamps';
 import { Alert, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
+import { BrandColors, cardTheme } from '@/lib/card-theme';
 import { useMe } from '@/lib/customer';
 import { plural } from '@/lib/format';
 
@@ -14,7 +15,7 @@ interface TokenInfo {
   status: 'PENDING' | 'USED' | 'CANCELLED' | 'EXPIRED';
   quantity: number;
   expiresAt: string;
-  tenant: { name: string; slug: string; logoUrl: string | null; primaryColor: string | null; active: boolean };
+  tenant: BrandColors & { name: string; slug: string; logoUrl: string | null; active: boolean };
   storeName: string;
   program: { unitLabel: string; unitLabelPlural: string; goal: number; rewardDescription: string } | null;
 }
@@ -60,6 +61,7 @@ export default function CheckoutClaimPage() {
   if (!info && !error) return <FullPageSpinner />;
 
   const color = info?.tenant.primaryColor ?? '#E85D04';
+  const th = cardTheme(info?.tenant ?? {});
   const header = info && (
     <div className="mb-6 flex items-center gap-3">
       <TenantAvatar name={info.tenant.name} logoUrl={info.tenant.logoUrl} color={color} size={48} />
@@ -76,7 +78,7 @@ export default function CheckoutClaimPage() {
       <PublicShell>
         {header}
         <div className="space-y-6 text-center">
-          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full text-white" style={{ background: color }}>
+          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: th.accent, color: th.accentFg }}>
             <svg viewBox="0 0 24 24" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="m5 12 5 5 9-10" />
             </svg>
@@ -92,7 +94,7 @@ export default function CheckoutClaimPage() {
               🎉 Você ganhou <strong>{c.rewardDescription}</strong>! Mostre seu QR no caixa para resgatar.
             </Alert>
           )}
-          <StampGrid filled={c.balance} goal={c.goal} color={color} size={c.goal > 15 ? 'sm' : 'md'} />
+          <StampGrid filled={c.balance} goal={c.goal} color={th.accent} checkColor={th.accentFg} size={c.goal > 15 ? 'sm' : 'md'} />
           <LinkButton href={`/cartao/${c.membershipId}`} className="h-13 w-full text-lg">
             Ver meu cartão
           </LinkButton>
