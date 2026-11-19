@@ -49,8 +49,9 @@ export interface CardSummary {
 
 export function pluralize(label: string, plural?: string | null) {
   if (plural) return plural;
-  if (/[aeiouáéíóú]$/i.test(label)) return `${label}s`;
+  // "ão" vem antes da regra de vogal; senão "limão" viraria "limãos".
   if (/ão$/i.test(label)) return label.replace(/ão$/i, 'ões');
+  if (/[aeiouáéíóú]$/i.test(label)) return `${label}s`;
   if (/[rsz]$/i.test(label)) return `${label}es`;
   if (/l$/i.test(label)) return label.replace(/l$/i, 'is');
   return `${label}s`;
