@@ -17,7 +17,7 @@ export default function ProgramsPage() {
   if (!data) return <FullPageSpinner />;
 
   const { limit } = data;
-  const atLimit = limit.active >= limit.maxActive;
+  const atLimit = limit.maxActive !== null && limit.active >= limit.maxActive;
 
   async function act(p: ProgramItem, action: 'activate' | 'deactivate' | 'delete') {
     setBusy(p.id);
@@ -43,7 +43,9 @@ export default function ProgramsPage() {
         <div>
           <h1 className="text-2xl font-bold">Programas</h1>
           <p className="text-sm text-stone-600">
-            {limit.active} de {limit.maxActive} {limit.maxActive === 1 ? 'programa ativo' : 'programas ativos'} · plano {limit.planName}
+            {limit.maxActive === null
+              ? `${limit.active} ${limit.active === 1 ? 'programa ativo' : 'programas ativos'} · plano ${limit.planName}, sem limite`
+              : `${limit.active} de ${limit.maxActive} ${limit.maxActive === 1 ? 'programa ativo' : 'programas ativos'} · plano ${limit.planName}`}
           </p>
         </div>
         <LinkButton href="/painel/programas/novo" className="h-10 text-sm">

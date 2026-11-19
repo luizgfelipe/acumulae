@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { usePanel } from '@/components/panel-context';
 import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Modal, Select } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
@@ -29,6 +30,8 @@ export default function StaffPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { plan, reload: reloadPanel } = usePanel();
+  const staffLimit = plan?.limits.staff;
 
   async function invite(e: FormEvent) {
     e.preventDefault();
@@ -42,6 +45,7 @@ export default function StaffPage() {
       setInviteUrl(r.inviteUrl);
       setForm({ name: '', email: '', role: 'ATTENDANT', storeIds: [] });
       reload();
+      reloadPanel();
     } catch (err) {
       setFormError(errorMessage(err));
     } finally {
@@ -53,6 +57,7 @@ export default function StaffPage() {
     setActionError(null);
     try {
       setData(await staffApi<StaffData>(`/api/admin/staff/${id}`, { method: 'PATCH', body }));
+      reloadPanel();
     } catch (err) {
       setActionError(errorMessage(err));
     }
@@ -66,7 +71,14 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Funcionários</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Funcionários</h1>
+        {staffLimit && staffLimit.max !== null && (
+          <p className="text-sm text-stone-600">
+            {staffLimit.used} de {staffLimit.max} no seu plano, contando os convites pendentes
+          </p>
+        )}
+      </div>
       {actionError && <Alert>{actionError}</Alert>}
 
       <Card className="p-0">

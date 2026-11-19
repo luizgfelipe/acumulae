@@ -2,24 +2,41 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { PanelContext } from '@/components/panel-context';
 import { Alert, FullPageSpinner, Logo, TenantAvatar, cx } from '@/components/ui';
+import { staffApi } from '@/lib/api';
+import { PlanInfo, planNotice } from '@/lib/plan';
 import { staffLogout, useStaff } from '@/lib/staff';
+import { useLoad } from '@/lib/use-load';
 
-const NAV = [
+/** `feature`: recurso do plano; sem ele o item aparece com cadeado e a tela explica como liberar. */
+const NAV: Array<{ href: string; label: string; feature?: 'reports' | 'networkDashboard' }> = [
   { href: '/painel', label: 'Indicadores' },
   { href: '/painel/clientes', label: 'Clientes' },
   { href: '/painel/movimentacoes', label: 'Movimentações' },
+  { href: '/painel/relatorios', label: 'Relatórios', feature: 'reports' },
+  { href: '/painel/rede', label: 'Rede', feature: 'networkDashboard' },
   { href: '/painel/programas', label: 'Programas' },
   { href: '/painel/perfil', label: 'Perfil' },
+  { href: '/painel/unidades', label: 'Unidades' },
   { href: '/painel/funcionarios', label: 'Funcionários' },
+  { href: '/painel/plano', label: 'Meu plano' },
 ];
 
 export default function PanelLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { me, reload } = useStaff('painel');
+  const { me, reload: reloadMe } = useStaff('painel');
   const [menuOpen, setMenuOpen] = useState(false);
+  const isManager = me?.context?.role === 'MANAGER';
+  const tenantId = me?.context?.tenantId;
+  // Plano vigente, limites e uso: carregado uma vez e recarregado quando algo muda no painel.
+  const plan = useLoad(() => (isManager ? staffApi<PlanInfo>('/api/admin/plan') : Promise.resolve(null)), [isManager, tenantId]);
+  const reloadPlan = plan.reload;
+  const reload = useCallback(() => {
+    reloadMe();
+    reloadPlan();
+  }, [reloadMe, reloadPlan]);
 
   // Fecha o menu mobile ao navegar.
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -34,6 +51,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
 
   if (!me?.context || me.context.role !== 'MANAGER') return <FullPageSpinner />;
   const ctx = me.context;
+  const notice = plan.data ? planNotice(plan.data) : null;
 
   const brand = (
     <div className="flex items-center gap-2">
@@ -44,7 +62,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <PanelContext.Provider value={{ me, reload }}>
+    <PanelContext.Provider value={{ me, reload, plan: plan.data }}>
       <div className="min-h-dvh bg-stone-100 md:flex">
         {/* Mobile: barra superior com hambúrguer */}
         <header className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3 md:hidden">
@@ -76,7 +94,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
                   ×
                 </button>
               </div>
-              <SideMenu pathname={pathname} hasManyWorkplaces={me.workplaces.length > 1} userName={me.user.name} />
+              <SideMenu pathname={pathname} hasManyWorkplaces={me.workplaces.length > 1} userName={me.user.name} features={plan.data?.features} />
             </div>
           </div>
         )}
@@ -84,13 +102,23 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
         {/* Desktop: barra lateral */}
         <aside className="no-print hidden md:sticky md:top-0 md:flex md:h-dvh md:w-60 md:shrink-0 md:flex-col md:border-r md:border-stone-200 md:bg-white">
           <div className="px-4 py-4">{brand}</div>
-          <SideMenu pathname={pathname} hasManyWorkplaces={me.workplaces.length > 1} userName={me.user.name} />
+          <SideMenu pathname={pathname} hasManyWorkplaces={me.workplaces.length > 1} userName={me.user.name} features={plan.data?.features} />
         </aside>
 
         <main className="min-w-0 flex-1 p-4 md:p-8">
           {ctx.tenantStatus !== 'ACTIVE' && (
             <div className="mb-4">
               <Alert>Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Fale com o suporte do Acumulae.</Alert>
+            </div>
+          )}
+          {notice && pathname !== '/painel/plano' && (
+            <div className="no-print mb-4">
+              <Alert kind={notice.kind}>
+                {notice.text}{' '}
+                <Link href="/painel/plano" className="font-semibold underline">
+                  Ver meu plano
+                </Link>
+              </Alert>
             </div>
           )}
           {children}
@@ -100,13 +128,24 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
   );
 }
 
-function SideMenu({ pathname, hasManyWorkplaces, userName }: { pathname: string; hasManyWorkplaces: boolean; userName: string }) {
+function SideMenu({
+  pathname,
+  hasManyWorkplaces,
+  userName,
+  features,
+}: {
+  pathname: string;
+  hasManyWorkplaces: boolean;
+  userName: string;
+  features?: PlanInfo['features'];
+}) {
   const router = useRouter();
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
       <nav className="flex flex-col gap-1 px-3 py-2">
         {NAV.map((n) => {
           const active = n.href === '/painel' ? pathname === '/painel' : pathname.startsWith(n.href);
+          const locked = !!n.feature && !!features && !features[n.feature];
           return (
             <Link
               key={n.href}
@@ -120,6 +159,11 @@ function SideMenu({ pathname, hasManyWorkplaces, userName }: { pathname: string;
               )}
             >
               {n.label}
+              {locked && (
+                <span className="ml-1.5 text-xs opacity-70" aria-label="bloqueado no seu plano">
+                  🔒
+                </span>
+              )}
             </Link>
           );
         })}

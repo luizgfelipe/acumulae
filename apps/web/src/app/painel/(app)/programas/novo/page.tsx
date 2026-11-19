@@ -15,7 +15,7 @@ export default function NewProgramPage() {
   const [activate, setActivate] = useState<boolean | null>(null);
 
   if (!data) return <FullPageSpinner />;
-  const canActivate = data.limit.active < data.limit.maxActive;
+  const canActivate = data.limit.maxActive === null || data.limit.active < data.limit.maxActive;
   const active = activate ?? canActivate;
 
   return (

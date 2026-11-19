@@ -1,0 +1,257 @@
+'use client';
+
+import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
+import { FormEvent, useState } from 'react';
+import { usePanel } from '@/components/panel-context';
+import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Modal } from '@/components/ui';
+import { errorMessage, staffApi } from '@/lib/api';
+import { brl, isFull } from '@/lib/plan';
+import { useLoad } from '@/lib/use-load';
+
+interface Store {
+  id: string;
+  name: string;
+  slug: string;
+  address: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+  signupUrl: string;
+}
+
+function slugify(s: string) {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+export default function StoresPage() {
+  const { me, plan, reload: reloadPanel } = usePanel();
+  const { data, error, setData } = useLoad(() => staffApi<Store[]>('/api/admin/stores'), []);
+  const [form, setForm] = useState({ name: '', address: '' });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [printing, setPrinting] = useState<Store | null>(null);
+  const [editing, setEditing] = useState<Store | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const usage = plan?.limits.stores;
+  const full = usage ? isFull(usage) : false;
+
+  async function save(key: string, call: () => Promise<Store[]>, onError: (m: string) => void) {
+    setBusy(key);
+    try {
+      setData(await call());
+      reloadPanel();
+      return true;
+    } catch (err) {
+      onError(errorMessage(err));
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    const ok = await save(
+      'new',
+      () => staffApi<Store[]>('/api/admin/stores', { method: 'POST', body: { name: form.name, slug: slugify(form.name), address: form.address || null } }),
+      setFormError,
+    );
+    if (ok) setForm({ name: '', address: '' });
+  }
+
+  const toggle = (s: Store) => {
+    setActionError(null);
+    return save(
+      s.id,
+      () => staffApi<Store[]>(`/api/admin/stores/${s.id}`, { method: 'PATCH', body: { status: s.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } }),
+      setActionError,
+    );
+  };
+
+  if (error) return <Alert>{error}</Alert>;
+  if (!data) return <FullPageSpinner />;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Unidades</h1>
+        {usage && usage.max !== null && (
+          <p className="text-sm text-stone-600">
+            {usage.used} de {usage.max} {usage.max === 1 ? 'unidade ativa' : 'unidades ativas'} no seu plano
+          </p>
+        )}
+      </div>
+      {actionError && <Alert>{actionError}</Alert>}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {data.map((s) => (
+          <Card key={s.id} className={s.status === 'ACTIVE' ? '' : 'bg-stone-50'}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{s.name}</p>
+                <p className="text-sm text-stone-500">{s.address ?? 'Sem endereço'}</p>
+              </div>
+              <Badge color={s.status === 'ACTIVE' ? 'green' : 'stone'}>{s.status === 'ACTIVE' ? 'Ativa' : 'Inativa'}</Badge>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setPrinting(s)}>
+                QR do balcão
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setEditing(s)}>
+                Editar
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => toggle(s)} loading={busy === s.id}>
+                {s.status === 'ACTIVE' ? 'Desativar' : 'Reativar'}
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="max-w-xl">
+        <h2 className="mb-3 font-semibold">Nova unidade</h2>
+        {full && usage ? (
+          <div className="space-y-2 text-sm text-stone-700">
+            <p>
+              Seu plano permite {usage.max} {usage.max === 1 ? 'unidade ativa' : 'unidades ativas'}.
+              {usage.extraPriceCents !== null
+                ? ` Cada unidade extra custa ${brl(usage.extraPriceCents)} por mês: fale com o suporte do Acumulae para contratar.`
+                : ' Para ter mais unidades, mude de plano.'}
+            </p>
+            <Link href="/painel/plano" className="font-medium text-brand-700 underline">
+              Ver meu plano
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={create} className="space-y-3">
+            <Field label="Nome">
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex.: Sushi X - Shopping" required maxLength={120} />
+            </Field>
+            <Field label="Endereço (opcional)">
+              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} maxLength={300} />
+            </Field>
+            {formError && <Alert>{formError}</Alert>}
+            <Button type="submit" loading={busy === 'new'}>
+              Adicionar unidade
+            </Button>
+          </form>
+        )}
+      </Card>
+
+      <EditStore
+        store={editing}
+        onClose={() => setEditing(null)}
+        onSave={(s, body) =>
+          save(`edit-${s.id}`, () => staffApi<Store[]>(`/api/admin/stores/${s.id}`, { method: 'PATCH', body }), (m) => {
+            throw new Error(m);
+          })
+        }
+      />
+
+      <Modal open={!!printing} onClose={() => setPrinting(null)} title="QR do balcão">
+        {printing && (
+          <div className="space-y-4">
+            <div id="print-area" className="rounded-2xl border border-stone-200 p-6 text-center">
+              <p className="text-lg font-bold">{me.context?.tenantName}</p>
+              <p className="text-sm text-stone-600">{printing.name}</p>
+              <p className="mb-4 text-sm text-stone-600">Participe do nosso programa de fidelidade</p>
+              <div className="mx-auto w-fit">
+                <QRCodeSVG value={printing.signupUrl} size={220} level="M" marginSize={0} />
+              </div>
+              <p className="mt-4 text-sm font-medium">Aponte a câmera do celular</p>
+              <p className="mt-1 text-xs text-stone-500">{printing.signupUrl}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="secondary" onClick={() => navigator.clipboard?.writeText(printing.signupUrl)}>
+                Copiar link
+              </Button>
+              <Button onClick={() => printQr()}>Imprimir</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function EditStore({
+  store,
+  onClose,
+  onSave,
+}: {
+  store: Store | null;
+  onClose: () => void;
+  onSave: (s: Store, body: { name: string; address: string | null }) => Promise<boolean>;
+}) {
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [openFor, setOpenFor] = useState<string | null>(null);
+
+  // Preenche o formulário quando abre para outra unidade.
+  if (store && openFor !== store.id) {
+    setOpenFor(store.id);
+    setName(store.name);
+    setAddress(store.address ?? '');
+    setErr(null);
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!store) return;
+    setBusy(true);
+    try {
+      await onSave(store, { name, address: address || null });
+      setOpenFor(null);
+      onClose();
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : 'Não foi possível salvar.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={!!store}
+      onClose={() => {
+        setOpenFor(null);
+        onClose();
+      }}
+      title="Editar unidade"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Nome" hint="Aparece no app do cliente e no caixa.">
+          <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} />
+        </Field>
+        <Field label="Endereço">
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} maxLength={300} placeholder="Rua, número - Cidade/UF" />
+        </Field>
+        {err && <Alert>{err}</Alert>}
+        <Button type="submit" loading={busy} className="w-full">
+          Salvar
+        </Button>
+      </form>
+    </Modal>
+  );
+}
+
+/** Imprime só o cartaz do QR, numa janela separada. */
+function printQr() {
+  const el = document.getElementById('print-area');
+  if (!el) return;
+  const w = window.open('', '_blank', 'width=600,height=800');
+  if (!w) return;
+  w.document.write(
+    `<!doctype html><html><head><title>QR do balcão</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;padding:40px;text-align:center}p{margin:4px 0}svg{width:320px;height:320px;margin:24px auto}</style></head><body><div>${el.innerHTML}</div><script>window.onload=()=>{window.print()}</script></body></html>`,
+  );
+  w.document.close();
+}

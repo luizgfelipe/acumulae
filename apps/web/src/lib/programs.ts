@@ -11,6 +11,6 @@ export interface ProgramItem extends ProgramFields {
 }
 
 export interface ProgramsList {
-  limit: { plan: string; planName: string; maxActive: number; active: number };
+  limit: { plan: string; planName: string; /** null = ilimitado */ maxActive: number | null; active: number };
   items: ProgramItem[];
 }

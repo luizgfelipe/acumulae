@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { usePanel } from '@/components/panel-context';
@@ -21,12 +22,13 @@ interface Profile {
 type Msg = { kind: 'success' | 'error'; text: string } | null;
 
 export default function ProfilePage() {
-  const { reload: reloadPanel } = usePanel();
+  const { reload: reloadPanel, plan } = usePanel();
   const { data, error, setData } = useLoad(() => staffApi<Profile>('/api/admin/profile'), []);
 
   if (error) return <Alert>{error}</Alert>;
   if (!data) return <FullPageSpinner />;
 
+  const multiStore = (plan?.limits.stores.used ?? 1) > 1;
   const update = (p: Profile) => {
     setData(p);
     reloadPanel();
@@ -39,7 +41,20 @@ export default function ProfilePage() {
         <div className="space-y-6">
           <LogoCard profile={data} onSaved={update} />
           <StampCard profile={data} onSaved={update} />
-          <StoreCard profile={data} onSaved={update} />
+          {multiStore ? (
+            <Card>
+              <h2 className="mb-1 font-semibold">Dados das unidades</h2>
+              <p className="text-sm text-stone-600">
+                Com mais de uma unidade, nome e endereço de cada uma ficam na aba{' '}
+                <Link href="/painel/unidades" className="font-medium text-brand-700 underline">
+                  Unidades
+                </Link>
+                .
+              </p>
+            </Card>
+          ) : (
+            <StoreCard profile={data} onSaved={update} />
+          )}
         </div>
         <div className="space-y-6">
           <PreviewCard profile={data} />
@@ -54,6 +69,8 @@ export default function ProfilePage() {
 
 function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  // Cor secundária e modelos: Profissional e Rede. Enquanto carrega, não trava.
+  const custom = usePanel().plan?.features.cardCustomization ?? true;
   const saved = profile.branding;
   const [color, setColor] = useState(saved.primaryColor);
   const [useSecondary, setUseSecondary] = useState(saved.secondaryColor !== null);
@@ -148,9 +165,15 @@ function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile
       <form onSubmit={saveColor} className="mt-5 space-y-3">
         <ColorField label="Cor principal" value={color} onChange={setColor} />
         <div>
-          <label className="mb-2 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={useSecondary} onChange={(e) => setUseSecondary(e.target.checked)} className="h-4 w-4" />
-            Usar uma cor secundária
+          <label className={cx('mb-2 flex items-center gap-2 text-sm', !custom && 'text-stone-400')}>
+            <input
+              type="checkbox"
+              checked={useSecondary}
+              disabled={!custom && !useSecondary}
+              onChange={(e) => setUseSecondary(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Usar uma cor secundária {!custom && <PlanLock />}
           </label>
           {useSecondary ? (
             <ColorField label="Cor secundária" value={secondary} onChange={setSecondary} />
@@ -162,22 +185,38 @@ function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile
         <fieldset>
           <legend className="mb-2 text-sm font-medium">Modelo do cartão</legend>
           <div className="grid grid-cols-3 gap-2">
-            {CARD_STYLES.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => setStyle(o.value)}
-                aria-pressed={style === o.value}
-                className={cx(
-                  'rounded-xl border-2 p-1.5 text-center transition',
-                  style === o.value ? 'border-stone-900' : 'border-transparent hover:border-stone-300',
-                )}
-              >
-                <CardPreview compact name={profile.tenant.name} logoUrl={null} brand={{ ...draft, cardStyle: o.value }} />
-                <span className="mt-1.5 block text-xs font-semibold">{o.label}</span>
-              </button>
-            ))}
+            {CARD_STYLES.map((o) => {
+              const locked = !custom && o.value !== 'CLASSICO';
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setStyle(o.value)}
+                  aria-pressed={style === o.value}
+                  disabled={locked}
+                  title={locked ? 'Disponível a partir do plano Profissional' : undefined}
+                  className={cx(
+                    'rounded-xl border-2 p-1.5 text-center transition',
+                    style === o.value ? 'border-stone-900' : 'border-transparent hover:border-stone-300',
+                    locked && 'cursor-not-allowed opacity-50 hover:border-transparent',
+                  )}
+                >
+                  <CardPreview compact name={profile.tenant.name} logoUrl={null} brand={{ ...draft, cardStyle: o.value }} />
+                  <span className="mt-1.5 block text-xs font-semibold">
+                    {o.label} {locked && <PlanLock />}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+          {!custom && (
+            <p className="mt-2 text-xs text-stone-500">
+              Cor secundária e os modelos Degradê e Moldura estão disponíveis a partir do plano Profissional.{' '}
+              <Link href="/painel/plano" className="font-medium text-brand-700 underline">
+                Ver meu plano
+              </Link>
+            </p>
+          )}
           <p className="mt-2 text-xs text-stone-500">{CARD_STYLES.find((o) => o.value === style)?.hint}</p>
         </fieldset>
 
@@ -372,6 +411,14 @@ function PreviewCard({ profile }: { profile: Profile }) {
       <h2 className="mb-3 text-sm font-semibold text-stone-500">Como o cartão aparece no app do cliente</h2>
       <CardPreview name={profile.tenant.name} subtitle={profile.store.name} logoUrl={profile.branding.logoUrl} brand={profile.branding} />
     </Card>
+  );
+}
+
+function PlanLock() {
+  return (
+    <span aria-label="bloqueado no seu plano" className="text-xs">
+      🔒
+    </span>
   );
 }
 
