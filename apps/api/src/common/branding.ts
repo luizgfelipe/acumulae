@@ -2,6 +2,7 @@ import { CardStyle } from '@prisma/client';
 import { z } from 'zod';
 import { badRequest } from './errors';
 import { DEFAULT_STAMP_ICON, MAX_STAMP_IMAGE_BYTES } from './stamps';
+import type { VisualAllowance } from '../plans/plans';
 
 /** Campos da identidade visual carregados nas listagens (sem os bytes do logo). */
 export const BRANDING_SELECT = {
@@ -30,14 +31,19 @@ type BrandingRow = {
 /**
  * Cores, modelo do cartão e selo, com os padrões. `secondaryColor` null = a principal faz os dois papéis;
  * `stampImageUrl` presente = a imagem própria substitui o ícone.
+ * Com `allow` (o que o plano vigente libera), o que não é liberado deixa de aparecer — cai para a principal,
+ * o Clássico e o ✓ — mas continua guardado e volta num upgrade. Sem `allow`, devolve o que está salvo.
  */
-export function brandStyle(slug: string, b: BrandingRow | null | undefined) {
+export function brandStyle(slug: string, b: BrandingRow | null | undefined, allow?: VisualAllowance) {
+  const custom = !allow || allow.cardCustomization;
+  const icon = b?.stampIcon ?? DEFAULT_STAMP_ICON;
   return {
     primaryColor: b?.primaryColor ?? DEFAULT_PRIMARY_COLOR,
-    secondaryColor: b?.secondaryColor ?? null,
-    cardStyle: b?.cardStyle ?? CardStyle.CLASSICO,
-    stampIcon: b?.stampIcon ?? DEFAULT_STAMP_ICON,
-    stampImageUrl: b?.stampImageMime ? `/api/public/tenants/${slug}/stamp?v=${b.version}` : null,
+    secondaryColor: custom ? (b?.secondaryColor ?? null) : null,
+    cardStyle: custom ? (b?.cardStyle ?? CardStyle.CLASSICO) : CardStyle.CLASSICO,
+    stampIcon: !allow || allow.allowedStampIcons.includes(icon) ? icon : DEFAULT_STAMP_ICON,
+    stampImageUrl:
+      b?.stampImageMime && (!allow || allow.customStampImage) ? `/api/public/tenants/${slug}/stamp?v=${b.version}` : null,
   };
 }
 

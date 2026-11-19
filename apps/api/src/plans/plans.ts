@@ -150,6 +150,60 @@ export function visualAllowance(plan: Plan): VisualAllowance {
 /** `null` = ilimitado. */
 export const withinLimit = (used: number, max: number | null) => max === null || used < max;
 
+/** Clientes distintos com visita nos últimos 90 dias (um cliente com cartão em 2 programas conta 1). */
+export async function activeCustomers(db: Db, tenantId: string, now = new Date()): Promise<number> {
+  const since = new Date(now.getTime() - ACTIVE_CUSTOMER_DAYS * 86_400_000);
+  const rows = await db.membership.groupBy({ by: ['customerId'], where: { tenantId, lastVisitAt: { gte: since } } });
+  return rows.length;
+}
+
+/**
+ * Funcionários que ocupam vaga: gestores e atendentes ativos + convites pendentes (por e-mail, sem
+ * contar duas vezes quem recebeu o convite de novo ou já faz parte da equipe).
+ */
+export async function staffInUse(db: Db, tenantId: string, now = new Date()): Promise<number> {
+  const [members, invites] = await Promise.all([
+    db.staffMembership.findMany({ where: { tenantId, status: 'ACTIVE' }, select: { staffUser: { select: { email: true } } } }),
+    db.staffInvite.findMany({ where: { tenantId, usedAt: null, expiresAt: { gt: now } }, select: { email: true } }),
+  ]);
+  const emails = new Set(members.map((m) => m.staffUser.email.toLowerCase()));
+  const pending = new Set(invites.map((i) => i.email.toLowerCase()).filter((e) => !emails.has(e)));
+  return members.length + pending.size;
+}
+
+export async function activeStores(db: Db, tenantId: string): Promise<number> {
+  return db.store.count({ where: { tenantId, status: 'ACTIVE' } });
+}
+
+/** Trava a linha do estabelecimento: duas criações simultâneas não furam o limite. */
+export async function lockTenant(tx: Tx, tenantId: string) {
+  await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId}::uuid FOR UPDATE`;
+}
+
+/** R$ 39,90 (sem depender do ICU do Node, que põe espaço não separável). */
+const brl = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+export function staffLimitError(max: number) {
+  return new AppError(
+    409,
+    'STAFF_LIMIT_REACHED',
+    `Seu plano permite até ${plural(max, 'funcionário', 'funcionários')}, contando os convites pendentes. Desative alguém ou mude de plano.`,
+    { max },
+  );
+}
+
+export function storeLimitError(eff: EffectivePlan) {
+  const p = eff.plan;
+  const extra =
+    p.extraStorePriceCents !== null && !eff.expired
+      ? ` Cada unidade extra custa ${brl(p.extraStorePriceCents)} por mês: fale com o suporte do Acumulae para contratar.`
+      : ' Mude de plano para ter mais unidades.';
+  return new AppError(409, 'STORE_LIMIT_REACHED', `Seu plano permite ${plural(eff.maxStores, 'unidade ativa', 'unidades ativas')}.${extra}`, {
+    max: eff.maxStores,
+  });
+}
+
 /** Recurso fora do plano vigente. */
 export function planFeatureError(message: string) {
   return new AppError(403, 'PLAN_FEATURE_UNAVAILABLE', message);

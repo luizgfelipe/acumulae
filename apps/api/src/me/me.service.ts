@@ -5,6 +5,7 @@ import { CustomerPrincipal } from '../auth/customer-auth.guard';
 import { CustomerAuthService, birthDateSchema, publicCustomer, toDate } from '../auth/customer-auth.service';
 import { SessionsService } from '../auth/sessions.service';
 import { BRANDING_SELECT, brandStyle, logoUrlOf } from '../common/branding';
+import { resolvePlan, visualAllowance } from '../plans/plans';
 import { AppError, badRequest, forbidden, notFound, unauthorized } from '../common/errors';
 import { normalizePhone } from '../common/phone';
 import { hashPassword, passwordProblem, verifyPassword } from '../common/password';
@@ -110,9 +111,14 @@ export class MeService {
   async memberships(me: CustomerPrincipal) {
     const ms = await this.prisma.membership.findMany({
       where: { customerId: me.id },
-      include: { tenant: { include: { branding: { select: BRANDING_SELECT } } }, program: true },
+      include: { tenant: { include: { planRef: true, branding: { select: BRANDING_SELECT } } }, program: true },
       orderBy: [{ lastVisitAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     });
+    // Visual do cartão conforme o plano vigente de cada estabelecimento (um cálculo por estabelecimento).
+    const allowance = new Map<string, ReturnType<typeof visualAllowance>>();
+    for (const m of ms) {
+      if (!allowance.has(m.tenantId)) allowance.set(m.tenantId, visualAllowance((await resolvePlan(this.prisma, m.tenant)).plan));
+    }
     // Programas desativados só continuam aparecendo enquanto houver saldo ou recompensa a usar.
     return ms
       .filter((m) => m.program.active || m.cachedBalance > 0 || m.cachedRewardsAvailable > 0)
@@ -122,7 +128,7 @@ export class MeService {
         name: m.tenant.name,
         slug: m.tenant.slug,
         logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
-        ...brandStyle(m.tenant.slug, m.tenant.branding),
+        ...brandStyle(m.tenant.slug, m.tenant.branding, allowance.get(m.tenantId)),
         active: m.tenant.status === 'ACTIVE',
       },
       marketingConsent: m.marketingConsent,
@@ -147,7 +153,7 @@ export class MeService {
   private async ownMembership(me: CustomerPrincipal, id: string) {
     const m = await this.prisma.membership.findFirst({
       where: { id, customerId: me.id },
-      include: { tenant: { include: { branding: { select: BRANDING_SELECT } } }, program: true },
+      include: { tenant: { include: { planRef: true, branding: { select: BRANDING_SELECT } } }, program: true },
     });
     if (!m) throw notFound('Cartão não encontrado.');
     return m;
@@ -173,7 +179,7 @@ export class MeService {
         name: m.tenant.name,
         slug: m.tenant.slug,
         logoUrl: logoUrlOf(m.tenant.slug, m.tenant.branding),
-        ...brandStyle(m.tenant.slug, m.tenant.branding),
+        ...brandStyle(m.tenant.slug, m.tenant.branding, visualAllowance((await resolvePlan(this.prisma, m.tenant)).plan)),
         active: m.tenant.status === 'ACTIVE',
       },
       rules: {
@@ -269,7 +275,7 @@ export class MeService {
   async publicTenant(slug: string) {
     const t = await this.prisma.tenant.findUnique({
       where: { slug },
-      include: { branding: { select: BRANDING_SELECT }, programs: { where: { active: true }, orderBy: { createdAt: 'asc' } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true } } },
+      include: { planRef: true, branding: { select: BRANDING_SELECT }, programs: { where: { active: true }, orderBy: { createdAt: 'asc' } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true } } },
     });
     if (!t) throw notFound('Estabelecimento não encontrado.');
     const toPublic = (p: (typeof t.programs)[number]) => ({
@@ -286,7 +292,7 @@ export class MeService {
       slug: t.slug,
       active: t.status === 'ACTIVE',
       logoUrl: logoUrlOf(t.slug, t.branding),
-      ...brandStyle(t.slug, t.branding),
+      ...brandStyle(t.slug, t.branding, visualAllowance((await resolvePlan(this.prisma, t)).plan)),
       stores: t.stores,
       programs: t.programs.map(toPublic),
     };

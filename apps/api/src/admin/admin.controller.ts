@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { z } from 'zod';
 import { CurrentStaff, Staff, TenantStaff } from '../auth/staff-auth.guard';
 import { ZodPipe } from '../common/zod.pipe';
@@ -18,6 +19,7 @@ import {
   storeUpdateSchema,
 } from './admin.service';
 import { ProgramsService, programCreateSchema, programInputSchema } from './programs.service';
+import { ReportsService, birthdaysQuerySchema, inactiveQuerySchema, staffReportQuerySchema } from './reports.service';
 
 function ctxOf(s: TenantStaff): AdminCtx {
   return { tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId };
@@ -30,6 +32,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly programsSvc: ProgramsService,
+    private readonly reports: ReportsService,
   ) {}
 
   @Get('dashboard')
@@ -103,6 +106,37 @@ export class AdminController {
   @Delete('branding/stamp-image')
   removeStampImage(@CurrentStaff() s: TenantStaff) {
     return this.admin.setStampImage(ctxOf(s), null);
+  }
+
+  // ───────────── Relatórios (Profissional e Rede) ─────────────
+
+  @Get('reports/birthdays')
+  birthdays(@CurrentStaff() s: TenantStaff, @Query(new ZodPipe(birthdaysQuerySchema)) q: z.infer<typeof birthdaysQuerySchema>) {
+    return this.reports.birthdays(ctxOf(s), q);
+  }
+
+  @Get('reports/inactive')
+  inactive(@CurrentStaff() s: TenantStaff, @Query(new ZodPipe(inactiveQuerySchema)) q: z.infer<typeof inactiveQuerySchema>) {
+    return this.reports.inactive(ctxOf(s), q);
+  }
+
+  @Get('reports/staff')
+  staffReport(@CurrentStaff() s: TenantStaff, @Query(new ZodPipe(staffReportQuerySchema)) q: z.infer<typeof staffReportQuerySchema>) {
+    return this.reports.staff(ctxOf(s), q);
+  }
+
+  @Get('customers/export.csv')
+  async exportCustomers(@CurrentStaff() s: TenantStaff, @Res() res: Response) {
+    const { csv, filename } = await this.reports.exportCustomers(ctxOf(s));
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(csv);
+  }
+
+  @Get('plan')
+  plan(@CurrentStaff() s: TenantStaff) {
+    return this.admin.planInfo(ctxOf(s));
   }
 
   @Get('profile')

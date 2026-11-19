@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, Injectable, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentCustomer, CustomerAuthGuard, CustomerPrincipal } from '../auth/customer-auth.guard';
 import { BRANDING_SELECT, brandStyle, logoUrlOf } from '../common/branding';
+import { resolvePlan, visualAllowance } from '../plans/plans';
 import { sha256 } from '../common/crypto';
 import { AppError, forbidden, gone, notFound } from '../common/errors';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
@@ -17,7 +18,7 @@ export class CheckoutClaimService {
     if (!/^[0-9A-Za-z]{10,64}$/.test(token)) throw notFound('Código inválido.', 'TOKEN_NOT_FOUND');
     const t = await this.prisma.checkoutToken.findUnique({
       where: { tokenHash: sha256(token) },
-      include: { tenant: { include: { branding: { select: BRANDING_SELECT } } }, store: true, program: true },
+      include: { tenant: { include: { planRef: true, branding: { select: BRANDING_SELECT } } }, store: true, program: true },
     });
     if (!t) throw notFound('Código inválido.', 'TOKEN_NOT_FOUND');
     return t;
@@ -36,7 +37,7 @@ export class CheckoutClaimService {
         name: t.tenant.name,
         slug: t.tenant.slug,
         logoUrl: logoUrlOf(t.tenant.slug, t.tenant.branding),
-        ...brandStyle(t.tenant.slug, t.tenant.branding),
+        ...brandStyle(t.tenant.slug, t.tenant.branding, visualAllowance((await resolvePlan(this.prisma, t.tenant)).plan)),
         active: t.tenant.status === 'ACTIVE',
       },
       storeName: t.store.name,

@@ -32,8 +32,9 @@ afterAll(async () => {
   await app.close();
 });
 
-async function setup() {
-  const t = await createTenant(app);
+/** Estabelecimento novo com o gestor logado. Padrão: plano PILOTO (= Essencial). */
+async function setup(overrides: Record<string, unknown> = {}) {
+  const t = await createTenant(app, overrides);
   const pos = await managerAgent(app, t.managerInviteUrl);
   return { t, pos };
 }
@@ -215,7 +216,7 @@ describe('Unidades', () => {
   });
 
   it('caixa numa unidade desativada fica bloqueado (RN-21)', async () => {
-    const { t, pos } = await setup();
+    const { t, pos } = await setup({ plan: 'REDE' });
     await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(201);
     await pos.patch(`/api/admin/stores/${t.storeId}`).send({ status: 'INACTIVE' }).expect(200);
     const r = await pos.get('/api/pos/recent').expect(403);
@@ -241,7 +242,7 @@ describe('Identidade visual (RN-101, RN-108)', () => {
   });
 
   it('cor secundária e modelo de cartão: sem secundária por padrão, salvar, remover e validar', async () => {
-    const { t, pos } = await setup();
+    const { t, pos } = await setup({ plan: 'PROFISSIONAL' });
     const before = await pos.get('/api/admin/profile').expect(200);
     expect(before.body.branding).toMatchObject({ secondaryColor: null, cardStyle: 'CLASSICO' });
 
@@ -317,18 +318,26 @@ describe('Ícone e imagem do selo por plano', () => {
     await http().get(`/api/public/tenants/${t.slug}/stamp`).expect(404);
   });
 
-  it('ao voltar para o básico, quem já usa um ícone mantém; só escolhas novas são barradas', async () => {
-    const { t, pos } = await setup();
-    await platform().put('/api/platform/plans/MAIS').send({ name: 'Mais', maxActivePrograms: 1, maxStampIcons: 15, customStampImage: true }).expect(200);
-    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'MAIS' }).expect(200);
-    await pos.put('/api/admin/branding').send({ stampIcon: 'fish' }).expect(200);
-    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'PILOTO' }).expect(200);
+  it('fora do plano vigente o visual cai no padrão, mas fica guardado e volta no upgrade', async () => {
+    const { t, pos } = await setup({ plan: 'PROFISSIONAL' });
+    await pos.put('/api/admin/branding').send({ stampIcon: 'fish', secondaryColor: '#FFD166', cardStyle: 'MOLDURA' }).expect(200);
+    await pos.put('/api/admin/branding/stamp-image').send({ image: PNG }).expect(200);
 
-    const pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
-    expect(pub.body.stampIcon).toBe('fish');
+    // Vencido: vale o Essencial.
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ planExpiresAt: '2020-01-01' }).expect(200);
+    let pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
+    expect(pub.body).toMatchObject({ stampIcon: 'check', secondaryColor: null, cardStyle: 'CLASSICO', stampImageUrl: null });
     await pos.put('/api/admin/branding').send({ stampIcon: 'crown' }).expect(403);
-    // Mudar só as cores continua funcionando.
-    await pos.put('/api/admin/branding').send({ primaryColor: '#123456' }).expect(200);
+    const blocked = await pos.put('/api/admin/branding').send({ secondaryColor: '#000000' }).expect(403);
+    expect(blocked.body.code).toBe('PLAN_FEATURE_UNAVAILABLE');
+    // Voltar ao padrão e mudar a cor principal continuam permitidos.
+    await pos.put('/api/admin/branding').send({ primaryColor: '#123456', cardStyle: 'CLASSICO' }).expect(200);
+
+    // Renovado: o que estava guardado volta (o modelo foi trocado para Clássico acima).
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ planExpiresAt: null }).expect(200);
+    pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
+    expect(pub.body).toMatchObject({ stampIcon: 'fish', secondaryColor: '#FFD166', cardStyle: 'CLASSICO' });
+    expect(pub.body.stampImageUrl).toMatch(/\/stamp\?v=\d+$/);
   });
 });
 
@@ -359,5 +368,163 @@ describe('Programas no painel (RN-23, RN-24)', () => {
     await credit(pos, (await resolveQr(pos, await personalQr(c.agent))).customerRef, 10).expect(201);
     const list = await pos.get('/api/admin/programs').expect(200);
     expect(list.body.items.find((p: { id: string }) => p.id === t.programId)).toMatchObject({ members: 1, rewardsAvailable: 1 });
+  });
+});
+
+describe('Limites do plano vigente', () => {
+  const platform = () => ({
+    patch: (url: string) => http().patch(url).set('X-Platform-Key', PLATFORM_KEY),
+  });
+
+  it('Essencial: até 3 funcionários contando o gestor e os convites pendentes', async () => {
+    const { pos } = await setup({ plan: 'ESSENCIAL' });
+    const invite = (n: number) => pos.post('/api/admin/staff').send({ name: `Atendente ${n}`, email: `a${n}-${Date.now()}@example.com`, role: 'MANAGER' });
+    await invite(1).expect(201);
+    await invite(2).expect(201);
+    const r = await invite(3).expect(409);
+    expect(r.body.code).toBe('STAFF_LIMIT_REACHED');
+
+    const plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body.limits.staff).toEqual({ used: 3, max: 3 });
+  });
+
+  it('Profissional: funcionários ilimitados', async () => {
+    const { pos } = await setup({ plan: 'PROFISSIONAL' });
+    for (let n = 0; n < 4; n++) {
+      await pos.post('/api/admin/staff').send({ name: `G${n}`, email: `g${n}-${Date.now()}@example.com`, role: 'MANAGER' }).expect(201);
+    }
+    const plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body.limits.staff).toEqual({ used: 5, max: null });
+  });
+
+  it('unidades: inclusas + extras; reativar também respeita o limite', async () => {
+    const { t, pos } = await setup({ plan: 'PROFISSIONAL' });
+    const extra = await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(409);
+    expect(extra.body.code).toBe('STORE_LIMIT_REACHED');
+    expect(extra.body.message).toContain('R$ 39,90');
+
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ extraStores: 1 }).expect(200);
+    await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(201);
+    const stores = await pos.get('/api/admin/stores').expect(200);
+    const shopping = stores.body.find((s: { slug: string }) => s.slug === 'shopping');
+    await pos.patch(`/api/admin/stores/${shopping.id}`).send({ status: 'INACTIVE' }).expect(200);
+    await pos.post('/api/admin/stores').send({ name: 'Bairro', slug: 'bairro' }).expect(201);
+    await pos.patch(`/api/admin/stores/${shopping.id}`).send({ status: 'ACTIVE' }).expect(409);
+  });
+
+  it('downgrade não desativa o que já existe; só bloqueia criar além do limite', async () => {
+    const { t, pos } = await setup({ plan: 'REDE' });
+    await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(201);
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'ESSENCIAL' }).expect(200);
+    const plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body.limits.stores).toMatchObject({ used: 2, max: 1 });
+    await pos.post('/api/admin/stores').send({ name: 'Bairro', slug: 'bairro' }).expect(409);
+  });
+
+  it('clientes ativos acima do limite só aparecem no plano; o caixa continua lançando', async () => {
+    const { pos } = await setup({ plan: 'ESSENCIAL' });
+    const c = await customerAgent(app);
+    const ref = (await resolveQr(pos, await personalQr(c.agent))).customerRef;
+    await credit(pos, ref, 1).expect(201);
+    const plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body).toMatchObject({
+      plan: { code: 'ESSENCIAL', priceCents: 6990, supportChannel: 'EMAIL' },
+      expired: false,
+      activeCustomerDays: 90,
+      limits: { activeCustomers: { used: 1, max: 300 }, activePrograms: { used: 1, max: 1 } },
+      features: { reports: false, customerExport: false, networkDashboard: false, cardCustomization: false },
+    });
+  });
+
+  it('plano vencido mostra o contratado e vale o Essencial', async () => {
+    const { t, pos } = await setup({ plan: 'REDE', planExpiresAt: '2020-01-01' });
+    const plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body).toMatchObject({ plan: { code: 'ESSENCIAL' }, contracted: { code: 'REDE' }, expired: true });
+    expect(plan.body.limits.stores).toMatchObject({ max: 1, extraPriceCents: null });
+    expect(t.tenantId).toBeDefined();
+  });
+});
+
+describe('Relatórios e exportação (Profissional)', () => {
+  /** Cliente com cartão no estabelecimento (1 selo pelo QR) e, opcionalmente, aniversário e consentimento. */
+  async function member(pos: Awaited<ReturnType<typeof setup>>['pos'], opts: { birthDate?: string; consent?: boolean; name?: string } = {}) {
+    const c = await customerAgent(app, { name: opts.name });
+    if (opts.birthDate) await c.agent.patch('/api/me').send({ birthDate: opts.birthDate }).expect(200);
+    const ref = (await resolveQr(pos, await personalQr(c.agent))).customerRef;
+    await credit(pos, ref, 1).expect(201);
+    if (opts.consent !== undefined) {
+      const cards = await c.agent.get('/api/me/memberships').expect(200);
+      await c.agent.patch(`/api/me/memberships/${cards.body[0].membershipId}/consent`).send({ marketingConsent: opts.consent }).expect(200);
+    }
+    return c;
+  }
+
+  it('Essencial não tem relatórios nem exportação', async () => {
+    const { pos } = await setup({ plan: 'ESSENCIAL' });
+    for (const url of ['/api/admin/reports/birthdays', '/api/admin/reports/inactive?days=30', '/api/admin/reports/staff', '/api/admin/customers/export.csv']) {
+      const r = await pos.get(url).expect(403);
+      expect(r.body.code).toBe('PLAN_FEATURE_UNAVAILABLE');
+    }
+  });
+
+  it('aniversariantes do mês, um por cliente, com telefone só para quem aceitou promoções', async () => {
+    const { pos } = await setup({ plan: 'PROFISSIONAL' });
+    await member(pos, { name: 'Ana Março', birthDate: '1990-03-20', consent: true });
+    await member(pos, { name: 'Bia Março', birthDate: '1985-03-05', consent: false });
+    await member(pos, { name: 'Caio Abril', birthDate: '1990-04-01' });
+    const r = await pos.get('/api/admin/reports/birthdays?month=3').expect(200);
+    expect(r.body.month).toBe(3);
+    expect(r.body.items.map((i: { name: string; day: number }) => [i.name, i.day])).toEqual([
+      ['Bia Março', 5],
+      ['Ana Março', 20],
+    ]);
+    expect(r.body.items[1].phone).toMatch(/^\+55/);
+    expect(r.body.items[0].phone).toContain('*');
+    await pos.get('/api/admin/reports/birthdays?month=13').expect(400);
+  });
+
+  it('inativos: só cartões sem visita há mais de N dias', async () => {
+    const { t, pos } = await setup({ plan: 'PROFISSIONAL' });
+    const old = await member(pos, { name: 'Sumida' });
+    await member(pos, { name: 'Recente' });
+    await prisma.membership.updateMany({ where: { tenantId: t.tenantId, customerId: old.id }, data: { lastVisitAt: new Date(Date.now() - 45 * 86_400_000) } });
+
+    const d30 = await pos.get('/api/admin/reports/inactive?days=30').expect(200);
+    expect(d30.body.items.map((i: { name: string }) => i.name)).toEqual(['Sumida']);
+    const d60 = await pos.get('/api/admin/reports/inactive?days=60').expect(200);
+    expect(d60.body.total).toBe(0);
+    await pos.get('/api/admin/reports/inactive?days=45').expect(400);
+  });
+
+  it('por funcionário: lançamentos, uso do telefone e créditos estornados', async () => {
+    const { pos } = await setup({ plan: 'PROFISSIONAL' });
+    const c = await customerAgent(app);
+    const ref = (await resolveQr(pos, await personalQr(c.agent))).customerRef;
+    await credit(pos, ref, 2).expect(201);
+    const byPhone = await pos.get('/api/pos/customers').query({ phone: c.phone }).expect(200);
+    const second = await credit(pos, byPhone.body.customerRef, 1).expect(201);
+    await pos.post(`/api/admin/ledger/${second.body.entryId}/reverse`).send({ reason: 'lançado errado' }).expect(200);
+
+    const r = await pos.get('/api/admin/reports/staff').expect(200);
+    expect(r.body.items).toHaveLength(1);
+    expect(r.body.items[0]).toMatchObject({ name: 'Gestor Teste', credits: 2, stamps: 3, phoneCredits: 1, phoneShare: 0.5, reversedCredits: 1 });
+  });
+
+  it('CSV só com quem aceitou promoções, com BOM e células protegidas contra fórmulas', async () => {
+    const { pos } = await setup({ plan: 'PROFISSIONAL' });
+    await member(pos, { name: '=HIPERLINK("x")', consent: true });
+    await member(pos, { name: 'Sem Consentimento', consent: false });
+    const r = await pos.get('/api/admin/customers/export.csv').buffer(true).parse((res, cb) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (c: string) => (data += c));
+      res.on('end', () => cb(null, data));
+    }).expect(200);
+    expect(r.headers['content-type']).toContain('text/csv');
+    expect(r.headers['content-disposition']).toMatch(/attachment; filename="clientes-.+\.csv"/);
+    const body = r.body as string;
+    expect(body.startsWith('﻿Nome;Telefone')).toBe(true);
+    expect(body).toContain(`"'=HIPERLINK(""x"")"`);
+    expect(body).not.toContain('Sem Consentimento');
   });
 });

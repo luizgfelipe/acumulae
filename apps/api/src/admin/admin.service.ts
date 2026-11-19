@@ -2,10 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { LedgerType, Prisma, StaffRole } from '@prisma/client';
 import { z } from 'zod';
 import { config } from '../common/config';
-import { AppError, badRequest, conflict, notFound } from '../common/errors';
+import { badRequest, conflict, notFound } from '../common/errors';
 import { maskPhone } from '../common/phone';
 import { BRANDING_SELECT, brandStyle, cardStyleSchema, logoDataUrlSchema, logoUrlOf, parseLogo, stampImageDataUrlSchema } from '../common/branding';
-import { effectivePlan } from '../plans/plans';
+import {
+  ACTIVE_CUSTOMER_DAYS,
+  activeCustomers,
+  activeStores,
+  effectivePlan,
+  lockTenant,
+  planFeatureError,
+  staffInUse,
+  staffLimitError,
+  storeLimitError,
+  visualAllowance,
+  withinLimit,
+} from '../plans/plans';
 import { MAX_STAMP_IMAGE_BYTES, STAMP_ICONS, allowedStampIcons } from '../common/stamps';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
@@ -25,10 +37,7 @@ export const brandingUpdateSchema = z
 export const logoUploadSchema = z.object({ image: logoDataUrlSchema.nullable() });
 export const stampImageUploadSchema = z.object({ image: stampImageDataUrlSchema });
 
-/** Recurso fora do plano de contratação. */
-function planFeatureError(message: string) {
-  return new AppError(403, 'PLAN_FEATURE_UNAVAILABLE', message);
-}
+
 export const profileUpdateSchema = z.object({
   storeName: z.string().trim().min(1).max(120).optional(),
   address: z.string().trim().max(300).nullish(),
@@ -120,12 +129,13 @@ export class AdminService {
 
   /** Cores e modelo do cartão. A versão do branding sobe para invalidar caches (RN-108). */
   async updateBranding(ctx: AdminCtx, input: z.infer<typeof brandingUpdateSchema>) {
-    if (input.stampIcon) {
-      const plan = await this.plan(ctx.tenantId);
-      // Só vale para escolhas novas: quem já usa um ícone e muda de plano continua com ele.
-      if (!allowedStampIcons(plan.maxStampIcons).includes(input.stampIcon)) {
-        throw planFeatureError('Este ícone de selo não está disponível no seu plano.');
-      }
+    const plan = await this.plan(ctx.tenantId);
+    // Escolhas fora do plano vigente são recusadas; voltar ao padrão (sem secundária, Clássico) sempre pode.
+    if (input.stampIcon && !allowedStampIcons(plan.maxStampIcons).includes(input.stampIcon)) {
+      throw planFeatureError('Este ícone de selo não está disponível no seu plano.');
+    }
+    if (!plan.cardCustomization && (input.secondaryColor || (input.cardStyle && input.cardStyle !== 'CLASSICO'))) {
+      throw planFeatureError('Cor secundária e modelos de cartão estão disponíveis a partir do plano Profissional.');
     }
     const data = { primaryColor: input.primaryColor, secondaryColor: input.secondaryColor, cardStyle: input.cardStyle, stampIcon: input.stampIcon };
     await this.prisma.tenantBranding.upsert({
@@ -169,6 +179,41 @@ export class AdminService {
     return (await effectivePlan(this.prisma, tenantId)).plan;
   }
 
+  // ───────────── Meu plano ─────────────
+
+  /** Plano vigente, validade, recursos e uso de cada limite (`max: null` = ilimitado). */
+  async planInfo(ctx: AdminCtx) {
+    const eff = await effectivePlan(this.prisma, ctx.tenantId);
+    const p = eff.plan;
+    const [customers, programs, stores, staff] = await Promise.all([
+      activeCustomers(this.prisma, ctx.tenantId),
+      this.prisma.loyaltyProgram.count({ where: { tenantId: ctx.tenantId, active: true } }),
+      activeStores(this.prisma, ctx.tenantId),
+      staffInUse(this.prisma, ctx.tenantId),
+    ]);
+    return {
+      plan: { code: p.code, name: p.name, priceCents: p.priceCents, supportChannel: p.supportChannel },
+      contracted: eff.contracted,
+      expiresAt: eff.expiresAt,
+      expired: eff.expired,
+      activeCustomerDays: ACTIVE_CUSTOMER_DAYS,
+      limits: {
+        activeCustomers: { used: customers, max: p.maxActiveCustomers },
+        activePrograms: { used: programs, max: p.maxActivePrograms },
+        stores: { used: stores, max: eff.maxStores, included: p.includedStores, extraPriceCents: eff.expired ? null : p.extraStorePriceCents },
+        staff: { used: staff, max: p.maxStaff },
+      },
+      features: {
+        cardCustomization: p.cardCustomization,
+        maxStampIcons: p.maxStampIcons,
+        customStampImage: p.customStampImage,
+        reports: p.reports,
+        customerExport: p.customerExport,
+        networkDashboard: p.networkDashboard,
+      },
+    };
+  }
+
   // ───────────── Perfil (estabelecimento + unidade principal) ─────────────
 
   /** No MVP cada estabelecimento tem uma unidade; o perfil edita a primeira unidade ativa. */
@@ -189,9 +234,10 @@ export class AdminService {
     ]);
     return {
       tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
+      // O que o cliente vê hoje: o que o plano vigente não libera aparece no padrão.
       branding: {
         logoUrl: logoUrlOf(tenant.slug, branding),
-        ...brandStyle(tenant.slug, branding),
+        ...brandStyle(tenant.slug, branding, visualAllowance(plan)),
         version: branding?.version ?? 1,
       },
       /** O que o plano libera para o selo (o painel mostra os demais ícones bloqueados). */
@@ -234,7 +280,12 @@ export class AdminService {
   async createStore(ctx: AdminCtx, input: z.infer<typeof storeCreateSchema>) {
     const dup = await this.prisma.store.findUnique({ where: { tenantId_slug: { tenantId: ctx.tenantId, slug: input.slug } } });
     if (dup) throw conflict('STORE_SLUG_EXISTS', 'Já existe uma unidade com este identificador.');
-    await this.prisma.store.create({ data: { tenantId: ctx.tenantId, name: input.name, slug: input.slug, address: input.address ?? null } });
+    await this.prisma.$transaction(async (tx) => {
+      await lockTenant(tx, ctx.tenantId);
+      const eff = await effectivePlan(tx, ctx.tenantId);
+      if (!withinLimit(await activeStores(tx, ctx.tenantId), eff.maxStores)) throw storeLimitError(eff);
+      await tx.store.create({ data: { tenantId: ctx.tenantId, name: input.name, slug: input.slug, address: input.address ?? null } });
+    });
     return this.stores(ctx);
   }
 
@@ -245,7 +296,14 @@ export class AdminService {
       const active = await this.prisma.store.count({ where: { tenantId: ctx.tenantId, status: 'ACTIVE' } });
       if (active <= 1 && s.status === 'ACTIVE') throw badRequest('LAST_STORE', 'O estabelecimento precisa de pelo menos uma unidade ativa.');
     }
-    await this.prisma.store.update({ where: { id }, data: { name: input.name, address: input.address, status: input.status } });
+    await this.prisma.$transaction(async (tx) => {
+      if (input.status === 'ACTIVE' && s.status !== 'ACTIVE') {
+        await lockTenant(tx, ctx.tenantId);
+        const eff = await effectivePlan(tx, ctx.tenantId);
+        if (!withinLimit(await activeStores(tx, ctx.tenantId), eff.maxStores)) throw storeLimitError(eff);
+      }
+      await tx.store.update({ where: { id }, data: { name: input.name, address: input.address, status: input.status } });
+    });
     return this.stores(ctx);
   }
 
@@ -285,7 +343,12 @@ export class AdminService {
     const valid = await this.prisma.store.count({ where: { tenantId: ctx.tenantId, id: { in: input.storeIds } } });
     if (valid !== input.storeIds.length) throw badRequest('INVALID_STORE', 'Unidade inválida.');
     const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
-    const { url, expiresAt } = await this.invites.create({ tenantId: ctx.tenantId, ...input });
+    const { url, expiresAt } = await this.prisma.$transaction(async (tx) => {
+      await lockTenant(tx, ctx.tenantId);
+      const { plan } = await effectivePlan(tx, ctx.tenantId);
+      if (!withinLimit(await staffInUse(tx, ctx.tenantId), plan.maxStaff)) throw staffLimitError(plan.maxStaff!);
+      return this.invites.create({ tenantId: ctx.tenantId, ...input }, tx);
+    });
     await this.invites.sendEmail({ email: input.email, name: input.name, tenantName: tenant.name, role: input.role, url });
     return { inviteUrl: url, expiresAt };
   }
@@ -297,6 +360,11 @@ export class AdminService {
       throw badRequest('CANNOT_DEMOTE_SELF', 'Você não pode desativar nem rebaixar o próprio acesso.');
     }
     await this.prisma.$transaction(async (tx) => {
+      if (input.status === 'ACTIVE' && m.status !== 'ACTIVE') {
+        await lockTenant(tx, ctx.tenantId);
+        const { plan } = await effectivePlan(tx, ctx.tenantId);
+        if (!withinLimit(await staffInUse(tx, ctx.tenantId), plan.maxStaff)) throw staffLimitError(plan.maxStaff!);
+      }
       await tx.staffMembership.update({ where: { id: m.id }, data: { role: input.role, status: input.status } });
       if (input.storeIds) {
         const stores = await tx.store.findMany({ where: { tenantId: ctx.tenantId, id: { in: input.storeIds } }, select: { id: true } });
