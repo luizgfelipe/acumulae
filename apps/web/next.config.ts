@@ -6,6 +6,28 @@ import type { NextConfig } from 'next';
  * API_INTERNAL_URL é resolvida no build (padrão: serviço "api" do docker compose).
  */
 const apiUrl = (process.env.API_INTERNAL_URL ?? 'http://api:3001').replace(/\/+$/, '');
+const isDev = process.env.NODE_ENV === 'development';
+
+/**
+ * CSP das páginas. 'unsafe-inline' em scripts é exigido pelo App Router sem nonce (o nonce obrigaria
+ * renderização dinâmica em todas as páginas); o ganho principal aqui é bloquear scripts, frames e
+ * conexões de outros domínios. O 'unsafe-eval' só entra no `next dev`.
+ */
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "media-src 'self' blob:",
+  `connect-src 'self'${isDev ? ' ws:' : ''}`,
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -23,11 +45,16 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/:path*',
+        // Tudo menos /api/* (a API manda os próprios cabeçalhos via helmet).
+        source: '/((?!api/).*)',
         headers: [
+          { key: 'Content-Security-Policy', value: csp },
+          ...(isDev ? [] : [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' }]),
+          { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()' },
         ],
       },
     ];

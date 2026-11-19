@@ -56,6 +56,7 @@ APPLE_ENABLED=false
 > Atenção: **não troque `JWT_SECRET` nem `QR_SECRET` depois de entrar em produção.** Trocar o `JWT_SECRET` derruba as sessões, e trocar o `QR_SECRET` invalida os QRs abertos naquele momento.
 
 5. Aba **Domains → Add Domain**: host `acumulae.com.br`, path `/`, **Service Name `web`**, **Container Port `3000`**, HTTPS ligado, certificado **Let's Encrypt**.
+   Repita para `www.acumulae.com.br` (mesmo serviço `web`, porta `3000`, HTTPS com Let's Encrypt). O app redireciona `www` para o domínio principal com 308; sem o certificado do `www`, o navegador mostra "site não seguro" antes de o redirecionamento acontecer.
 6. **Deploy**. Na primeira subida, a API aplica as migrations do banco sozinha.
 7. Ative o **Auto Deploy** (webhook do GitHub) para publicar a cada push na branch.
 
@@ -100,6 +101,8 @@ O Postgres fica no volume `pgdata`. Opções:
 Guarde os backups fora da VPS (S3, Backblaze B2 etc.).
 
 ## Observações
+
+- Segurança: a API manda os cabeçalhos do `helmet` (CSP fechada, sem frames) e as páginas recebem CSP, HSTS de 2 anos e `X-Frame-Options: DENY` pelo `next.config.ts`. O IP do cliente vem da última entrada do `X-Forwarded-For` (`TRUST_PROXY_HOPS=1`, o Traefik). Se colocar o Cloudflare com proxy ligado na frente, use `TRUST_PROXY_HOPS=2`.
 
 - O limite de tentativas de login fica em memória: vale para **uma** instância da API. Para escalar horizontalmente, mova esse limite para o Redis.
 - A câmera do caixa e a instalação da PWA exigem HTTPS, que o Traefik do Dokploy já fornece.
