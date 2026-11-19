@@ -75,3 +75,10 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
   - **Moldura:** topo, selos e barra na principal; borda do cartão na secundária.
 - **Sem secundária, nada muda:** com `secondary_color` nulo, a principal faz os dois papéis e os três modelos ficam iguais ao visual anterior. A cor do texto continua seguindo o mesmo limiar de luminância de antes; no degradê, vale a média das duas pontas.
 - **Contraste:** os selos e a barra ficam sobre fundo branco. O painel avisa (sem bloquear) quando a cor deles tem contraste menor que 3:1 com o branco, e o ✓ do selo cheio troca para escuro sobre cores claras.
+
+## Selo e convite de instalação (19/11/2026)
+
+- **Ícone do selo:** cada estabelecimento escolhe, na aba Perfil, o ícone que aparece nos selos cheios (`tenant_branding.stamp_icon`, padrão `check`). O catálogo tem 15 ícones do lucide, em ordem fixa (`apps/api/src/common/stamps.ts`, espelhado em `apps/web/src/lib/stamp-icons.tsx`): os 5 primeiros (visto, estrela, coração, café, talheres) são do plano básico, e os outros 10 vêm nos planos acima.
+- **Imagem própria do selo:** substitui o ícone. PNG, JPG ou WebP, reduzida a 128 px no navegador, até 64 KB, guardada no banco como o logo e servida em `GET /api/public/tenants/{slug}/stamp?v={versão}`.
+- **Limites por plano:** `plans.max_stamp_icons` (quantos ícones do catálogo ficam liberados, os primeiros N; padrão 5) e `plans.custom_stamp_image` (padrão `false`), definidos em `PUT /api/platform/plans/{CODE}`. O `PILOTO` fica com o básico. Como nos programas, a regra vale só para escolhas novas: quem muda para um plano menor mantém o ícone ou a imagem que já usa.
+- **Convite para instalar o app:** aparece só no celular e nunca com o app já instalado. Abre logo depois do cadastro (inclusive pelo login social), a cada selo ganho pelo QR temporário e como faixa na tela de cartões, que volta 3 dias depois de fechada. No Android o botão abre a instalação nativa (`beforeinstallprompt`); no iPhone, onde a Apple não permite isso, o convite mostra o passo a passo do Safari.

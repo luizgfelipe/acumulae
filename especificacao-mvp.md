@@ -408,6 +408,7 @@ tenant_branding             -- identidade visual (MVP: logo, cores e modelo do c
   logo_url, primary_color,                          -- MVP
   secondary_color (null = usa a principal),         -- MVP
   card_style (CLASSICO | DEGRADE | MOLDURA),        -- MVP
+  stamp_icon, stamp_image_data, stamp_image_mime,   -- MVP: ícone ou imagem do selo
   background_color, text_color, label_color,        -- Fase 2
   cover_image_url, stamp_filled_url, stamp_empty_url,
   font_key, theme_key,
