@@ -80,7 +80,7 @@ function SignupPage() {
         <Field label="Senha" hint="Mínimo de 6 caracteres. Evite sequências e sua data de nascimento.">
           <Input type="password" value={form.password} onChange={set('password')} autoComplete="new-password" required minLength={6} />
         </Field>
-        <Field label="Data de nascimento (opcional)" hint="🎁 Informe e ganhe um presente no seu aniversário.">
+        <Field label="Data de nascimento (opcional)" hint="Informe apenas se quiser receber promoções de aniversário.">
           <Input type="date" value={form.birthDate} onChange={set('birthDate')} max={new Date().toISOString().slice(0, 10)} />
         </Field>
         <label className="flex items-start gap-3 text-sm text-stone-700">

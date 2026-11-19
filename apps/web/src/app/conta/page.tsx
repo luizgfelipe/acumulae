@@ -69,7 +69,7 @@ export default function AccountPage() {
             <Field label="E-mail">
               <Input value={me.email ?? ''} disabled />
             </Field>
-            <Field label="Data de nascimento" hint="🎁 Informe e ganhe um presente no seu aniversário.">
+            <Field label="Data de nascimento" hint="Informe apenas se quiser receber promoções de aniversário.">
               <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
             </Field>
             {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}

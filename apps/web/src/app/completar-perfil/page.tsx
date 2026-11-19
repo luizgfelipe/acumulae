@@ -64,7 +64,7 @@ function CompleteProfile() {
         <Field label="Telefone (WhatsApp)">
           <Input value={phone} onChange={(e) => setPhone(maskPhoneInput(e.target.value))} inputMode="tel" placeholder="(47) 9 9999-9999" required />
         </Field>
-        <Field label="Data de nascimento (opcional)" hint="🎁 Informe e ganhe um presente no seu aniversário.">
+        <Field label="Data de nascimento (opcional)" hint="Informe apenas se quiser receber promoções de aniversário.">
           <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
         </Field>
         <label className="flex items-start gap-3 text-sm text-stone-700">
