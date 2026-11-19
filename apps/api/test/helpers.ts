@@ -110,3 +110,40 @@ export function lastMail(app: INestApplication, to: string) {
   const sent = app.get(MailService).sent.filter((m) => m.to === to);
   return sent[sent.length - 1];
 }
+
+export function redeem(pos: TestAgent, customerRef: string, extra: Record<string, unknown> = {}, key = randomUUID()) {
+  return pos.post('/api/pos/redemptions').set('Idempotency-Key', key).send({ customerRef, ...extra });
+}
+
+/** Cria (ou altera) um plano de contratação. resetDb só recria o PILOTO. */
+export async function ensurePlan(app: INestApplication, code: string, maxActivePrograms: number) {
+  await request(app.getHttpServer())
+    .put(`/api/platform/plans/${code}`)
+    .set('X-Platform-Key', PLATFORM_KEY)
+    .send({ name: code, maxActivePrograms })
+    .expect(200);
+}
+
+/** Convida um atendente pelo painel e devolve o agente dele já logado. */
+export async function attendantAgent(
+  app: INestApplication,
+  manager: TestAgent,
+  storeIds: string[],
+  email = `atendente-${uniq()}@example.com`,
+) {
+  const inv = await manager.post('/api/admin/staff').send({ email, name: 'Ana Atendente', role: 'ATTENDANT', storeIds }).expect(201);
+  const agent = request.agent(app.getHttpServer());
+  await agent.post(`/api/staff/invites/${inv.body.inviteUrl.split('/').pop()}/accept`).send({ password: 'Atende#2026' }).expect(200);
+  return { agent, email, password: 'Atende#2026' };
+}
+
+/** Valor de um cookie em uma resposta (Set-Cookie). */
+export function cookieFrom(res: { headers: Record<string, unknown> }, name: string): string | undefined {
+  const raw = res.headers['set-cookie'];
+  const list = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+  const hit = list.find((c) => c.startsWith(`${name}=`));
+  return hit ? decodeURIComponent(hit.split(';')[0].slice(name.length + 1)) : undefined;
+}
+
+export const http = (app: INestApplication) => request(app.getHttpServer());
+export { uniq };

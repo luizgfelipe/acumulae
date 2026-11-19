@@ -64,12 +64,27 @@ API_INTERNAL_URL=http://localhost:3001 npm run dev
 
 ## Testes
 
-Os testes de integração rodam contra o banco `acumulae_test`, criado pelo compose de desenvolvimento, e cobrem os critérios de aceite da seção 14 da especificação.
-
 ```bash
+cd apps/api
+npm test              # unitários (sem banco): regras puras, cálculo do crédito, QR, senha, limites
+npm run test:cov      # unitários com cobertura (coverage/unit)
+
 docker compose up -d postgres
-cd apps/api && npm run test:e2e
+npm run test:e2e      # integração contra o banco acumulae_test (criado pelo compose)
+npm run test:all      # os dois
 ```
+
+Os unitários ficam ao lado do código (`src/**/*.spec.ts`). Os de integração sobem a API inteira contra um PostgreSQL real e ficam em `test/`, um arquivo por área:
+
+| Arquivo | Cobre |
+|---|---|
+| `acceptance.e2e-spec.ts` | Critérios de aceite da seção 14 |
+| `auth.e2e-spec.ts` | Cadastro, login, sessão, senha, login social, funcionários (5.1, 5.2) |
+| `loyalty.e2e-spec.ts` | Crédito, programas, resgate, estorno e reconciliação (5.3, 5.4, 5.7, 5.8) |
+| `checkout.e2e-spec.ts` | QR temporário (5.5) |
+| `admin.e2e-spec.ts` | Painel do gestor: indicadores, clientes, ledger, funcionários, unidades |
+| `platform.e2e-spec.ts` | API da plataforma: cadastro, planos, suspensão, auditoria (5.10) |
+| `customer.e2e-spec.ts` | Área do cliente, consentimento e exclusão de conta (7.1, 10, 6.8) |
 
 ## Migrations
 
