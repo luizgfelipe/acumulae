@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import { PublicShell } from '@/components/customer-shell';
+import { markInstallPending } from '@/lib/install';
 import { SocialButtons } from '@/components/social-buttons';
 import { Alert, Button, Field, Input, Modal } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
@@ -51,6 +52,7 @@ function SignupPage() {
         method: 'POST',
         body: { ...form, email: form.email.trim(), birthDate: form.birthDate || null, acceptTerms: true },
       });
+      markInstallPending();
       router.replace(next);
     } catch (err) {
       setConfirming(false);

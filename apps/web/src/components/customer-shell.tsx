@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
+import { InstallAfterSignup } from './install-prompt';
 import { Logo, cx } from './ui';
 
 const NAV = [
@@ -35,6 +36,7 @@ export function CustomerShell({ children, title }: { children: ReactNode; title?
         {title && <span className="text-sm font-medium text-stone-500">{title}</span>}
       </header>
       <main className="flex-1 px-5 pb-28">{children}</main>
+      <InstallAfterSignup />
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-lg justify-around pt-2">
           {NAV.map((n) => {

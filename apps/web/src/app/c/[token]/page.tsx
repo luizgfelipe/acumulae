@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { PublicShell } from '@/components/customer-shell';
+import { InstallNow } from '@/components/install-prompt';
 import { StampGrid } from '@/components/stamps';
 import { Alert, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
@@ -99,6 +100,8 @@ export default function CheckoutClaimPage() {
             Ver meu cartão
           </LinkButton>
         </div>
+        {/* A cada selo ganho, enquanto o app não estiver instalado. */}
+        <InstallNow />
       </PublicShell>
     );
   }

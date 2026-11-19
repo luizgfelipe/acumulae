@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { PublicShell } from '@/components/customer-shell';
+import { markInstallPending } from '@/lib/install';
 import { Alert, Button, Field, FullPageSpinner, Input, Modal } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { safeNext, useMe } from '@/lib/customer';
@@ -48,6 +49,8 @@ function CompleteProfile() {
     setSaving(true);
     try {
       await api('/api/me/complete-profile', { method: 'POST', body: { phone, birthDate: birthDate || null, acceptTerms: true } });
+      // Conta nova pelo login social: o cadastro termina aqui.
+      markInstallPending();
       router.replace(next);
     } catch (err) {
       setConfirming(false);

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CustomerShell, PublicShell } from '@/components/customer-shell';
+import { InstallBanner } from '@/components/install-prompt';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
@@ -97,6 +98,7 @@ function Cards({ firstName }: { firstName: string }) {
           Meu QR
         </LinkButton>
       </div>
+      <InstallBanner />
 
       {cards.length === 0 && (
         <Card className="text-center">
