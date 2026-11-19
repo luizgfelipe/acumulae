@@ -252,7 +252,7 @@ Resposta `201 Created`:
 ### 5.11 Personalização visual dos cartões
 
 - **RN-100 [DECIDIDO]** A plataforma será **bem personalizável** por estabelecimento: cores, logo, fundo do cartão, selo personalizado e afins, para o cartão ficar bonito no app do cliente e na carteira do celular. A personalização completa entra na **Fase 2**.
-- **RN-101 [DECIDIDO]** **Já no MVP**, o modelo de dados guarda a identidade visual numa tabela própria (`tenant_branding`, seção 8.1), e o app do cliente usa pelo menos **logo + cor principal** de cada estabelecimento. O logo é **enviado pelo gestor** (PNG/JPG/WebP, reduzido para 256 px, até 200 KB) e guardado no próprio banco; não há URL externa. Assim a Fase 2 só acrescenta campos e telas, sem refatorar.
+- **RN-101 [DECIDIDO]** **Já no MVP**, o modelo de dados guarda a identidade visual numa tabela própria (`tenant_branding`, seção 8.1), e o app do cliente usa pelo menos **logo + cor principal** de cada estabelecimento. O logo é **enviado pelo gestor** (PNG/JPG/WebP, reduzido para 256 px, até 200 KB) e guardado no próprio banco; não há URL externa. Assim a Fase 2 só acrescenta campos e telas, sem refatorar. Também já no MVP: **cor secundária** opcional e **modelo do cartão** escolhido pelo gestor (Clássico, Degradê ou Moldura); ver `docs/decisoes.md`.
 - **RN-102 [RECOMENDADO]** Itens personalizáveis na Fase 2:
 
   | Item | No app do cliente (PWA) | Na Google Wallet | Na Apple Wallet |
@@ -403,9 +403,11 @@ staff_memberships           -- perfil do funcionário em cada tenant
 staff_store_access          -- unidades permitidas para o funcionário
   staff_membership_id → staff_memberships, store_id → stores
 
-tenant_branding             -- identidade visual (MVP: logo + cor principal; Fase 2: o resto)
+tenant_branding             -- identidade visual (MVP: logo, cores e modelo do cartão; Fase 2: o resto)
   tenant_id (PK) → tenants,
   logo_url, primary_color,                          -- MVP
+  secondary_color (null = usa a principal),         -- MVP
+  card_style (CLASSICO | DEGRADE | MOLDURA),        -- MVP
   background_color, text_color, label_color,        -- Fase 2
   cover_image_url, stamp_filled_url, stamp_empty_url,
   font_key, theme_key,

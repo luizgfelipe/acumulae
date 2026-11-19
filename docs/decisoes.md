@@ -66,3 +66,12 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Vários programas:** a chave do cartão passou de `(tenant, cliente)` para `(programa, cliente)`. Com mais de um programa ativo, o caixa escolhe o programa no lançamento, no resgate e no QR temporário. Com um só, nada muda para o atendente.
 - **Consentimento de marketing:** continua sendo por estabelecimento. Aceitar ou recusar atualiza todos os cartões do cliente naquele estabelecimento, e cartões novos herdam a escolha.
 - **Excedente:** configurável por programa (ver RN-37 na especificação). Num lançamento grande que passe de 2× a meta, o cliente ganha todas as recompensas completas e só o resto é descartado.
+
+## Cores e modelo do cartão (19/11/2026)
+
+- **Cor secundária e modelo do cartão:** `tenant_branding` ganhou `secondary_color` (opcional) e `card_style` (`CLASSICO`, `DEGRADE` ou `MOLDURA`, padrão `CLASSICO`). O gestor escolhe as duas cores e o modelo na aba **Perfil** do painel, com miniaturas dos três modelos; a plataforma também aceita os campos no `branding` do cadastro e da edição do estabelecimento.
+  - **Clássico:** topo na principal; selos cheios, barra de progresso e botões na secundária.
+  - **Degradê:** topo em degradê da principal para a secundária; selos e barra na principal.
+  - **Moldura:** topo, selos e barra na principal; borda do cartão na secundária.
+- **Sem secundária, nada muda:** com `secondary_color` nulo, a principal faz os dois papéis e os três modelos ficam iguais ao visual anterior. A cor do texto continua seguindo o mesmo limiar de luminância de antes; no degradê, vale a média das duas pontas.
+- **Contraste:** os selos e a barra ficam sobre fundo branco. O painel avisa (sem bloquear) quando a cor deles tem contraste menor que 3:1 com o branco, e o ✓ do selo cheio troca para escuro sobre cores claras.
