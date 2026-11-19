@@ -120,7 +120,7 @@ export class StaffAuthService {
     });
     await this.mail.send({
       to: u.email,
-      subject: 'Redefinição de senha do painel — Acumulae',
+      subject: 'Redefinição de senha do painel — Acumulaê',
       text:
         `Olá, ${u.name.split(' ')[0]}!\n\nPara redefinir sua senha do painel/caixa, use o link abaixo ` +
         `(válido por 30 minutos, uso único):\n${config.publicUrl}/painel/redefinir-senha?token=${token}\n\n` +
@@ -176,7 +176,7 @@ export class StaffAuthService {
     if (existing?.passwordHash) {
       // Já tem conta (ex.: funcionário de outro estabelecimento): confirma a senha atual.
       if (!(await verifyPassword(input.password, existing.passwordHash))) {
-        throw unauthorized('Senha incorreta. Use a senha que você já tem no Acumulae.', 'INVALID_CREDENTIALS');
+        throw unauthorized('Senha incorreta. Use a senha que você já tem no Acumulaê.', 'INVALID_CREDENTIALS');
       }
     } else {
       const problem = passwordProblem(input.password);

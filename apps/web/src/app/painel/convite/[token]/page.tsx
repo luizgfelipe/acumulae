@@ -73,7 +73,7 @@ export default function InvitePage() {
           <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
         </Field>
         {info.hasAccount ? (
-          <Field label="Sua senha atual do Acumulae" hint="Você já tem acesso a outro estabelecimento; use a mesma senha.">
+          <Field label="Sua senha atual do Acumulaê" hint="Você já tem acesso a outro estabelecimento; use a mesma senha.">
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
           </Field>
         ) : (

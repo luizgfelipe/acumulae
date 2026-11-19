@@ -104,7 +104,7 @@ export class StaffGuard implements CanActivate {
     if (opts.tenant) {
       if (!context) throw forbidden('Selecione o estabelecimento.', 'NO_TENANT_CONTEXT');
       if (context.tenantStatus !== 'ACTIVE') {
-        throw new AppError(403, 'TENANT_SUSPENDED', 'Este estabelecimento está suspenso. Fale com o suporte do Acumulae.');
+        throw new AppError(403, 'TENANT_SUSPENDED', 'Este estabelecimento está suspenso. Fale com o suporte do Acumulaê.');
       }
       if (opts.roles?.length && !opts.roles.includes(context.role)) throw forbidden('Seu perfil não tem acesso a esta área.');
       if (opts.store) {

@@ -19,7 +19,7 @@ function isSequence(pw: string): boolean {
   return asc || desc;
 }
 
-const COMMON = new Set(['senha123', 'password', 'qwerty', 'abc123', '123123', '112233', '102030', 'acumulae']);
+const COMMON = new Set(['senha123', 'password', 'qwerty', 'abc123', '123123', '112233', '102030', 'acumulae', 'acumulaê']);
 
 /**
  * RN-08: mínimo 6 caracteres; bloqueia sequências óbvias, a data de nascimento e o telefone.

@@ -59,7 +59,7 @@ export const config = {
       return process.env.SMTP_PASS ?? '';
     },
     get from() {
-      return process.env.MAIL_FROM ?? 'Acumulae <nao-responda@acumulae.com.br>';
+      return process.env.MAIL_FROM ?? 'Acumulaê <nao-responda@acumulae.com.br>';
     },
   },
   google: {

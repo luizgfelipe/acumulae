@@ -44,10 +44,10 @@ export class InvitesService {
     const roleLabel = params.role === 'MANAGER' ? 'gestor(a)' : 'atendente';
     await this.mail.send({
       to: params.email,
-      subject: `Convite para o painel do ${params.tenantName} no Acumulae`,
+      subject: `Convite para o painel do ${params.tenantName} no Acumulaê`,
       text:
         `Olá${params.name ? `, ${params.name}` : ''}!\n\n` +
-        `Você foi convidado(a) como ${roleLabel} do programa de fidelidade do ${params.tenantName} no Acumulae.\n\n` +
+        `Você foi convidado(a) como ${roleLabel} do programa de fidelidade do ${params.tenantName} no Acumulaê.\n\n` +
         `Para definir sua senha e acessar, use o link abaixo (válido por ${INVITE_TTL_HOURS} horas, uso único):\n` +
         `${params.url}\n\n` +
         `Se você não esperava este convite, ignore este e-mail.`,

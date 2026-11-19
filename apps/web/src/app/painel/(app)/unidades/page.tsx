@@ -122,7 +122,7 @@ export default function StoresPage() {
             <p>
               Seu plano permite {usage.max} {usage.max === 1 ? 'unidade ativa' : 'unidades ativas'}.
               {usage.extraPriceCents !== null
-                ? ` Cada unidade extra custa ${brl(usage.extraPriceCents)} por mês: fale com o suporte do Acumulae para contratar.`
+                ? ` Cada unidade extra custa ${brl(usage.extraPriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`
                 : ' Para ter mais unidades, mude de plano.'}
             </p>
             <Link href="/painel/plano" className="font-medium text-brand-700 underline">

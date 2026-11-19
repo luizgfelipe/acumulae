@@ -11,7 +11,7 @@ export default function TermsPage() {
       </Link>
       <h1 className="text-2xl font-bold text-stone-900">Termos de Uso</h1>
       <p>
-        O Acumulae é uma plataforma de programas de fidelidade. Sua conta é única e pertence à plataforma, e vale em todos os
+        O Acumulaê é uma plataforma de programas de fidelidade. Sua conta é única e pertence à plataforma, e vale em todos os
         estabelecimentos participantes.
       </p>
       <h2 className="pt-2 text-lg font-semibold text-stone-900">Programas de fidelidade</h2>

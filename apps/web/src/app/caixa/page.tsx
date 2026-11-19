@@ -119,7 +119,7 @@ export default function PosPage() {
       </header>
 
       <main className="flex-1 space-y-4 p-4">
-        {suspended && <Alert>Este estabelecimento está suspenso. Lançamentos e resgates estão bloqueados. Fale com o suporte do Acumulae.</Alert>}
+        {suspended && <Alert>Este estabelecimento está suspenso. Lançamentos e resgates estão bloqueados. Fale com o suporte do Acumulaê.</Alert>}
         {flash && (
           <div
             className={cx(

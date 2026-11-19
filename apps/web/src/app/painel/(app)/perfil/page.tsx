@@ -346,7 +346,7 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
             )}
           </div>
         ) : (
-          <p className="text-sm text-stone-500">🔒 Disponível em planos acima do {stampOptions.planName}. Fale com o suporte do Acumulae para mudar de plano.</p>
+          <p className="text-sm text-stone-500">🔒 Disponível em planos acima do {stampOptions.planName}. Fale com o suporte do Acumulaê para mudar de plano.</p>
         )}
         {stampOptions.customImage && <p className="mt-2 text-xs text-stone-500">PNG, JPG ou WebP. A imagem é recortada num quadrado de 128 px; fica melhor com o desenho centralizado.</p>}
       </div>
@@ -385,7 +385,7 @@ function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
     <Card>
       <h2 className="mb-4 font-semibold">Dados da unidade</h2>
       <form onSubmit={save} className="space-y-4">
-        <Field label="Estabelecimento" hint="Para trocar o nome do estabelecimento, fale com o suporte do Acumulae.">
+        <Field label="Estabelecimento" hint="Para trocar o nome do estabelecimento, fale com o suporte do Acumulaê.">
           <Input value={profile.tenant.name} disabled />
         </Field>
         <Field label="Nome da unidade" hint="Aparece no app do cliente e no caixa.">

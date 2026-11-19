@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Acumulae — cartão fidelidade',
-    short_name: 'Acumulae',
+    name: 'Acumulaê — cartão fidelidade',
+    short_name: 'Acumulaê',
     description: 'Seus cartões fidelidade num só lugar.',
     start_url: '/',
     scope: '/',

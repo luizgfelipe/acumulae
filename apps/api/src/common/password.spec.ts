@@ -17,7 +17,7 @@ describe('passwordProblem (RN-08)', () => {
     },
   );
 
-  it.each(['senha123', 'PASSWORD', 'qwerty', 'abc123', '102030', 'Acumulae'])('recusa senha comum: "%s"', (pw) => {
+  it.each(['senha123', 'PASSWORD', 'qwerty', 'abc123', '102030', 'Acumulae', 'Acumulaê'])('recusa senha comum: "%s"', (pw) => {
     expect(passwordProblem(pw)).toMatch(/menos óbvia/);
   });
 

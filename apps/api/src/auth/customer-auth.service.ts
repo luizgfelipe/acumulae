@@ -150,10 +150,10 @@ export class CustomerAuthService {
     const url = `${config.publicUrl}/redefinir-senha?token=${token}`;
     await this.mail.send({
       to: c.email,
-      subject: 'Redefinição de senha — Acumulae',
+      subject: 'Redefinição de senha — Acumulaê',
       text:
         `Olá, ${c.name.split(' ')[0]}!\n\n` +
-        `Recebemos um pedido para redefinir a senha da sua conta Acumulae.\n` +
+        `Recebemos um pedido para redefinir a senha da sua conta Acumulaê.\n` +
         `Use o link abaixo (válido por ${RESET_TTL_MINUTES} minutos, uso único):\n${url}\n\n` +
         `Se não foi você, ignore este e-mail. Sua senha continua a mesma.`,
     });

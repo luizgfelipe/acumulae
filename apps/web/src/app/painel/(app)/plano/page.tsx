@@ -97,7 +97,7 @@ export default function PlanPage() {
           <Card className="border-brand-200 bg-brand-50">
             <h2 className="font-semibold">Quer mudar de plano ou contratar unidades extras?</h2>
             <p className="mt-1 text-sm text-stone-700">
-              Fale com o suporte do Acumulae pelo {SUPPORT_LABELS[plan.plan.supportChannel].toLowerCase()}. A troca vale na hora, e nada do que você já
+              Fale com o suporte do Acumulaê pelo {SUPPORT_LABELS[plan.plan.supportChannel].toLowerCase()}. A troca vale na hora, e nada do que você já
               configurou é apagado: recursos que voltarem a ser liberados reaparecem como estavam.
             </p>
             <UpgradeHint plan={plan} />

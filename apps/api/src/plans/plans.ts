@@ -197,7 +197,7 @@ export function storeLimitError(eff: EffectivePlan) {
   const p = eff.plan;
   const extra =
     p.extraStorePriceCents !== null && !eff.expired
-      ? ` Cada unidade extra custa ${brl(p.extraStorePriceCents)} por mês: fale com o suporte do Acumulae para contratar.`
+      ? ` Cada unidade extra custa ${brl(p.extraStorePriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`
       : ' Mude de plano para ter mais unidades.';
   return new AppError(409, 'STORE_LIMIT_REACHED', `Seu plano permite ${plural(eff.maxStores, 'unidade ativa', 'unidades ativas')}.${extra}`, {
     max: eff.maxStores,

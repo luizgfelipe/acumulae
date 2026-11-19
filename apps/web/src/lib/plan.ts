@@ -54,7 +54,7 @@ export function planNotice(p: PlanInfo): { kind: 'warning' | 'error'; text: stri
   }
   const left = daysLeft(p.expiresAt);
   if (left !== null && left <= 7) {
-    return { kind: 'warning', text: `Seu plano ${p.contracted.name} vence em ${date}. Fale com o suporte do Acumulae para renovar.` };
+    return { kind: 'warning', text: `Seu plano ${p.contracted.name} vence em ${date}. Fale com o suporte do Acumulaê para renovar.` };
   }
   const c = p.limits.activeCustomers;
   if (c.max !== null && c.used >= c.max * CUSTOMER_WARNING_RATIO) {

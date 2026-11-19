@@ -147,7 +147,7 @@ export function Logo({ className }: { className?: string }) {
           <path d="m8.5 12 2.5 2.5 4.5-5" />
         </svg>
       </span>
-      Acumulae
+      Acumulaê
     </span>
   );
 }

@@ -26,7 +26,7 @@ export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => 
   }
 
   return (
-    <Modal open={open && install.shouldInvite} onClose={onClose} title="Instale o Acumulae no celular">
+    <Modal open={open && install.shouldInvite} onClose={onClose} title="Instale o Acumulaê no celular">
       <div className="space-y-5">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}

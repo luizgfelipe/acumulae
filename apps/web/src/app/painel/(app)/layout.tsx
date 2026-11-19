@@ -108,7 +108,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
         <main className="min-w-0 flex-1 p-4 md:p-8">
           {ctx.tenantStatus !== 'ACTIVE' && (
             <div className="mb-4">
-              <Alert>Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Fale com o suporte do Acumulae.</Alert>
+              <Alert>Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Fale com o suporte do Acumulaê.</Alert>
             </div>
           )}
           {notice && pathname !== '/painel/plano' && (
