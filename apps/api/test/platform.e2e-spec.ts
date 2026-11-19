@@ -235,3 +235,44 @@ describe('Segurança e auditoria (RN-91, RN-96)', () => {
     }
   });
 });
+
+describe('Planos: grade, validade e unidades extras', () => {
+  it('a grade padrão vem semeada com preços, limites e recursos', async () => {
+    const r = await platform().get('/api/platform/plans').expect(200);
+    const byCode = Object.fromEntries(r.body.map((p: { code: string }) => [p.code, p]));
+    expect(byCode.ESSENCIAL).toMatchObject({ priceCents: 6990, maxActiveCustomers: 300, maxActivePrograms: 1, maxStaff: 3, reports: false });
+    expect(byCode.PROFISSIONAL).toMatchObject({ priceCents: 7990, maxActiveCustomers: 1500, maxStaff: null, extraStorePriceCents: 3990, reports: true });
+    expect(byCode.REDE).toMatchObject({ maxActiveCustomers: null, maxActivePrograms: null, includedStores: 3, networkDashboard: true });
+    expect(byCode.PILOTO).toMatchObject({ priceCents: 0, maxStaff: 3, cardCustomization: false });
+  });
+
+  it('plano criado só com o nome herda o Essencial; null deixa o limite ilimitado', async () => {
+    const created = await platform().put('/api/platform/plans/NOVO').send({ name: 'Novo' }).expect(200);
+    expect(created.body).toMatchObject({ maxActiveCustomers: 300, maxStaff: 3, maxActivePrograms: 1, priceCents: 6990 });
+    const edited = await platform().put('/api/platform/plans/NOVO').send({ name: 'Novo', maxStaff: null }).expect(200);
+    expect(edited.body).toMatchObject({ maxStaff: null, maxActiveCustomers: 300 });
+  });
+
+  it('depois da validade vale o Essencial; sem validade volta ao contratado', async () => {
+    const t = await createTenant(app, { plan: 'PROFISSIONAL', planExpiresAt: '2099-12-31' });
+    let r = await platform().get(`/api/platform/tenants/${t.tenantId}`).expect(200);
+    expect(r.body).toMatchObject({ plan: 'PROFISSIONAL', effectivePlan: 'PROFISSIONAL', planExpired: false });
+    expect(new Date(r.body.planExpiresAt).toISOString()).toBe('2100-01-01T02:59:59.999Z');
+
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ planExpiresAt: '2020-01-01T00:00:00Z' }).expect(200);
+    expect(r.body).toMatchObject({ plan: 'PROFISSIONAL', effectivePlan: 'ESSENCIAL', planExpired: true });
+
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ planExpiresAt: null }).expect(200);
+    expect(r.body).toMatchObject({ effectivePlan: 'PROFISSIONAL', planExpired: false, planExpiresAt: null });
+
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ planExpiresAt: 'amanhã' }).expect(400);
+  });
+
+  it('unidades extras somam às inclusas, mas não valem com o plano vencido', async () => {
+    const t = await createTenant(app, { plan: 'REDE' });
+    let r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ extraStores: 2 }).expect(200);
+    expect(r.body).toMatchObject({ extraStores: 2, maxStores: 5 });
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ planExpiresAt: '2020-01-01' }).expect(200);
+    expect(r.body).toMatchObject({ effectivePlan: 'ESSENCIAL', maxStores: 1 });
+  });
+});

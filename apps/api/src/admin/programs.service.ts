@@ -6,6 +6,7 @@ import { weekdaysSchema } from '../common/schemas';
 import { describeWeekdays } from '../common/time';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
 import { PrismaService, Tx } from '../prisma/prisma.service';
+import { effectivePlan, withinLimit } from '../plans/plans';
 import type { AdminCtx } from './admin.service';
 
 export const programInputSchema = z.object({
@@ -20,11 +21,11 @@ export const programInputSchema = z.object({
 });
 export const programCreateSchema = programInputSchema.extend({ active: z.boolean().default(true) });
 
-/** Limite de programas ativos vem do plano de contratação do estabelecimento. */
+/** Limite de programas ativos vem do plano vigente do estabelecimento (`null` = ilimitado). */
 export async function programLimit(tx: Tx, tenantId: string) {
-  const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, include: { planRef: true } });
+  const eff = await effectivePlan(tx, tenantId);
   const active = await tx.loyaltyProgram.count({ where: { tenantId, active: true } });
-  return { plan: t.plan, planName: t.planRef.name, maxActive: t.planRef.maxActivePrograms, active };
+  return { plan: eff.plan.code, planName: eff.plan.name, maxActive: eff.plan.maxActivePrograms, active };
 }
 
 function limitError(max: number) {
@@ -101,7 +102,7 @@ export class ProgramsService {
     await this.prisma.$transaction(async (tx) => {
       if (input.active) {
         const limit = await programLimit(tx, ctx.tenantId);
-        if (limit.active >= limit.maxActive) throw limitError(limit.maxActive);
+        if (!withinLimit(limit.active, limit.maxActive)) throw limitError(limit.maxActive!);
       }
       await tx.loyaltyProgram.create({ data: { tenantId: ctx.tenantId, active: input.active, ...this.data(input) } });
     });
@@ -123,7 +124,7 @@ export class ProgramsService {
         // Trava a linha do estabelecimento para dois "ativar" simultâneos não furarem o limite.
         await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${ctx.tenantId}::uuid FOR UPDATE`;
         const limit = await programLimit(tx, ctx.tenantId);
-        if (limit.active >= limit.maxActive) throw limitError(limit.maxActive);
+        if (!withinLimit(limit.active, limit.maxActive)) throw limitError(limit.maxActive!);
       }
       await tx.loyaltyProgram.update({ where: { id }, data: { active } });
     });

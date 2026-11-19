@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, StaffRole } from '@prisma/client';
+import { Plan, Prisma, StaffRole, SupportChannel } from '@prisma/client';
 import { z } from 'zod';
 import { BRANDING_SELECT, brandStyle, logoUrlOf, parseLogo } from '../common/branding';
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
 import { STAMP_ICONS } from '../common/stamps';
+import { DEFAULT_PLANS, FALLBACK_PLAN, clearPlanCache, resolvePlan } from '../plans/plans';
 import {
   brandingFieldsSchema,
   emailSchema,
@@ -20,10 +21,22 @@ export const storeInputSchema = z.object({
   address: z.string().trim().max(300).nullish(),
 });
 
+/**
+ * Fim da validade do plano: data (vale até o fim do dia, horário de Brasília) ou data e hora ISO.
+ * `null` remove a validade.
+ */
+const planExpiresAtSchema = z
+  .union([z.string().date(), z.string().datetime({ offset: true })])
+  .transform((v) => new Date(v.length === 10 ? `${v}T23:59:59.999-03:00` : v))
+  .nullable()
+  .optional();
+
 export const createTenantSchema = z.object({
   name: z.string().trim().min(1).max(120),
   slug: slugSchema,
   plan: z.string().trim().min(1).max(40).default('PILOTO'),
+  planExpiresAt: planExpiresAtSchema,
+  extraStores: z.number().int().min(0).max(200).optional(),
   branding: brandingFieldsSchema.optional(),
   store: storeInputSchema,
   program: programFieldsSchema,
@@ -31,28 +44,40 @@ export const createTenantSchema = z.object({
 });
 
 export const planCodeSchema = z.string().regex(/^[A-Z0-9_]{2,40}$/, 'use letras maiúsculas, números e _');
+/** Limite numérico: `null` = ilimitado; ausente = mantém (na criação, vale o do Essencial). */
+const limit = (max: number) => z.number().int().min(1).max(max).nullable().optional();
+
 export const planSchema = z.object({
   name: z.string().trim().min(1).max(60),
-  maxActivePrograms: z.number().int().min(1).max(50),
-  /** Quantos ícones do catálogo o plano libera (os primeiros N). Padrão na criação: 5. */
+  /** Preço mensal em centavos (informativo). */
+  priceCents: z.number().int().min(0).max(10_000_000).optional(),
+  maxActiveCustomers: limit(10_000_000),
+  maxActivePrograms: limit(50),
+  includedStores: z.number().int().min(1).max(1000).optional(),
+  /** Preço de cada unidade extra em centavos; `null` = o plano não vende unidade extra. */
+  extraStorePriceCents: z.number().int().min(0).max(10_000_000).nullable().optional(),
+  maxStaff: limit(10_000),
+  /** Quantos ícones do catálogo o plano libera (os primeiros N). */
   maxStampIcons: z.number().int().min(1).max(STAMP_ICONS.length).optional(),
-  /** Libera a imagem própria no selo. Padrão na criação: false. */
   customStampImage: z.boolean().optional(),
+  cardCustomization: z.boolean().optional(),
+  reports: z.boolean().optional(),
+  customerExport: z.boolean().optional(),
+  networkDashboard: z.boolean().optional(),
+  supportChannel: z.nativeEnum(SupportChannel).optional(),
 });
 
-function planView(p: { code: string; name: string; maxActivePrograms: number; maxStampIcons: number; customStampImage: boolean }) {
-  return {
-    code: p.code,
-    name: p.name,
-    maxActivePrograms: p.maxActivePrograms,
-    maxStampIcons: p.maxStampIcons,
-    customStampImage: p.customStampImage,
-  };
+function planView(p: Plan) {
+  const { createdAt: _c, updatedAt: _u, ...fields } = p;
+  return fields;
 }
 
 export const updateTenantSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   plan: z.string().trim().min(1).max(40).optional(),
+  planExpiresAt: planExpiresAtSchema,
+  /** Unidades extras contratadas, além das inclusas no plano. */
+  extraStores: z.number().int().min(0).max(200).optional(),
   branding: brandingFieldsSchema.optional(),
 });
 
@@ -86,7 +111,7 @@ export class PlatformService {
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         const tenant = await tx.tenant.create({
-          data: { name: input.name, slug: input.slug, plan: input.plan },
+          data: { name: input.name, slug: input.slug, plan: input.plan, planExpiresAt: input.planExpiresAt ?? null, extraStores: input.extraStores },
         });
         const logo = input.branding?.logo ? parseLogo(input.branding.logo) : null;
         await tx.tenantBranding.create({
@@ -158,14 +183,17 @@ export class PlatformService {
   async list() {
     const tenants = await this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { stores: true, memberships: true } } },
+      include: { planRef: true, _count: { select: { stores: true, memberships: true } } },
     });
+    const now = new Date();
     return tenants.map((t) => ({
       id: t.id,
       name: t.name,
       slug: t.slug,
       status: t.status,
       plan: t.plan,
+      planExpiresAt: t.planExpiresAt,
+      planExpired: !!t.planExpiresAt && t.planExpiresAt <= now,
       createdAt: t.createdAt,
       stores: t._count.stores,
       customers: t._count.memberships,
@@ -176,6 +204,7 @@ export class PlatformService {
     const t = await this.prisma.tenant.findUnique({
       where: { id },
       include: {
+        planRef: true,
         branding: { select: BRANDING_SELECT },
         stores: { orderBy: { createdAt: 'asc' } },
         programs: { orderBy: { createdAt: 'asc' } },
@@ -185,12 +214,19 @@ export class PlatformService {
       },
     });
     if (!t) throw notFound('Estabelecimento não encontrado.');
+    const eff = await resolvePlan(this.prisma, t);
     return {
       id: t.id,
       name: t.name,
       slug: t.slug,
       status: t.status,
       plan: t.plan,
+      planExpiresAt: t.planExpiresAt,
+      planExpired: eff.expired,
+      /** Plano que vale agora (o contratado, ou o ESSENCIAL depois da validade). */
+      effectivePlan: eff.plan.code,
+      extraStores: t.extraStores,
+      maxStores: eff.maxStores,
       createdAt: t.createdAt,
       branding: t.branding && {
         logoUrl: logoUrlOf(t.slug, t.branding),
@@ -210,8 +246,11 @@ export class PlatformService {
     await this.ensure(id);
     if (input.plan) await this.ensurePlan(input.plan);
     await this.prisma.$transaction(async (tx) => {
-      if (input.name || input.plan) {
-        await tx.tenant.update({ where: { id }, data: { name: input.name, plan: input.plan } });
+      if (input.name || input.plan || input.planExpiresAt !== undefined || input.extraStores !== undefined) {
+        await tx.tenant.update({
+          where: { id },
+          data: { name: input.name, plan: input.plan, planExpiresAt: input.planExpiresAt, extraStores: input.extraStores },
+        });
       }
       if (input.branding) {
         // logo: data URL = troca; null = remove; ausente = mantém.
@@ -243,19 +282,19 @@ export class PlatformService {
     return plans.map((p) => ({ ...planView(p), tenants: p._count.tenants }));
   }
 
-  /** Cria ou altera um plano. Reduzir o limite não desativa programas já ativos; só impede ativar novos. */
+  /**
+   * Cria ou altera um plano. Na criação, o que não for informado vem do Essencial.
+   * Reduzir um limite não desativa nada que já existe; só impede criar ou ativar além dele.
+   */
   async upsertPlan(code: string, input: z.infer<typeof planSchema>) {
-    const limits = {
-      name: input.name,
-      maxActivePrograms: input.maxActivePrograms,
-      maxStampIcons: input.maxStampIcons,
-      customStampImage: input.customStampImage,
-    };
+    const { code: _code, ...base } = DEFAULT_PLANS.find((p) => p.code === FALLBACK_PLAN)!;
+    const defined = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
     const p = await this.prisma.plan.upsert({
       where: { code },
-      create: { code, ...limits },
-      update: limits,
+      create: { ...base, ...defined, code, name: input.name },
+      update: input,
     });
+    clearPlanCache();
     return planView(p);
   }
 

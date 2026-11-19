@@ -5,6 +5,7 @@ import { config } from '../common/config';
 import { AppError, badRequest, conflict, notFound } from '../common/errors';
 import { maskPhone } from '../common/phone';
 import { BRANDING_SELECT, brandStyle, cardStyleSchema, logoDataUrlSchema, logoUrlOf, parseLogo, stampImageDataUrlSchema } from '../common/branding';
+import { effectivePlan } from '../plans/plans';
 import { MAX_STAMP_IMAGE_BYTES, STAMP_ICONS, allowedStampIcons } from '../common/stamps';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
@@ -163,9 +164,9 @@ export class AdminService {
     return this.profile(ctx);
   }
 
+  /** Plano vigente (o contratado, ou o Essencial depois da validade). */
   private async plan(tenantId: string) {
-    const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, include: { planRef: true } });
-    return t.planRef;
+    return (await effectivePlan(this.prisma, tenantId)).plan;
   }
 
   // ───────────── Perfil (estabelecimento + unidade principal) ─────────────
@@ -180,10 +181,11 @@ export class AdminService {
   }
 
   async profile(ctx: AdminCtx) {
-    const [tenant, branding, store] = await Promise.all([
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, include: { planRef: true } }),
+    const [tenant, branding, store, plan] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
       this.prisma.tenantBranding.findUnique({ where: { tenantId: ctx.tenantId }, select: BRANDING_SELECT }),
       this.mainStore(ctx.tenantId),
+      this.plan(ctx.tenantId),
     ]);
     return {
       tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
@@ -195,9 +197,9 @@ export class AdminService {
       /** O que o plano libera para o selo (o painel mostra os demais ícones bloqueados). */
       stampOptions: {
         icons: STAMP_ICONS,
-        allowedIcons: allowedStampIcons(tenant.planRef.maxStampIcons),
-        customImage: tenant.planRef.customStampImage,
-        planName: tenant.planRef.name,
+        allowedIcons: allowedStampIcons(plan.maxStampIcons),
+        customImage: plan.customStampImage,
+        planName: plan.name,
       },
       store: { id: store.id, name: store.name, address: store.address },
     };

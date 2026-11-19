@@ -9,6 +9,7 @@ import { configureApp } from '../src/app.setup';
 import { LoginRateLimiter } from '../src/auth/rate-limiter.service';
 import { MailService } from '../src/mail/mail.service';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { DEFAULT_PLANS, clearPlanCache } from '../src/plans/plans';
 
 export const PLATFORM_KEY = 'test-platform-key';
 
@@ -25,7 +26,8 @@ export async function resetDb(app: INestApplication) {
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(', ')} CASCADE`);
-  await prisma.plan.create({ data: { code: 'PILOTO', name: 'Piloto', maxActivePrograms: 1 } });
+  await prisma.plan.createMany({ data: DEFAULT_PLANS });
+  clearPlanCache();
   app.get(LoginRateLimiter).reset();
 }
 
@@ -115,7 +117,7 @@ export function redeem(pos: TestAgent, customerRef: string, extra: Record<string
   return pos.post('/api/pos/redemptions').set('Idempotency-Key', key).send({ customerRef, ...extra });
 }
 
-/** Cria (ou altera) um plano de contratação. resetDb só recria o PILOTO. */
+/** Cria (ou altera) um plano de contratação. resetDb recria a grade padrão (PILOTO, ESSENCIAL, PROFISSIONAL, REDE). */
 export async function ensurePlan(app: INestApplication, code: string, maxActivePrograms: number) {
   await request(app.getHttpServer())
     .put(`/api/platform/plans/${code}`)
