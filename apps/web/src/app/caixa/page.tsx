@@ -147,7 +147,6 @@ export default function PosPage() {
                   Gerar QR
                 </Button>
               </div>
-              <p className="text-center text-xs text-stone-500">Mesa com várias pessoas? Cada um registra no próprio cadastro.</p>
             </div>
             <RecentList items={recent} />
           </>

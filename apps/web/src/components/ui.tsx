@@ -107,8 +107,15 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
   );
 }
 
+/** Padding passado em `className` (p-0, p-4, px-…) substitui o padrão: no Tailwind as duas classes juntas não se sobrepõem pela ordem. */
+const HAS_PADDING = /(^|\s)p[xytrbl]?-\S+/;
+
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cx('rounded-2xl border border-stone-200 bg-white p-5 shadow-sm', className)}>{children}</div>;
+  return (
+    <div className={cx('rounded-2xl border border-stone-200 bg-white shadow-sm', !HAS_PADDING.test(className ?? '') && 'p-5', className)}>
+      {children}
+    </div>
+  );
 }
 
 export function Alert({ kind = 'error', children }: { kind?: 'error' | 'success' | 'info' | 'warning'; children: ReactNode }) {

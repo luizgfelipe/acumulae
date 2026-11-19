@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FullPageSpinner, Logo, Spinner } from '@/components/ui';
+import { CustomerShell } from '@/components/customer-shell';
+import { Alert, FullPageSpinner, Spinner } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/customer';
 
@@ -14,7 +14,7 @@ interface QrPayload {
   name: string;
 }
 
-/** Meu QR: QR pessoal dinâmico em tela cheia, renovado a cada 30 s (RN-51). */
+/** Meu QR: QR pessoal dinâmico, renovado a cada 30 s (RN-51), com a navegação do app embaixo. */
 export default function MyQrPage() {
   const { me } = useMe({ required: true });
   const [qr, setQr] = useState<QrPayload | null>(null);
@@ -63,14 +63,8 @@ export default function MyQrPage() {
   if (!me) return <FullPageSpinner />;
 
   return (
-    <div className="flex min-h-dvh flex-col items-center bg-white px-6 py-6">
-      <div className="flex w-full max-w-sm items-center justify-between">
-        <Logo />
-        <Link href="/" className="rounded-xl px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-100 transition-colors">
-          Fechar
-        </Link>
-      </div>
-      <div className="flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-6">
+    <CustomerShell>
+      <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 pt-4">
         <div className="text-center">
           <p className="text-2xl font-bold">{me.name}</p>
           <p className="text-stone-500">Mostre este código no caixa</p>
@@ -95,6 +89,6 @@ export default function MyQrPage() {
         {error && <Alert>{error}</Alert>}
         <p className="text-center text-sm text-stone-500">Dica: aumente o brilho da tela para facilitar a leitura.</p>
       </div>
-    </div>
+    </CustomerShell>
   );
 }
