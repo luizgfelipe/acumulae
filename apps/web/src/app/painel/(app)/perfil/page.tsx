@@ -4,19 +4,28 @@ import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { usePanel } from '@/components/panel-context';
+import { AddressForm } from '@/components/address-form';
 import { CardPreview } from '@/components/card-preview';
-import { Alert, Button, Card, Field, FullPageSpinner, Input, TenantAvatar, cx } from '@/components/ui';
+import { Alert, Button, Card, Field, FullPageSpinner, Input, Select, TenantAvatar, cx } from '@/components/ui';
+import { AddressFields, addressPayload, draftOf, sameDraft } from '@/lib/address';
 import { errorMessage, staffApi } from '@/lib/api';
 import { BrandColors, CARD_STYLES, CardStyle, cardTheme, contrastRatio } from '@/lib/card-theme';
 import { STAMP_ICONS, StampStyle, stampIconOf } from '@/lib/stamp-icons';
 import { prepareLogo } from '@/lib/image';
 import { useLoad } from '@/lib/use-load';
 
+interface Segment {
+  code: string;
+  label: string;
+  group: string;
+}
+
 interface Profile {
-  tenant: { name: string; slug: string; signupUrl: string };
+  tenant: { name: string; slug: string; segment: string | null; signupUrl: string };
+  segments: Segment[];
   branding: BrandColors & StampStyle & { logoUrl: string | null; version: number };
   stampOptions: { icons: string[]; allowedIcons: string[]; customImage: boolean; planName: string };
-  store: { id: string; name: string; address: string | null };
+  store: { id: string; name: string; address: string | null; addressFields: AddressFields | null };
 }
 
 type Msg = { kind: 'success' | 'error'; text: string } | null;
@@ -39,6 +48,7 @@ export default function ProfilePage() {
       <h1 className="text-2xl font-bold">Perfil</h1>
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
+          <AboutCard profile={data} onSaved={update} />
           <LogoCard profile={data} onSaved={update} />
           <StampCard profile={data} onSaved={update} />
           {multiStore ? (
@@ -359,20 +369,86 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
   );
 }
 
-// ───────────── Dados da unidade ─────────────
+// ───────────── Sobre o estabelecimento ─────────────
 
-function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
-  const [name, setName] = useState(profile.store.name);
-  const [address, setAddress] = useState(profile.store.address ?? '');
+function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
+  const [segment, setSegment] = useState(profile.tenant.segment ?? '');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
+  const dirty = segment !== (profile.tenant.segment ?? '');
+
+  const groups = profile.segments.reduce<Record<string, Segment[]>>((acc, s) => {
+    (acc[s.group] ??= []).push(s);
+    return acc;
+  }, {});
 
   async function save(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
     try {
-      onSaved(await staffApi<Profile>('/api/admin/profile', { method: 'PUT', body: { storeName: name, address: address || null } }));
+      onSaved(await staffApi<Profile>('/api/admin/profile', { method: 'PUT', body: { segment: segment || null } }));
+      setMsg({ kind: 'success', text: 'Segmento salvo.' });
+    } catch (err) {
+      setMsg({ kind: 'error', text: errorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-4 font-semibold">Sobre o estabelecimento</h2>
+      <form onSubmit={save} className="space-y-4">
+        <Field label="Nome" hint="Para trocar o nome do estabelecimento, fale com o suporte do Acumulaê.">
+          <Input value={profile.tenant.name} disabled />
+        </Field>
+        <Field label="Segmento" hint="Em breve, os clientes vão poder encontrar estabelecimentos por segmento e cidade no app.">
+          <Select value={segment} onChange={(e) => setSegment(e.target.value)}>
+            <option value="">Selecione…</option>
+            {Object.entries(groups).map(([group, items]) => (
+              <optgroup key={group} label={group}>
+                {items.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </Select>
+        </Field>
+        {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
+        <Button type="submit" loading={busy} disabled={!dirty}>
+          Salvar
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
+// ───────────── Dados da unidade ─────────────
+
+function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
+  const initial = draftOf(profile.store.addressFields);
+  const [name, setName] = useState(profile.store.name);
+  const [address, setAddress] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<Msg>(null);
+  const dirty = name.trim() !== profile.store.name || !sameDraft(address, initial);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    const parsed = addressPayload(address);
+    if (!parsed.ok) return setMsg({ kind: 'error', text: parsed.error });
+    setBusy(true);
+    try {
+      // Endereço antigo em texto livre continua até o gestor informar o CEP.
+      const keepLegacy = !parsed.value && !profile.store.addressFields && profile.store.address;
+      const body = { storeName: name, ...(keepLegacy ? {} : { address: parsed.value }) };
+      const p = await staffApi<Profile>('/api/admin/profile', { method: 'PUT', body });
+      setAddress(draftOf(p.store.addressFields));
+      onSaved(p);
       setMsg({ kind: 'success', text: 'Dados da unidade salvos.' });
     } catch (err) {
       setMsg({ kind: 'error', text: errorMessage(err) });
@@ -385,17 +461,17 @@ function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
     <Card>
       <h2 className="mb-4 font-semibold">Dados da unidade</h2>
       <form onSubmit={save} className="space-y-4">
-        <Field label="Estabelecimento" hint="Para trocar o nome do estabelecimento, fale com o suporte do Acumulaê.">
-          <Input value={profile.tenant.name} disabled />
-        </Field>
         <Field label="Nome da unidade" hint="Aparece no app do cliente e no caixa.">
           <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} />
         </Field>
-        <Field label="Endereço">
-          <Input value={address} onChange={(e) => setAddress(e.target.value)} maxLength={300} placeholder="Rua, número - Cidade/UF" />
-        </Field>
+        <AddressForm
+          value={address}
+          onChange={setAddress}
+          legacy={profile.store.addressFields ? null : profile.store.address}
+          lockedInitially={!!profile.store.addressFields}
+        />
         {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
-        <Button type="submit" loading={busy}>
+        <Button type="submit" loading={busy} disabled={!dirty}>
           Salvar
         </Button>
       </form>

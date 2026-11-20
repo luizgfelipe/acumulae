@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { FormEvent, useState } from 'react';
+import { AddressForm } from '@/components/address-form';
 import { usePanel } from '@/components/panel-context';
 import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Modal } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
+import { AddressFields, EMPTY_ADDRESS, addressPayload, draftOf } from '@/lib/address';
 import { brl, isFull } from '@/lib/plan';
 import { useLoad } from '@/lib/use-load';
 
@@ -14,6 +16,7 @@ interface Store {
   name: string;
   slug: string;
   address: string | null;
+  addressFields: AddressFields | null;
   status: 'ACTIVE' | 'INACTIVE';
   signupUrl: string;
 }
@@ -31,7 +34,7 @@ function slugify(s: string) {
 export default function StoresPage() {
   const { me, plan, reload: reloadPanel } = usePanel();
   const { data, error, setData } = useLoad(() => staffApi<Store[]>('/api/admin/stores'), []);
-  const [form, setForm] = useState({ name: '', address: '' });
+  const [form, setForm] = useState({ name: '', address: EMPTY_ADDRESS });
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [printing, setPrinting] = useState<Store | null>(null);
@@ -58,12 +61,14 @@ export default function StoresPage() {
   async function create(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
+    const parsed = addressPayload(form.address);
+    if (!parsed.ok) return setFormError(parsed.error);
     const ok = await save(
       'new',
-      () => staffApi<Store[]>('/api/admin/stores', { method: 'POST', body: { name: form.name, slug: slugify(form.name), address: form.address || null } }),
+      () => staffApi<Store[]>('/api/admin/stores', { method: 'POST', body: { name: form.name, slug: slugify(form.name), address: parsed.value } }),
       setFormError,
     );
-    if (ok) setForm({ name: '', address: '' });
+    if (ok) setForm({ name: '', address: EMPTY_ADDRESS });
   }
 
   const toggle = (s: Store) => {
@@ -134,9 +139,7 @@ export default function StoresPage() {
             <Field label="Nome">
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex.: Sushi X - Shopping" required maxLength={120} />
             </Field>
-            <Field label="Endereço (opcional)">
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} maxLength={300} />
-            </Field>
+            <AddressForm value={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
             {formError && <Alert>{formError}</Alert>}
             <Button type="submit" loading={busy === 'new'}>
               Adicionar unidade
@@ -188,10 +191,10 @@ function EditStore({
 }: {
   store: Store | null;
   onClose: () => void;
-  onSave: (s: Store, body: { name: string; address: string | null }) => Promise<boolean>;
+  onSave: (s: Store, body: { name: string; address?: AddressFields | null }) => Promise<boolean>;
 }) {
   const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(EMPTY_ADDRESS);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openFor, setOpenFor] = useState<string | null>(null);
@@ -200,16 +203,20 @@ function EditStore({
   if (store && openFor !== store.id) {
     setOpenFor(store.id);
     setName(store.name);
-    setAddress(store.address ?? '');
+    setAddress(draftOf(store.addressFields));
     setErr(null);
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!store) return;
+    const parsed = addressPayload(address);
+    if (!parsed.ok) return setErr(parsed.error);
     setBusy(true);
     try {
-      await onSave(store, { name, address: address || null });
+      // Endereço antigo em texto livre continua até o gestor informar o CEP.
+      const keepLegacy = !parsed.value && !store.addressFields && store.address;
+      await onSave(store, { name, ...(keepLegacy ? {} : { address: parsed.value }) });
       setOpenFor(null);
       onClose();
     } catch (x) {
@@ -232,9 +239,15 @@ function EditStore({
         <Field label="Nome" hint="Aparece no app do cliente e no caixa.">
           <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} />
         </Field>
-        <Field label="Endereço">
-          <Input value={address} onChange={(e) => setAddress(e.target.value)} maxLength={300} placeholder="Rua, número - Cidade/UF" />
-        </Field>
+        {store && (
+          <AddressForm
+            key={store.id}
+            value={address}
+            onChange={setAddress}
+            legacy={store.addressFields ? null : store.address}
+            lockedInitially={!!store.addressFields}
+          />
+        )}
         {err && <Alert>{err}</Alert>}
         <Button type="submit" loading={busy} className="w-full">
           Salvar

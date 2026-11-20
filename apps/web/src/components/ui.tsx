@@ -172,7 +172,7 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
       <div
         role="dialog"
         aria-modal="true"
-        className="safe-bottom w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl"
+        className="safe-bottom max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-4 text-lg font-bold">{title}</h2>
