@@ -244,9 +244,10 @@ describe('Planos: grade, validade e unidades extras', () => {
     expect(byCode.PROFISSIONAL).toMatchObject({ priceCents: 7990, maxActiveCustomers: 1500, maxStaff: null, extraStorePriceCents: 3990, reports: true });
     expect(byCode.REDE).toMatchObject({ maxActiveCustomers: null, maxActivePrograms: null, includedStores: 3, networkDashboard: true });
     // O PILOTO libera o mesmo que o Profissional, de graça.
-    const { code: _p, name: _pn, priceCents, supportChannel: _ps, tenants: _pt, _count: _pk, ...pilot } = byCode.PILOTO;
-    const { code: _c, name: _n, priceCents: _pc, supportChannel: _s, tenants: _t, _count: _k, ...pro } = byCode.PROFISSIONAL;
+    const { code: _p, name: _pn, priceCents, supportChannel: _ps, listed, tenants: _pt, _count: _pk, ...pilot } = byCode.PILOTO;
+    const { code: _c, name: _n, priceCents: _pc, supportChannel: _s, listed: _l, tenants: _t, _count: _k, ...pro } = byCode.PROFISSIONAL;
     expect(priceCents).toBe(0);
+    expect(listed).toBe(false); // só quem está no Piloto o vê em Meu plano
     expect(pilot).toEqual(pro);
   });
 

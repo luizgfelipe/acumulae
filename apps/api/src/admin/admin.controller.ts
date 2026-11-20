@@ -152,6 +152,12 @@ export class AdminController {
     return this.admin.planInfo(ctxOf(s));
   }
 
+  /** Planos para comparar em Meu plano (os listados e o contratado). */
+  @Get('plans')
+  plans(@CurrentStaff() s: TenantStaff) {
+    return this.admin.comparePlans(ctxOf(s));
+  }
+
   @Get('profile')
   profile(@CurrentStaff() s: TenantStaff) {
     return this.admin.profile(ctxOf(s));

@@ -65,13 +65,15 @@ model Plan {
   cardCustomization        Boolean        @default(false) @map("card_customization")
   /// Relatórios de aniversariantes, inativos e por funcionário.
   reports                  Boolean        @default(false)
-  /// Exportar clientes (CSV), só os que aceitaram promoções.
+  /// Exportar clientes (CSV): os que aceitaram os Termos de Uso atuais.
   customerExport           Boolean        @default(false) @map("customer_export")
   /// Painel consolidado da rede (comparativo entre unidades).
   networkDashboard         Boolean        @default(false) @map("network_dashboard")
-  /// Avisos que o estabelecimento pode mandar por mês (mês do calendário, horário de Brasília).
+  /// Notificações que o estabelecimento pode mandar por mês (mês do calendário, horário de Brasília).
   maxAnnouncementsPerMonth Int?           @default(2) @map("max_announcements_per_month")
   supportChannel           SupportChannel @default(EMAIL) @map("support_channel")
+  /// Aparece na comparação de planos do painel (Meu plano). O Piloto fica de fora: só quem está nele o vê.
+  listed                   Boolean        @default(true)
   createdAt                DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

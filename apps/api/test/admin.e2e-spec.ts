@@ -655,3 +655,40 @@ describe('Endereço pelo CEP e segmento', () => {
     expect(row).toMatchObject({ city: 'Joinville', state: 'SC', cep: '89201000' });
   });
 });
+
+describe('Comparar planos (Meu plano)', () => {
+  // Outros testes criam planos próprios; aqui interessa a grade padrão.
+  const GRID = ['PILOTO', 'ESSENCIAL', 'PROFISSIONAL', 'REDE'];
+  const codes = (items: Array<{ code: string }>) => items.map((p) => p.code).filter((c) => GRID.includes(c));
+  it('lista os planos do mais barato ao mais caro, sem o Piloto para quem não está nele', async () => {
+    const { pos } = await setup({ plan: 'ESSENCIAL' });
+    const r = await pos.get('/api/admin/plans').expect(200);
+    expect(r.body.current).toBe('ESSENCIAL');
+    expect(codes(r.body.items)).toEqual(['ESSENCIAL', 'PROFISSIONAL', 'REDE']);
+    expect(r.body.items.find((p: { code: string }) => p.code === 'REDE')).toMatchObject({
+      name: 'Rede',
+      priceCents: 19990,
+      limits: { activeCustomers: null, includedStores: 3, announcementsPerMonth: 30 },
+      features: { networkDashboard: true, reports: true },
+    });
+  });
+
+  it('quem está no Piloto vê o próprio plano na comparação', async () => {
+    const { pos } = await setup({ plan: 'PILOTO' });
+    const r = await pos.get('/api/admin/plans').expect(200);
+    expect(r.body.current).toBe('PILOTO');
+    expect(codes(r.body.items)).toEqual(['PILOTO', 'ESSENCIAL', 'PROFISSIONAL', 'REDE']);
+  });
+
+  it('a plataforma esconde um plano da comparação', async () => {
+    await request(app.getHttpServer())
+      .put('/api/platform/plans/REDE')
+      .set('X-Platform-Key', 'test-platform-key')
+      .send({ name: 'Rede', listed: false })
+      .expect(200);
+    const { pos } = await setup({ plan: 'ESSENCIAL' });
+    const r = await pos.get('/api/admin/plans').expect(200);
+    expect(codes(r.body.items)).toEqual(['ESSENCIAL', 'PROFISSIONAL']);
+    await request(app.getHttpServer()).put('/api/platform/plans/REDE').set('X-Platform-Key', 'test-platform-key').send({ name: 'Rede', listed: true }).expect(200);
+  });
+});

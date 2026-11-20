@@ -71,9 +71,11 @@ export const planSchema = z.object({
   reports: z.boolean().optional(),
   customerExport: z.boolean().optional(),
   networkDashboard: z.boolean().optional(),
-  /** Avisos por mês aos clientes que aceitaram promoções. */
+  /** Notificações por mês aos clientes que aceitaram promoções. */
   maxAnnouncementsPerMonth: limit(10_000),
   supportChannel: z.nativeEnum(SupportChannel).optional(),
+  /** Aparece na comparação de planos do painel. */
+  listed: z.boolean().optional(),
 });
 
 function planView(p: Plan) {

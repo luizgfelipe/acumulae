@@ -222,6 +222,43 @@ export class AdminService {
     };
   }
 
+  /**
+   * Planos para comparar em Meu plano: os listados (`plans.listed`) e sempre o contratado, do mais barato
+   * para o mais caro. Limites `null` = ilimitado.
+   */
+  async comparePlans(ctx: AdminCtx) {
+    const eff = await effectivePlan(this.prisma, ctx.tenantId);
+    const rows = await this.prisma.plan.findMany({
+      where: { OR: [{ listed: true }, { code: eff.contracted.code }] },
+      orderBy: [{ priceCents: 'asc' }, { code: 'asc' }],
+    });
+    return {
+      current: eff.contracted.code,
+      items: rows.map((p) => ({
+        code: p.code,
+        name: p.name,
+        priceCents: p.priceCents,
+        supportChannel: p.supportChannel,
+        limits: {
+          activeCustomers: p.maxActiveCustomers,
+          activePrograms: p.maxActivePrograms,
+          includedStores: p.includedStores,
+          extraStorePriceCents: p.extraStorePriceCents,
+          staff: p.maxStaff,
+          announcementsPerMonth: p.maxAnnouncementsPerMonth,
+        },
+        features: {
+          maxStampIcons: p.maxStampIcons,
+          cardCustomization: p.cardCustomization,
+          customStampImage: p.customStampImage,
+          reports: p.reports,
+          customerExport: p.customerExport,
+          networkDashboard: p.networkDashboard,
+        },
+      })),
+    };
+  }
+
   // ───────────── Perfil (estabelecimento + unidade principal) ─────────────
 
   /** No MVP cada estabelecimento tem uma unidade; o perfil edita a primeira unidade ativa. */
