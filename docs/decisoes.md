@@ -129,7 +129,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 
 ## Notificações no app do cliente (20/11/2026)
 
-- **Sino no cabeçalho** com o número de não lidas e a tela `/notificacoes`. Só dentro do app (sem push, WhatsApp ou e-mail): o app confere as não lidas ao abrir, ao trocar de tela, ao voltar para o app e a cada minuto.
+- **Sino no cabeçalho** com o número de não lidas e a tela `/notificacoes`. Sem WhatsApp ou e-mail; no celular, só para quem ativar o push (seção abaixo). O app confere as não lidas ao abrir, ao trocar de tela, ao voltar para o app e a cada minuto.
 - **Automáticas** (tabela `notifications`), criadas na mesma transação da movimentação, então um replay pela chave de idempotência não duplica e um lançamento que falha não deixa notificação:
   - selos recebidos, com quanto falta para a recompensa;
   - recompensa liberada (quando o lançamento completa o cartão, vai só esta, não a dos selos);
@@ -139,4 +139,15 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Limite de avisos por mês** no plano (`plans.max_announcements_per_month`, `null` = ilimitado; mês do calendário no horário de Brasília): Essencial 2, Profissional e Piloto 8, Rede 30. A plataforma altera com `maxAnnouncementsPerMonth` em `PUT /api/platform/plans/{CODE}`. O uso aparece em Avisos e em Meu plano.
 - **Excluir a conta** apaga as notificações do cliente.
 - **Telas do cliente sem "piscar":** Cartões, Meu QR, Ler QR, Conta, cartão e Notificações ficam no layout `app/(cliente)/layout.tsx`, que carrega o cliente uma vez e mantém o cabeçalho e o menu montados entre as trocas de tela.
-- **Pendente:** notificações antigas não são apagadas automaticamente (avaliar uma limpeza depois de alguns meses); push no celular fica para quando houver Wallet/PWA push.
+- **Pendente:** notificações antigas não são apagadas automaticamente (avaliar uma limpeza depois de alguns meses).
+
+## Notificações no celular (Web Push) (20/11/2026)
+
+- **Quem ativar recebe no celular; quem não ativar continua vendo só no sino.** Ativa em Conta → "Notificações no celular" ou pelo convite na tela de Notificações. Vale por aparelho e pode ser desligado a qualquer momento.
+- **Padrão Web Push com chaves VAPID** (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`; gerar uma vez com `npx web-push generate-vapid-keys`). Sem as chaves o recurso fica escondido no app. Trocar as chaves desativa o push de todos os aparelhos até cada cliente abrir o app de novo.
+- **Onde funciona:** Android e computador no navegador ou no app instalado. No iPhone (iOS 16.4+) só com o Acumulaê na Tela de Início; fora dele o app explica como instalar.
+- **Envio fora da transação:** a cada 3 s a API pega as notificações ainda não enviadas (`notifications.pushed_at` nulo, até 15 min, não lidas) de clientes com aparelho ativo, marca e envia. Usa `FOR UPDATE SKIP LOCKED`, então mais de uma instância da API não duplica. Cada notificação vai no máximo uma vez.
+- **Quem ativa agora não recebe as antigas:** ao ativar o primeiro aparelho, as pendentes ficam só no sino.
+- **Aparelhos** em `push_subscriptions` (até 10 por cliente). O endereço do navegador passa para quem logou por último; sair da conta desativa o aparelho; o serviço de push responder 404/410 remove o aparelho; excluir a conta apaga todos.
+- **Segurança:** a API só envia para os serviços de push conhecidos (FCM, Mozilla, Apple, Windows) via HTTPS. Sem isso, um endereço cadastrado pelo cliente poderia fazer a API chamar endereços internos.
+- **Ao tocar** na notificação, o app abre o cartão (ou a tela de Notificações) e a marca como lida. Com o app aberto, o sino atualiza na hora.

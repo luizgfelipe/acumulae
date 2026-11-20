@@ -86,6 +86,7 @@ Os unitários ficam ao lado do código (`src/**/*.spec.ts`). Os de integração 
 | `platform.e2e-spec.ts` | API da plataforma: cadastro, planos, suspensão, auditoria (5.10) |
 | `customer.e2e-spec.ts` | Área do cliente, consentimento e exclusão de conta (7.1, 10, 6.8) |
 | `notifications.e2e-spec.ts` | Notificações do cliente e avisos do estabelecimento |
+| `push.e2e-spec.ts` | Notificações no celular (Web Push): ativar, enviar, remover aparelho |
 
 ## Migrations
 
