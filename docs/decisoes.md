@@ -121,3 +121,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
   - Aparecer no guia é autorização do estabelecimento, **ligada por padrão** (`tenants.show_in_directory`): o gestor desliga em Perfil → "Aparecer no guia do app"; a plataforma também pode mudar (`showInDirectory` em `POST/PATCH /api/platform/tenants`).
   - Só aparece **enquanto o estabelecimento estiver ativo** (`tenants.status = ACTIVE`): suspenso sai do guia na hora e volta ao ser reativado, sem mexer na autorização. Dentro dele, só as unidades ativas e com cidade/UF (endereço pelo CEP).
 
+
+## Leitor de QR no app do cliente (20/11/2026)
+
+- **Ler QR** (`/ler`, na barra de baixo e ao lado de "Meu QR" na tela de cartões): o cliente lê pela câmera do app o QR do balcão (`/e/{slug}`) ou o QR temporário do caixa (`/c/{token}`), sem precisar abrir a câmera do celular. O app só aproveita o caminho do link (nunca o domínio), então um QR de outro site é recusado em vez de virar redirecionamento. Se o cliente ler um QR pessoal (`AC1.`), o app avisa que é o QR de um cliente.
