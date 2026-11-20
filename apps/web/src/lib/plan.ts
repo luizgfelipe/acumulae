@@ -16,6 +16,7 @@ export interface PlanInfo {
     activePrograms: Usage;
     stores: Usage & { included: number; extraPriceCents: number | null };
     staff: Usage;
+    announcementsPerMonth: Usage;
   };
   features: {
     cardCustomization: boolean;

@@ -15,6 +15,7 @@ const NAV: Array<{ href: string; label: string; feature?: 'reports' | 'networkDa
   { href: '/painel', label: 'Indicadores' },
   { href: '/painel/clientes', label: 'Clientes' },
   { href: '/painel/movimentacoes', label: 'Movimentações' },
+  { href: '/painel/avisos', label: 'Avisos' },
   { href: '/painel/relatorios', label: 'Relatórios', feature: 'reports' },
   { href: '/painel/rede', label: 'Rede', feature: 'networkDashboard' },
   { href: '/painel/programas', label: 'Programas' },

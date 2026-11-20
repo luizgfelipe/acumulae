@@ -72,6 +72,7 @@ export default function PlanPage() {
                 }
               />
               <UsageRow label="Funcionários (com convites pendentes)" usage={plan.limits.staff} />
+              <UsageRow label="Avisos aos clientes neste mês" usage={plan.limits.announcementsPerMonth} hint="O limite renova no dia 1º de cada mês." />
             </div>
           </Card>
         </div>
