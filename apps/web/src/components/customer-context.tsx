@@ -7,6 +7,9 @@ export interface CustomerContextValue {
   /** null só na home sem login (landing). */
   me: Me | null;
   reload: () => Promise<void>;
+  /** Notificações não lidas (sino do cabeçalho). */
+  unread: number;
+  setUnread: (n: number) => void;
 }
 
 export const CustomerContext = createContext<CustomerContextValue | null>(null);
@@ -20,7 +23,7 @@ export function useCustomer() {
 
 /** Igual a useCustomer, para telas que só existem com login (o layout já garante). */
 export function useLoggedCustomer() {
-  const { me, reload } = useCustomer();
-  if (!me) throw new Error('useLoggedCustomer sem cliente logado');
-  return { me, reload };
+  const ctx = useCustomer();
+  if (!ctx.me) throw new Error('useLoggedCustomer sem cliente logado');
+  return { ...ctx, me: ctx.me };
 }
