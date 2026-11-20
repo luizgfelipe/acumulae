@@ -1,9 +1,10 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentCustomer, CustomerAuthGuard, CustomerPrincipal } from '../auth/customer-auth.guard';
 import { CurrentStaff, Staff, TenantStaff } from '../auth/staff-auth.guard';
 import { ZodPipe } from '../common/zod.pipe';
 import { AnnouncementsService, NotificationsService, announcementSchema, notificationsQuerySchema } from './notifications.service';
+import { PushService, pushSubscriptionSchema, pushUnsubscribeSchema } from './push.service';
 
 /** Notificações do cliente (sino do app). */
 @Controller('api/me/notifications')
@@ -31,6 +32,35 @@ export class MeNotificationsController {
   @HttpCode(200)
   read(@CurrentCustomer() c: CustomerPrincipal, @Param('id', ParseUUIDPipe) id: string) {
     return this.notifications.markRead(c.id, id);
+  }
+}
+
+/** Notificações no celular (Web Push): aparelhos do cliente que ativaram. */
+@Controller('api/me/push')
+@UseGuards(CustomerAuthGuard)
+export class MePushController {
+  constructor(private readonly push: PushService) {}
+
+  /** Chave pública VAPID; null quando o push não está configurado no servidor. */
+  @Get('config')
+  config() {
+    return this.push.publicConfig();
+  }
+
+  @Post('subscriptions')
+  @HttpCode(200)
+  subscribe(
+    @CurrentCustomer() c: CustomerPrincipal,
+    @Body(new ZodPipe(pushSubscriptionSchema)) b: z.infer<typeof pushSubscriptionSchema>,
+    @Headers('user-agent') ua?: string,
+  ) {
+    return this.push.subscribe(c.id, b, ua);
+  }
+
+  @Post('unsubscribe')
+  @HttpCode(200)
+  unsubscribe(@CurrentCustomer() c: CustomerPrincipal, @Body(new ZodPipe(pushUnsubscribeSchema)) b: z.infer<typeof pushUnsubscribeSchema>) {
+    return this.push.unsubscribe(c.id, b.endpoint);
   }
 }
 

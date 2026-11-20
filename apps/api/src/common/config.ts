@@ -62,6 +62,22 @@ export const config = {
       return process.env.MAIL_FROM ?? 'Acumulaê <nao-responda@acumulae.com.br>';
     },
   },
+  /** Notificações no celular (Web Push). Gere o par com: npx web-push generate-vapid-keys */
+  push: {
+    get publicKey() {
+      return process.env.VAPID_PUBLIC_KEY?.trim() ?? "";
+    },
+    get privateKey() {
+      return process.env.VAPID_PRIVATE_KEY?.trim() ?? "";
+    },
+    /** Contato do remetente exigido pelos serviços de push (mailto: ou https://). */
+    get subject() {
+      return process.env.VAPID_SUBJECT?.trim() || "mailto:suporte@acumulae.com.br";
+    },
+    get enabled() {
+      return !!(this.publicKey && this.privateKey);
+    },
+  },
   google: {
     get clientId() {
       return process.env.GOOGLE_CLIENT_ID ?? '';

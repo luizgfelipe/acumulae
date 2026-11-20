@@ -324,12 +324,13 @@ model Customer {
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
-  identities    CustomerIdentity[]
-  sessions      CustomerSession[]
-  resetTokens   PasswordResetToken[]
-  memberships   Membership[]
-  usedCheckouts CheckoutToken[]
-  notifications Notification[]
+  identities        CustomerIdentity[]
+  sessions          CustomerSession[]
+  resetTokens       PasswordResetToken[]
+  memberships       Membership[]
+  usedCheckouts     CheckoutToken[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
 
   @@map("customers")
 }
@@ -588,6 +589,8 @@ model Notification {
   title          String
   body           String
   readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
+  /// Quando o envio para o celular (Web Push) foi feito. Nulo = ainda não enviado ou cliente sem push.
+  pushedAt       DateTime?        @map("pushed_at") @db.Timestamptz(3)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
   customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -596,7 +599,26 @@ model Notification {
 
   @@index([customerId, createdAt])
   @@index([customerId, readAt])
+  @@index([pushedAt, createdAt])
   @@map("notifications")
+}
+
+/// Aparelho do cliente que aceitou receber notificações no celular (Web Push). Um por navegador.
+model PushSubscription {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @map("customer_id") @db.Uuid
+  /// URL do serviço de push do navegador (FCM, Mozilla, Apple, Windows).
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("push_subscriptions")
 }
 
 /// Aviso enviado pelo gestor aos clientes que aceitaram promoções (limite mensal pelo plano).
