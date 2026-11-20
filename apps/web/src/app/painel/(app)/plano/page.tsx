@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePanel } from '@/components/panel-context';
+import { PlanCompare } from '@/components/plan-compare';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner, cx } from '@/components/ui';
 import { CUSTOMER_WARNING_RATIO, PlanInfo, SUPPORT_LABELS, Usage, brl, daysLeft, planNotice } from '@/lib/plan';
@@ -89,8 +90,8 @@ export default function PlanPage() {
               </Feature>
               <Feature on={plan.features.cardCustomization}>Cor secundária e modelos de cartão</Feature>
               <Feature on={plan.features.customStampImage}>Imagem própria no selo</Feature>
-              <Feature on={plan.features.reports}>Relatórios de aniversariantes, inativos e por funcionário</Feature>
-              <Feature on={plan.features.customerExport}>Exportar clientes (CSV), só os que aceitaram promoções</Feature>
+              <Feature on={plan.features.reports}>Relatórios de aniversariantes, inativos e por funcionário, com envio de notificação para os filtrados</Feature>
+              <Feature on={plan.features.customerExport}>Exportar clientes (CSV)</Feature>
               <Feature on={plan.features.networkDashboard}>Painel consolidado da rede</Feature>
             </ul>
           </Card>
@@ -105,6 +106,8 @@ export default function PlanPage() {
           </Card>
         </div>
       </div>
+
+      <PlanCompare />
     </div>
   );
 }
@@ -142,7 +145,13 @@ function Feature({ on, children }: { on: boolean; children: React.ReactNode }) {
 function UpgradeHint({ plan }: { plan: PlanInfo }) {
   const full = Object.entries(plan.limits).filter(([, u]) => u.max !== null && u.used >= u.max).map(([k]) => k);
   if (!full.length || plan.plan.code === 'REDE') return null;
-  const labels: Record<string, string> = { activeCustomers: 'clientes ativos', activePrograms: 'programas', stores: 'unidades', staff: 'funcionários' };
+  const labels: Record<string, string> = {
+    activeCustomers: 'clientes ativos',
+    activePrograms: 'programas',
+    stores: 'unidades',
+    staff: 'funcionários',
+    announcementsPerMonth: 'notificações do mês',
+  };
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
       <span>No limite:</span>

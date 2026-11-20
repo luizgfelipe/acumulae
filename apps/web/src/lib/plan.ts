@@ -69,3 +69,33 @@ export function planNotice(p: PlanInfo): { kind: 'warning' | 'error'; text: stri
   }
   return null;
 }
+
+/** Resposta de GET /api/admin/plans (comparação em Meu plano). Limites `null` = ilimitado. */
+export interface ComparePlan {
+  code: string;
+  name: string;
+  priceCents: number;
+  supportChannel: PlanInfo['plan']['supportChannel'];
+  limits: {
+    activeCustomers: number | null;
+    activePrograms: number | null;
+    includedStores: number;
+    extraStorePriceCents: number | null;
+    staff: number | null;
+    announcementsPerMonth: number | null;
+  };
+  features: {
+    maxStampIcons: number;
+    cardCustomization: boolean;
+    customStampImage: boolean;
+    reports: boolean;
+    customerExport: boolean;
+    networkDashboard: boolean;
+  };
+}
+
+export interface ComparePlans {
+  /** Código do plano contratado. */
+  current: string;
+  items: ComparePlan[];
+}
