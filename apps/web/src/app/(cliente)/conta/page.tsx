@@ -5,6 +5,7 @@ import { useLoggedCustomer } from '@/components/customer-context';
 import { Alert, Button, Card, Field, Input, Modal, Switch, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { MembershipCard, logout } from '@/lib/customer';
+import { forgetPushDevice, usePush } from '@/lib/push';
 import { formatE164 } from '@/lib/format';
 
 export default function AccountPage() {
@@ -116,6 +117,8 @@ export default function AccountPage() {
             <p className="mt-2 text-xs text-stone-500">Para trocar o telefone ou o e-mail, fale com o suporte.</p>
           </Card>
         </Section>
+
+        <PushSection />
 
         <Section title="Promoções" hint="Escolha quem pode usar seu telefone para mandar ofertas. Aceitar um não autoriza os outros.">
           <Card className="p-0">
@@ -290,6 +293,7 @@ function DeleteModal({ open, onClose, hasPassword, onDone }: { open: boolean; on
     setError(null);
     try {
       await api('/api/me', { method: 'DELETE', body: { password: password || undefined, confirm } });
+      await forgetPushDevice(); // a API já apagou os aparelhos; aqui desfaz a inscrição no navegador
       onDone();
     } catch (err) {
       setError(errorMessage(err));
@@ -320,3 +324,48 @@ function DeleteModal({ open, onClose, hasPassword, onDone }: { open: boolean; on
     </Modal>
   );
 }
+
+/** Notificações no celular: liga ou desliga neste aparelho. */
+function PushSection() {
+  const { state, busy, enable, disable } = usePush();
+  const [error, setError] = useState<string | null>(null);
+  if (state === 'loading' || state === 'unavailable') return null;
+
+  async function toggle(on: boolean) {
+    setError(null);
+    try {
+      await (on ? enable() : disable());
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <Section title="Notificações no celular" hint="Vale só para este aparelho. Mesmo desligadas, tudo continua aparecendo no sino do app.">
+      <Card>
+        {state === 'on' || state === 'off' ? (
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Avisar neste aparelho</p>
+              <p className="text-sm text-stone-500">Selos, recompensas, resgates e novidades dos estabelecimentos.</p>
+            </div>
+            <Switch checked={state === 'on'} onChange={(v) => !busy && toggle(v)} label="Receber notificações neste aparelho" />
+          </div>
+        ) : (
+          <p className="text-sm text-stone-600">{PUSH_HELP[state]}</p>
+        )}
+        {error && (
+          <div className="mt-3">
+            <Alert>{error}</Alert>
+          </div>
+        )}
+      </Card>
+    </Section>
+  );
+}
+
+const PUSH_HELP: Record<'unsupported' | 'needs-install' | 'denied', string> = {
+  unsupported: 'Este navegador não recebe notificações. Elas continuam aparecendo no sino do app.',
+  'needs-install': 'No iPhone, adicione o Acumulaê à Tela de Início (Compartilhar → Adicionar à Tela de Início) e abra por lá para ativar.',
+  denied: 'As notificações do Acumulaê estão bloqueadas neste aparelho. Libere nas configurações do navegador (ícone de cadeado ao lado do endereço) ou do celular.',
+};

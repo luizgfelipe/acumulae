@@ -37,3 +37,18 @@ export function renderIcon(size: number, maskable = false) {
     { width: size, height: size },
   );
 }
+
+/** Ícone pequeno da barra de status do Android (só o contorno branco conta; o fundo é transparente). */
+export function renderBadge(size = 96) {
+  return new ImageResponse(
+    (
+      <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent' }}>
+        <svg width={size * 0.9} height={size * 0.9} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="m8.3 12.2 2.6 2.6 4.8-5.3" />
+        </svg>
+      </div>
+    ),
+    { width: size, height: size },
+  );
+}

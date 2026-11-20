@@ -7,6 +7,7 @@ import { CustomerShell } from '@/components/customer-shell';
 import { FullPageSpinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/customer';
+import { syncPush } from '@/lib/push';
 
 /** De quanto em quanto tempo o sino confere se chegou notificação nova (com o app aberto). */
 const UNREAD_POLL_MS = 60_000;
@@ -51,6 +52,19 @@ export default function CustomerLayout({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [logged, refreshUnread]);
+
+  // Push: mantém a inscrição deste aparelho em dia e reage às notificações que chegam com o app aberto.
+  useEffect(() => {
+    if (!logged) return;
+    syncPush();
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'push') refreshUnread();
+      else if (e.data?.type === 'open' && typeof e.data.url === 'string' && e.data.url.startsWith('/') && !e.data.url.startsWith('//')) router.push(e.data.url);
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [logged, refreshUnread, router]);
 
   if (loading) return <FullPageSpinner />;
   if (!me) {

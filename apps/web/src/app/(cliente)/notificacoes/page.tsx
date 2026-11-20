@@ -6,6 +6,7 @@ import { useLoggedCustomer } from '@/components/customer-context';
 import { Alert, Button, Card, FullPageSpinner, TenantAvatar, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { AppNotification, NotificationKind, NotificationPage, timeAgo } from '@/lib/notifications';
+import { usePush } from '@/lib/push';
 
 const KIND_ICON: Record<NotificationKind, { path: ReactNode; className: string }> = {
   CREDITO: { path: <path d="M12 5v14M5 12h14" />, className: 'bg-brand-100 text-brand-700' },
@@ -82,6 +83,8 @@ export default function NotificationsPage() {
         )}
       </div>
 
+      <PushInvite />
+
       {items.length === 0 ? (
         <Card className="text-center">
           <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand-100 text-brand-700">
@@ -148,5 +151,70 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void
       </span>
       {!n.read && <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label="não lida" />}
     </button>
+  );
+}
+
+const INVITE_KEY = 'acu_push_invite_dismissed';
+
+/** Convite para receber no celular (some depois de ativar ou fechar). */
+function PushInvite() {
+  const { state, busy, enable } = usePush();
+  const [dismissed, setDismissed] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(INVITE_KEY) === '1');
+    } catch {
+      setDismissed(false);
+    }
+  }, []);
+
+  if (dismissed || (state !== 'off' && state !== 'needs-install')) return null;
+
+  function dismiss() {
+    setDismissed(true);
+    try {
+      localStorage.setItem(INVITE_KEY, '1');
+    } catch {
+      /* armazenamento bloqueado: o convite volta na próxima visita */
+    }
+  }
+
+  async function activate() {
+    setError(null);
+    try {
+      await enable();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <Card className="relative border-brand-200 bg-brand-50">
+      <button onClick={dismiss} aria-label="Fechar" className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:bg-brand-100">
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+          <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      </button>
+      <h2 className="pr-8 font-semibold">Receba no celular</h2>
+      {state === 'off' ? (
+        <>
+          <p className="mt-1 text-sm text-stone-600">Avisamos na hora quando você ganhar selos ou liberar uma recompensa, mesmo com o app fechado.</p>
+          {error && (
+            <div className="mt-3">
+              <Alert>{error}</Alert>
+            </div>
+          )}
+          <Button className="mt-3 w-full" loading={busy} onClick={activate}>
+            Ativar notificações
+          </Button>
+        </>
+      ) : (
+        <p className="mt-1 text-sm text-stone-600">
+          No iPhone, adicione o Acumulaê à Tela de Início (Compartilhar → Adicionar à Tela de Início) e abra por lá para receber as notificações.
+        </p>
+      )}
+    </Card>
   );
 }

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from './api';
+import { forgetPushDevice } from './push';
 import type { BrandColors } from './card-theme';
 import type { StampStyle } from './stamp-icons';
 
@@ -85,5 +86,6 @@ export function safeNext(next: string | null | undefined) {
 }
 
 export async function logout() {
+  await forgetPushDevice();
   await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
 }

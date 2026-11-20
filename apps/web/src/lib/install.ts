@@ -59,14 +59,14 @@ export function captureInstallPrompt() {
 
 export type Platform = 'ios' | 'android' | 'other';
 
-function detectPlatform(): Platform {
+export function detectPlatform(): Platform {
   const ua = navigator.userAgent;
   if (/iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
   if (/android/i.test(ua)) return 'android';
   return 'other';
 }
 
-function isStandalone(): boolean {
+export function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
