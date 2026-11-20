@@ -51,6 +51,8 @@ export async function createTenant(app: INestApplication, overrides: Record<stri
       store: { name: 'Centro', slug: 'centro' },
       program: { unitLabel: 'rodízio', goal: 10, rewardDescription: '1 rodízio grátis' },
       manager: { name: 'Gestor', email: `gestor-${slug}@example.com` },
+      // Padrão dos testes: o plano mais restrito. Sem `plan`, a API usa o PILOTO.
+      plan: 'ESSENCIAL',
       ...overrides,
     })
     .expect(201);

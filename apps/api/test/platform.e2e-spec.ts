@@ -243,7 +243,11 @@ describe('Planos: grade, validade e unidades extras', () => {
     expect(byCode.ESSENCIAL).toMatchObject({ priceCents: 6990, maxActiveCustomers: 300, maxActivePrograms: 1, maxStaff: 3, reports: false });
     expect(byCode.PROFISSIONAL).toMatchObject({ priceCents: 7990, maxActiveCustomers: 1500, maxStaff: null, extraStorePriceCents: 3990, reports: true });
     expect(byCode.REDE).toMatchObject({ maxActiveCustomers: null, maxActivePrograms: null, includedStores: 3, networkDashboard: true });
-    expect(byCode.PILOTO).toMatchObject({ priceCents: 0, maxStaff: 3, cardCustomization: false });
+    // O PILOTO libera o mesmo que o Profissional, de graça.
+    const { code: _p, name: _pn, priceCents, supportChannel: _ps, tenants: _pt, _count: _pk, ...pilot } = byCode.PILOTO;
+    const { code: _c, name: _n, priceCents: _pc, supportChannel: _s, tenants: _t, _count: _k, ...pro } = byCode.PROFISSIONAL;
+    expect(priceCents).toBe(0);
+    expect(pilot).toEqual(pro);
   });
 
   it('plano criado só com o nome herda o Essencial; null deixa o limite ilimitado', async () => {
@@ -266,6 +270,34 @@ describe('Planos: grade, validade e unidades extras', () => {
     expect(r.body).toMatchObject({ effectivePlan: 'PROFISSIONAL', planExpired: false, planExpiresAt: null });
 
     await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ planExpiresAt: 'amanhã' }).expect(400);
+  });
+
+  it('o PILOTO vale por 3 meses quando a validade não é informada', async () => {
+    const months = (iso: string) => {
+      const d = new Date(iso);
+      const now = new Date();
+      return (d.getUTCFullYear() - now.getUTCFullYear()) * 12 + d.getUTCMonth() - now.getUTCMonth();
+    };
+    const t = await createTenant(app, { plan: 'PILOTO' });
+    let r = await platform().get(`/api/platform/tenants/${t.tenantId}`).expect(200);
+    expect(r.body).toMatchObject({ plan: 'PILOTO', effectivePlan: 'PILOTO', planExpired: false });
+    expect(months(r.body.planExpiresAt)).toBeGreaterThanOrEqual(2);
+    expect(months(r.body.planExpiresAt)).toBeLessThanOrEqual(3);
+    expect(new Date(r.body.planExpiresAt).toISOString()).toMatch(/T02:59:59.999Z$/);
+
+    // Saindo do PILOTO sem informar validade, o plano novo fica sem validade.
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'PROFISSIONAL' }).expect(200);
+    expect(r.body).toMatchObject({ plan: 'PROFISSIONAL', planExpiresAt: null });
+
+    // Voltando ao PILOTO, ganha de novo os 3 meses; validade informada vale sobre o padrão.
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'PILOTO' }).expect(200);
+    expect(r.body.planExpiresAt).not.toBeNull();
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'ESSENCIAL', planExpiresAt: '2099-12-31' }).expect(200);
+    expect(new Date(r.body.planExpiresAt).toISOString()).toBe('2100-01-01T02:59:59.999Z');
+
+    const open = await createTenant(app, { plan: 'PILOTO', planExpiresAt: null });
+    r = await platform().get(`/api/platform/tenants/${open.tenantId}`).expect(200);
+    expect(r.body.planExpiresAt).toBeNull();
   });
 
   it('unidades extras somam às inclusas, mas não valem com o plano vencido', async () => {

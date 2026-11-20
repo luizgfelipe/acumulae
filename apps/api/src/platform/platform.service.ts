@@ -5,7 +5,7 @@ import { BRANDING_SELECT, brandStyle, logoUrlOf, parseLogo } from '../common/bra
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
 import { STAMP_ICONS } from '../common/stamps';
-import { DEFAULT_PLANS, FALLBACK_PLAN, clearPlanCache, resolvePlan } from '../plans/plans';
+import { DEFAULT_PLANS, FALLBACK_PLAN, PILOT_MONTHS, PILOT_PLAN, clearPlanCache, expiryAfterMonths, resolvePlan } from '../plans/plans';
 import {
   brandingFieldsSchema,
   emailSchema,
@@ -23,13 +23,16 @@ export const storeInputSchema = z.object({
 
 /**
  * Fim da validade do plano: data (vale até o fim do dia, horário de Brasília) ou data e hora ISO.
- * `null` remove a validade.
+ * `null` remove a validade. Ausente ao entrar no PILOTO: vale por PILOT_MONTHS meses.
  */
 const planExpiresAtSchema = z
   .union([z.string().date(), z.string().datetime({ offset: true })])
   .transform((v) => new Date(v.length === 10 ? `${v}T23:59:59.999-03:00` : v))
   .nullable()
   .optional();
+
+/** Validade quando a plataforma não informa: o PILOTO vale por PILOT_MONTHS meses; os demais, sem validade. */
+const defaultExpiry = (plan: string) => (plan === PILOT_PLAN ? expiryAfterMonths(PILOT_MONTHS) : null);
 
 export const createTenantSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -111,7 +114,7 @@ export class PlatformService {
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         const tenant = await tx.tenant.create({
-          data: { name: input.name, slug: input.slug, plan: input.plan, planExpiresAt: input.planExpiresAt ?? null, extraStores: input.extraStores },
+          data: { name: input.name, slug: input.slug, plan: input.plan, planExpiresAt: input.planExpiresAt !== undefined ? input.planExpiresAt : defaultExpiry(input.plan), extraStores: input.extraStores },
         });
         const logo = input.branding?.logo ? parseLogo(input.branding.logo) : null;
         await tx.tenantBranding.create({
@@ -243,13 +246,19 @@ export class PlatformService {
   }
 
   async update(id: string, input: z.infer<typeof updateTenantSchema>) {
-    await this.ensure(id);
+    const current = await this.ensure(id);
     if (input.plan) await this.ensurePlan(input.plan);
+    // Troca de plano sem validade informada: entrar no PILOTO ganha a validade do piloto; sair dele
+    // descarta essa validade (o plano novo fica sem validade). Nas demais trocas, a validade continua.
+    let planExpiresAt = input.planExpiresAt;
+    if (planExpiresAt === undefined && input.plan && input.plan !== current.plan) {
+      if (input.plan === PILOT_PLAN || current.plan === PILOT_PLAN) planExpiresAt = defaultExpiry(input.plan);
+    }
     await this.prisma.$transaction(async (tx) => {
-      if (input.name || input.plan || input.planExpiresAt !== undefined || input.extraStores !== undefined) {
+      if (input.name || input.plan || planExpiresAt !== undefined || input.extraStores !== undefined) {
         await tx.tenant.update({
           where: { id },
-          data: { name: input.name, plan: input.plan, planExpiresAt: input.planExpiresAt, extraStores: input.extraStores },
+          data: { name: input.name, plan: input.plan, planExpiresAt, extraStores: input.extraStores },
         });
       }
       if (input.branding) {

@@ -146,7 +146,7 @@ Uma plataforma SaaS multi-tenant em que:
   | Restrição de resgate | Nenhuma | [RECOMENDADO] Ex.: só de segunda a quinta. |
   | Máximo de selos por lançamento | 20 | [RECOMENDADO] Antifraude. |
 
-- **RN-24 [DECIDIDO]** O estabelecimento pode ter vários programas (aba **Programas** do painel: criar, editar, ativar, desativar e excluir os que nunca tiveram clientes). O número de programas **ativos ao mesmo tempo** é limitado pelo **plano de contratação** (tabela `plans`, campo `max_active_programs`: 1 no PILOTO e no Essencial, 3 no Profissional, ilimitado no Rede; grade completa em `docs/decisoes.md`). O cliente tem um cartão por programa. Alterar a meta não afeta recompensas já liberadas; programa desativado não aceita lançamentos, mas as recompensas já liberadas continuam resgatáveis.
+- **RN-24 [DECIDIDO]** O estabelecimento pode ter vários programas (aba **Programas** do painel: criar, editar, ativar, desativar e excluir os que nunca tiveram clientes). O número de programas **ativos ao mesmo tempo** é limitado pelo **plano de contratação** (tabela `plans`, campo `max_active_programs`: 1 no Essencial, 3 no Profissional e no PILOTO, ilimitado no Rede; grade completa em `docs/decisoes.md`). O cliente tem um cartão por programa. Alterar a meta não afeta recompensas já liberadas; programa desativado não aceita lançamentos, mas as recompensas já liberadas continuam resgatáveis.
 
 ### 5.4 Consumo (crédito de selos)
 

@@ -507,7 +507,7 @@ describe('Programas e planos', () => {
     carryOverExcess: true,
   };
 
-  it('o plano limita os programas ativos (PILOTO = 1)', async () => {
+  it('o plano limita os programas ativos (ESSENCIAL = 1)', async () => {
     const t = await createTenant(app);
     const pos = await managerAgent(app, t.managerInviteUrl);
 
@@ -515,7 +515,7 @@ describe('Programas e planos', () => {
     expect(blocked.body.code).toBe('PROGRAM_LIMIT_REACHED');
 
     const created = await pos.post('/api/admin/programs').send({ ...baseProgram, name: 'Sobremesas', active: false }).expect(201);
-    expect(created.body.limit).toMatchObject({ plan: 'PILOTO', maxActive: 1, active: 1 });
+    expect(created.body.limit).toMatchObject({ plan: 'ESSENCIAL', maxActive: 1, active: 1 });
     const second = created.body.items.find((p: { name: string }) => p.name === 'Sobremesas');
     await pos.post(`/api/admin/programs/${second.id}/activate`).expect(409);
 

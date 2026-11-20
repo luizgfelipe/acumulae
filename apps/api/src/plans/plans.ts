@@ -9,29 +9,42 @@ export const FALLBACK_PLAN = 'ESSENCIAL';
 /** Janela que define "cliente ativo" (visita nos últimos N dias). */
 export const ACTIVE_CUSTOMER_DAYS = 90;
 
-type PlanFields = Omit<Plan, 'createdAt' | 'updatedAt'>;
+/** Plano dos pilotos e quantos meses de validade ele ganha quando a plataforma não informa outra. */
+export const PILOT_PLAN = 'PILOTO';
+export const PILOT_MONTHS = 3;
+
+/** Fim do dia (horário de Brasília) daqui a `months` meses; dia inexistente cai no último do mês. */
+export function expiryAfterMonths(months: number, from = new Date()): Date {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(from).split('-').map(Number);
+  const lastDay = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
+  const target = new Date(Date.UTC(y, m - 1 + months, Math.min(d, lastDay)));
+  return new Date(`${target.toISOString().slice(0, 10)}T23:59:59.999-03:00`);
+}
+
+type PlanFields =Omit<Plan, 'createdAt' | 'updatedAt'>;
 
 /**
- * Grade padrão. A migration 20261120090000_plans_grid semeia os mesmos valores, e os testes recriam
+ * Grade padrão. As migrations 20261120090000_plans_grid e 20261121090000_pilot_professional semeiam os mesmos valores, e os testes recriam
  * a grade a partir daqui. Limites `null` = ilimitado. Preços em centavos, só informativos.
  */
 export const DEFAULT_PLANS: PlanFields[] = [
   {
+    // Mesmo que o Profissional, de graça, por PILOT_MONTHS meses.
     code: 'PILOTO',
     name: 'Piloto',
     priceCents: 0,
-    maxActiveCustomers: 300,
-    maxActivePrograms: 1,
+    maxActiveCustomers: 1500,
+    maxActivePrograms: 3,
     includedStores: 1,
-    extraStorePriceCents: null,
-    maxStaff: 3,
-    maxStampIcons: 5,
-    customStampImage: false,
-    cardCustomization: false,
-    reports: false,
-    customerExport: false,
+    extraStorePriceCents: 3990,
+    maxStaff: null,
+    maxStampIcons: 15,
+    customStampImage: true,
+    cardCustomization: true,
+    reports: true,
+    customerExport: true,
     networkDashboard: false,
-    supportChannel: SupportChannel.EMAIL,
+    supportChannel: SupportChannel.WHATSAPP,
   },
   {
     code: 'ESSENCIAL',

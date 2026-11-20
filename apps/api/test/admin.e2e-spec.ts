@@ -32,7 +32,7 @@ afterAll(async () => {
   await app.close();
 });
 
-/** Estabelecimento novo com o gestor logado. Padrão: plano PILOTO (= Essencial). */
+/** Estabelecimento novo com o gestor logado. Padrão: plano ESSENCIAL. */
 async function setup(overrides: Record<string, unknown> = {}) {
   const t = await createTenant(app, overrides);
   const pos = await managerAgent(app, t.managerInviteUrl);
