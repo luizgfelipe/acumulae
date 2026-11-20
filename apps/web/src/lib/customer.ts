@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 import type { BrandColors } from './card-theme';
@@ -47,7 +47,6 @@ export interface MembershipCard {
  */
 export function useMe({ required = false, allowIncomplete = false } = {}) {
   const router = useRouter();
-  const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,17 +55,18 @@ export function useMe({ required = false, allowIncomplete = false } = {}) {
       const m = await api<Me>('/api/me');
       setMe(m);
       if (required && !allowIncomplete && !m.profileComplete) {
-        router.replace(`/completar-perfil?next=${encodeURIComponent(currentPath(pathname))}`);
+        router.replace(`/completar-perfil?next=${encodeURIComponent(currentPath())}`);
       }
     } catch (e) {
       setMe(null);
       if (required && e instanceof ApiError && e.status === 401) {
-        router.replace(`/entrar?next=${encodeURIComponent(currentPath(pathname))}`);
+        router.replace(`/entrar?next=${encodeURIComponent(currentPath())}`);
       }
     } finally {
       setLoading(false);
     }
-  }, [required, allowIncomplete, router, pathname]);
+    // O caminho atual é lido na hora (currentPath): trocar de tela não recarrega o cliente.
+  }, [required, allowIncomplete, router]);
 
   useEffect(() => {
     load();
@@ -75,8 +75,7 @@ export function useMe({ required = false, allowIncomplete = false } = {}) {
   return { me, loading, reload: load };
 }
 
-function currentPath(pathname: string) {
-  if (typeof window === 'undefined') return pathname;
+function currentPath() {
   return window.location.pathname + window.location.search;
 }
 

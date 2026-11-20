@@ -2,10 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { CustomerShell } from '@/components/customer-shell';
 import { QrScanner } from '@/components/qr-scanner';
-import { Alert, FullPageSpinner, Spinner } from '@/components/ui';
-import { useMe } from '@/lib/customer';
+import { Alert, Spinner } from '@/components/ui';
 
 /**
  * Converte o texto lido num caminho interno do app, se for um QR de estabelecimento:
@@ -26,7 +24,6 @@ function storeQrPath(text: string): string | null {
 
 /** Ler QR: o cliente aponta a câmera para o QR do balcão ou para o QR temporário do caixa. */
 export default function ReadQrPage() {
-  const { me } = useMe({ required: true });
   const router = useRouter();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -47,24 +44,20 @@ export default function ReadQrPage() {
     setAttempt((a) => a + 1); // reinicia o leitor
   }
 
-  if (!me) return <FullPageSpinner />;
-
   return (
-    <CustomerShell>
-      <div className="mx-auto flex w-full max-w-sm flex-col gap-4 pt-4">
-        <div className="text-center">
-          <p className="text-2xl font-bold">Ler QR Code</p>
-          <p className="text-stone-500">Aponte para o QR do balcão ou o que o caixa mostrar na tela</p>
-        </div>
-        {going ? (
-          <div className="grid aspect-square w-full place-items-center rounded-2xl bg-stone-200 text-brand-600">
-            <Spinner className="h-10 w-10" />
-          </div>
-        ) : (
-          <QrScanner key={attempt} onResult={onResult} />
-        )}
-        {error && <Alert>{error}</Alert>}
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-4 pt-4">
+      <div className="text-center">
+        <p className="text-2xl font-bold">Ler QR Code</p>
+        <p className="text-stone-500">Aponte para o QR do balcão ou o que o caixa mostrar na tela</p>
       </div>
-    </CustomerShell>
+      {going ? (
+        <div className="grid aspect-square w-full place-items-center rounded-2xl bg-stone-200 text-brand-600">
+          <Spinner className="h-10 w-10" />
+        </div>
+      ) : (
+        <QrScanner key={attempt} onResult={onResult} />
+      )}
+      {error && <Alert>{error}</Alert>}
+    </div>
   );
 }

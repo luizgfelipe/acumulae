@@ -2,10 +2,9 @@
 
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CustomerShell } from '@/components/customer-shell';
-import { Alert, FullPageSpinner, Spinner } from '@/components/ui';
+import { useLoggedCustomer } from '@/components/customer-context';
+import { Alert, Spinner } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { useMe } from '@/lib/customer';
 
 interface QrPayload {
   payload: string;
@@ -16,7 +15,7 @@ interface QrPayload {
 
 /** Meu QR: QR pessoal dinâmico, renovado a cada 30 s (RN-51), com a navegação do app embaixo. */
 export default function MyQrPage() {
-  const { me } = useMe({ required: true });
+  const { me } = useLoggedCustomer();
   const [qr, setQr] = useState<QrPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState(30);
@@ -38,7 +37,6 @@ export default function MyQrPage() {
   }, []);
 
   useEffect(() => {
-    if (!me?.profileComplete) return;
     load();
     // Mantém a tela acesa enquanto o QR está aberto (quando o navegador suporta).
     let lock: { release: () => Promise<void> } | null = null;
@@ -51,7 +49,7 @@ export default function MyQrPage() {
       document.removeEventListener('visibilitychange', onVisible);
       lock?.release().catch(() => undefined);
     };
-  }, [me, load]);
+  }, [load]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -60,35 +58,31 @@ export default function MyQrPage() {
     return () => clearInterval(t);
   }, [qr]);
 
-  if (!me) return <FullPageSpinner />;
-
   return (
-    <CustomerShell>
-      <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 pt-4">
-        <div className="text-center">
-          <p className="text-2xl font-bold">{me.name}</p>
-          <p className="text-stone-500">Mostre este código no caixa</p>
-        </div>
-        <div className="rounded-3xl border-4 border-stone-900 bg-white p-5">
-          {qr ? (
-            <QRCodeSVG value={qr.payload} size={260} level="M" marginSize={0} />
-          ) : (
-            <div className="grid h-[260px] w-[260px] place-items-center text-brand-600">
-              <Spinner className="h-8 w-8" />
-            </div>
-          )}
-        </div>
-        {qr && (
-          <div className="w-60">
-            <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
-              <div className="h-full bg-brand-600 transition-all duration-300" style={{ width: `${(left / qr.periodSeconds) * 100}%` }} />
-            </div>
-            <p className="mt-2 text-center text-xs text-stone-500">O código muda a cada {qr.periodSeconds} segundos, por segurança.</p>
+    <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 pt-4">
+      <div className="text-center">
+        <p className="text-2xl font-bold">{me.name}</p>
+        <p className="text-stone-500">Mostre este código no caixa</p>
+      </div>
+      <div className="rounded-3xl border-4 border-stone-900 bg-white p-5">
+        {qr ? (
+          <QRCodeSVG value={qr.payload} size={260} level="M" marginSize={0} />
+        ) : (
+          <div className="grid h-[260px] w-[260px] place-items-center text-brand-600">
+            <Spinner className="h-8 w-8" />
           </div>
         )}
-        {error && <Alert>{error}</Alert>}
-        <p className="text-center text-sm text-stone-500">Dica: aumente o brilho da tela para facilitar a leitura.</p>
       </div>
-    </CustomerShell>
+      {qr && (
+        <div className="w-60">
+          <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
+            <div className="h-full bg-brand-600 transition-all duration-300" style={{ width: `${(left / qr.periodSeconds) * 100}%` }} />
+          </div>
+          <p className="mt-2 text-center text-xs text-stone-500">O código muda a cada {qr.periodSeconds} segundos, por segurança.</p>
+        </div>
+      )}
+      {error && <Alert>{error}</Alert>}
+      <p className="text-center text-sm text-stone-500">Dica: aumente o brilho da tela para facilitar a leitura.</p>
+    </div>
   );
 }

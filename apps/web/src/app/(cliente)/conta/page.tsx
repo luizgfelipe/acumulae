@@ -1,16 +1,14 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
-import { CustomerShell } from '@/components/customer-shell';
-import { Alert, Button, Card, Field, FullPageSpinner, Input, Modal, Switch, TenantAvatar, cx } from '@/components/ui';
+import { useLoggedCustomer } from '@/components/customer-context';
+import { Alert, Button, Card, Field, Input, Modal, Switch, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { MembershipCard, logout, useMe } from '@/lib/customer';
+import { MembershipCard, logout } from '@/lib/customer';
 import { formatE164 } from '@/lib/format';
 
 export default function AccountPage() {
-  const router = useRouter();
-  const { me, reload } = useMe({ required: true });
+  const { me, reload } = useLoggedCustomer();
   const [cards, setCards] = useState<MembershipCard[]>([]);
   const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -20,13 +18,13 @@ export default function AccountPage() {
   const [delOpen, setDelOpen] = useState(false);
 
   useEffect(() => {
-    if (!me) return;
     setName(me.name);
     setBirthDate(me.birthDate ?? '');
-    api<MembershipCard[]>('/api/me/memberships').then(setCards).catch(() => undefined);
   }, [me]);
 
-  if (!me) return <FullPageSpinner />;
+  useEffect(() => {
+    api<MembershipCard[]>('/api/me/memberships').then(setCards).catch(() => undefined);
+  }, []);
 
   // Salvar só habilita com alguma mudança válida.
   const dirty = name.trim() !== me.name || birthDate !== (me.birthDate ?? '');
@@ -67,11 +65,11 @@ export default function AccountPage() {
 
   async function doLogout() {
     await logout();
-    router.replace('/');
+    leaveAccount();
   }
 
   return (
-    <CustomerShell>
+    <>
       <div className="space-y-6 pt-2">
         {/* Quem está logado */}
         <div className="flex items-center gap-4">
@@ -162,9 +160,14 @@ export default function AccountPage() {
       </div>
 
       <PasswordModal open={pwOpen} onClose={() => setPwOpen(false)} hasPassword={me.hasPassword} onDone={reload} />
-      <DeleteModal open={delOpen} onClose={() => setDelOpen(false)} hasPassword={me.hasPassword} onDone={() => router.replace('/')} />
-    </CustomerShell>
+      <DeleteModal open={delOpen} onClose={() => setDelOpen(false)} hasPassword={me.hasPassword} onDone={leaveAccount} />
+    </>
   );
+}
+
+/** Depois de sair ou excluir a conta: recarrega o app do zero, já sem o cliente carregado no layout. */
+function leaveAccount() {
+  window.location.replace('/');
 }
 
 /** Um cartão por estabelecimento (quem tem 2 programas no mesmo lugar aparece uma vez). */

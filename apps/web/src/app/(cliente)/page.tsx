@@ -1,32 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { CustomerShell, PublicShell } from '@/components/customer-shell';
+import { useCustomer } from '@/components/customer-context';
+import { PublicShell } from '@/components/customer-shell';
 import { InstallBanner } from '@/components/install-prompt';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { MembershipCard, useMe } from '@/lib/customer';
+import { MembershipCard } from '@/lib/customer';
 import { cardTheme } from '@/lib/card-theme';
 import { plural } from '@/lib/format';
 
+/** Home: cartões do cliente (o layout põe o cabeçalho e o menu) ou a landing, sem login. */
 export default function HomePage() {
-  const router = useRouter();
-  const { me, loading } = useMe();
-
-  useEffect(() => {
-    if (me && !me.profileComplete) router.replace('/completar-perfil');
-  }, [me, router]);
-
-  if (loading) return <FullPageSpinner />;
+  const { me } = useCustomer();
   if (!me) return <Landing />;
-  return (
-    <CustomerShell>
-      <Cards firstName={me.name.split(' ')[0]} />
-    </CustomerShell>
-  );
+  return <Cards firstName={me.name.split(' ')[0]} />;
 }
 
 function Landing() {

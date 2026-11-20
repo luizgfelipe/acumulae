@@ -2,11 +2,9 @@
 
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { CustomerShell } from '@/components/customer-shell';
 import { StampGrid } from '@/components/stamps';
 import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { useMe } from '@/lib/customer';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
 import { LEDGER_LABELS, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
@@ -40,15 +38,13 @@ export default function Page() {
 function MembershipPage() {
   const { id } = useParams<{ id: string }>();
   const isNew = useSearchParams().get('novo') === '1';
-  const { me } = useMe({ required: true });
   const [d, setD] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [consentMsg, setConsentMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!me) return;
     api<Detail>(`/api/me/memberships/${id}`).then(setD).catch((e) => setError(errorMessage(e)));
-  }, [id, me]);
+  }, [id]);
 
   async function consent(value: boolean) {
     if (!d) return;
@@ -65,9 +61,9 @@ function MembershipPage() {
 
   if (error)
     return (
-      <CustomerShell>
+      <>
         <Alert>{error}</Alert>
-      </CustomerShell>
+      </>
     );
   if (!d) return <FullPageSpinner />;
 
@@ -77,7 +73,7 @@ function MembershipPage() {
   const missing = Math.max(0, d.goal - d.balance);
 
   return (
-    <CustomerShell>
+    <>
       <div className="space-y-5 pt-2">
         {isNew && <Alert kind="success">Pronto! Agora é só acumular a cada visita ao {d.tenant.name}.</Alert>}
 
@@ -195,7 +191,7 @@ function MembershipPage() {
           </ul>
         </Card>
       </div>
-    </CustomerShell>
+    </>
   );
 }
 
