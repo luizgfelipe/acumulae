@@ -94,9 +94,14 @@ function Cards({ firstName }: { firstName: string }) {
           <p className="text-stone-500">Olá, {firstName}!</p>
           <h1 className="text-2xl font-bold">Seus cartões</h1>
         </div>
-        <LinkButton href="/qr" variant="dark" className="h-10 text-sm">
-          Meu QR
-        </LinkButton>
+        <div className="flex gap-2">
+          <LinkButton href="/ler" variant="secondary" className="h-10 text-sm">
+            Ler QR
+          </LinkButton>
+          <LinkButton href="/qr" variant="dark" className="h-10 text-sm">
+            Meu QR
+          </LinkButton>
+        </div>
       </div>
       <InstallBanner />
 
