@@ -43,35 +43,37 @@ enum SupportChannel {
 /// Plano de contratação do Acumulae (limites e recursos por estabelecimento).
 /// Limites `null` = ilimitado. A grade padrão está em src/plans/plans.ts.
 model Plan {
-  code                 String         @id
-  name                 String
+  code                     String         @id
+  name                     String
   /// Preço mensal em centavos (informativo: a cobrança não passa pelo sistema).
-  priceCents           Int            @default(0) @map("price_cents")
+  priceCents               Int            @default(0) @map("price_cents")
   /// Clientes ativos (com visita nos últimos 90 dias). Só avisa o gestor; nunca trava o caixa.
-  maxActiveCustomers   Int?           @map("max_active_customers")
+  maxActiveCustomers       Int?           @map("max_active_customers")
   /// Quantos programas de fidelidade o estabelecimento pode ter ativos ao mesmo tempo.
-  maxActivePrograms    Int?           @default(1) @map("max_active_programs")
+  maxActivePrograms        Int?           @default(1) @map("max_active_programs")
   /// Unidades inclusas no plano; as extras compradas ficam em tenants.extra_stores.
-  includedStores       Int            @default(1) @map("included_stores")
+  includedStores           Int            @default(1) @map("included_stores")
   /// Preço mensal de cada unidade extra, em centavos. null = o plano não vende unidade extra.
-  extraStorePriceCents Int?           @map("extra_store_price_cents")
+  extraStorePriceCents     Int?           @map("extra_store_price_cents")
   /// Funcionários (gestores e atendentes ativos + convites pendentes).
-  maxStaff             Int?           @default(3) @map("max_staff")
+  maxStaff                 Int?           @default(3) @map("max_staff")
   /// Quantos ícones de selo do catálogo ficam liberados (os primeiros N; o básico tem 5, o catálogo tem 15).
-  maxStampIcons        Int            @default(5) @map("max_stamp_icons")
+  maxStampIcons            Int            @default(5) @map("max_stamp_icons")
   /// Permite enviar uma imagem própria para o selo.
-  customStampImage     Boolean        @default(false) @map("custom_stamp_image")
+  customStampImage         Boolean        @default(false) @map("custom_stamp_image")
   /// Cor secundária e modelos de cartão.
-  cardCustomization    Boolean        @default(false) @map("card_customization")
+  cardCustomization        Boolean        @default(false) @map("card_customization")
   /// Relatórios de aniversariantes, inativos e por funcionário.
-  reports              Boolean        @default(false)
+  reports                  Boolean        @default(false)
   /// Exportar clientes (CSV), só os que aceitaram promoções.
-  customerExport       Boolean        @default(false) @map("customer_export")
+  customerExport           Boolean        @default(false) @map("customer_export")
   /// Painel consolidado da rede (comparativo entre unidades).
-  networkDashboard     Boolean        @default(false) @map("network_dashboard")
-  supportChannel       SupportChannel @default(EMAIL) @map("support_channel")
-  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt            DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  networkDashboard         Boolean        @default(false) @map("network_dashboard")
+  /// Avisos que o estabelecimento pode mandar por mês (mês do calendário, horário de Brasília).
+  maxAnnouncementsPerMonth Int?           @default(2) @map("max_announcements_per_month")
+  supportChannel           SupportChannel @default(EMAIL) @map("support_channel")
+  createdAt                DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   tenants Tenant[]
 
@@ -105,6 +107,8 @@ model Tenant {
   ledgerEntries  LedgerEntry[]
   rewards        Reward[]
   checkoutTokens CheckoutToken[]
+  announcements  Announcement[]
+  notifications  Notification[]
 
   @@map("tenants")
 }
@@ -152,6 +156,7 @@ model StaffUser {
   resetTokens    StaffPasswordResetToken[]
   ledgerEntries  LedgerEntry[]
   checkoutTokens CheckoutToken[]
+  announcements  Announcement[]
 
   @@map("staff_users")
 }
@@ -324,6 +329,7 @@ model Customer {
   resetTokens   PasswordResetToken[]
   memberships   Membership[]
   usedCheckouts CheckoutToken[]
+  notifications Notification[]
 
   @@map("customers")
 }
@@ -555,4 +561,59 @@ model CheckoutToken {
 
   @@index([tenantId, storeId, createdAt])
   @@map("checkout_tokens")
+}
+
+// ───────────────────────── Notificações ─────────────────────────
+
+enum NotificationKind {
+  /// Selos recebidos num lançamento.
+  CREDITO
+  RECOMPENSA_LIBERADA
+  RESGATE
+  /// Estorno de consumo ou de resgate feito pelo estabelecimento.
+  ESTORNO
+  /// Aviso escrito pelo gestor (só para quem aceitou promoções do estabelecimento).
+  AVISO
+}
+
+/// Notificação no app do cliente (sino do cabeçalho). Criada na mesma transação da movimentação.
+model Notification {
+  id             String           @id @default(uuid()) @db.Uuid
+  customerId     String           @map("customer_id") @db.Uuid
+  tenantId       String?          @map("tenant_id") @db.Uuid
+  /// Cartão relacionado (abre ao tocar na notificação).
+  membershipId   String?          @map("membership_id") @db.Uuid
+  announcementId String?          @map("announcement_id") @db.Uuid
+  kind           NotificationKind
+  title          String
+  body           String
+  readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tenant       Tenant?       @relation(fields: [tenantId], references: [id])
+  announcement Announcement? @relation(fields: [announcementId], references: [id])
+
+  @@index([customerId, createdAt])
+  @@index([customerId, readAt])
+  @@map("notifications")
+}
+
+/// Aviso enviado pelo gestor aos clientes que aceitaram promoções (limite mensal pelo plano).
+model Announcement {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  staffUserId String   @map("staff_user_id") @db.Uuid
+  title       String
+  body        String
+  /// Quantos clientes receberam (fotografia no momento do envio).
+  recipients  Int
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  staffUser     StaffUser      @relation(fields: [staffUserId], references: [id])
+  notifications Notification[]
+
+  @@index([tenantId, createdAt])
+  @@map("announcements")
 }

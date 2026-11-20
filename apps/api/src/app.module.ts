@@ -6,6 +6,7 @@ import { HealthController } from './health/health.controller';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { MailModule } from './mail/mail.module';
 import { MeModule } from './me/me.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PlatformModule } from './platform/platform.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { StaffModule } from './staff/staff.module';
@@ -19,6 +20,7 @@ import { StaffModule } from './staff/staff.module';
     AuthModule,
     LoyaltyModule,
     MeModule,
+    NotificationsModule,
     AdminModule,
     PlatformModule,
   ],

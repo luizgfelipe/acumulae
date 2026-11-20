@@ -84,6 +84,7 @@ describe('redeemRestriction (RN-64)', () => {
 function fakeTx(p: LoyaltyProgram, initial = { balance: 0, rewards: 0, firstVisitAt: null as Date | null }) {
   const entries: Array<Record<string, any>> = [];
   const rewards: Array<Record<string, any>> = [];
+  const notifications: Array<Record<string, any>> = [];
   let m: Record<string, any> | null = null;
   let seq = 0;
   const membership = () => {
@@ -120,8 +121,10 @@ function fakeTx(p: LoyaltyProgram, initial = { balance: 0, rewards: 0, firstVisi
       }),
     },
     reward: { create: jest.fn(async ({ data }: any) => (rewards.push(data), data)) },
+    tenant: { findUniqueOrThrow: jest.fn(async () => ({ name: 'Sushi X' })) },
+    notification: { create: jest.fn(async ({ data }: any) => (notifications.push(data), data)) },
   };
-  return { tx: tx as unknown as Tx, entries, rewards, state: () => membership() };
+  return { tx: tx as unknown as Tx, entries, rewards, notifications, state: () => membership() };
 }
 
 describe('LoyaltyService.creditInTx (RN-30 a RN-38)', () => {
@@ -260,5 +263,46 @@ describe('LoyaltyService.creditInTx (RN-30 a RN-38)', () => {
     const r = await svc.creditInTx(f.tx, input(13));
     expect(r).toMatchObject({ replay: true, rewardsUnlocked: 1, discarded: 3, firstVisit: false });
     expect(f.entries).toHaveLength(0);
+  });
+});
+
+describe('LoyaltyService.creditInTx: notificação do cliente', () => {
+  const svc = new LoyaltyService({} as never);
+  const input = (quantity: number): CreditInput => ({
+    tenantId: 't1',
+    storeId: 's1',
+    customerId: 'c1',
+    quantity,
+    source: 'QR_PESSOAL',
+    staffUserId: 'u1',
+    idempotencyKey: 'k1',
+  });
+
+  it('abaixo da meta, avisa os selos recebidos e quanto falta', async () => {
+    const f = fakeTx(program(), { balance: 5, rewards: 0, firstVisitAt: new Date() });
+    await svc.creditInTx(f.tx, input(2));
+    expect(f.notifications).toHaveLength(1);
+    expect(f.notifications[0]).toMatchObject({
+      customerId: 'c1',
+      tenantId: 't1',
+      membershipId: 'm1',
+      kind: 'CREDITO',
+      title: '+2 rodízios no Sushi X',
+      body: 'Seu cartão está com 7 de 10. Faltam 3 rodízios para: 1 rodízio grátis.',
+    });
+  });
+
+  it('ao completar o cartão, manda só a notificação da recompensa', async () => {
+    const f = fakeTx(program(), { balance: 9, rewards: 0, firstVisitAt: new Date() });
+    await svc.creditInTx(f.tx, input(1));
+    expect(f.notifications).toEqual([
+      expect.objectContaining({ kind: 'RECOMPENSA_LIBERADA', title: 'Recompensa liberada no Sushi X!' }),
+    ]);
+  });
+
+  it('várias recompensas de uma vez aparecem no título', async () => {
+    const f = fakeTx(program(), { balance: 0, rewards: 0, firstVisitAt: null });
+    await svc.creditInTx(f.tx, input(20));
+    expect(f.notifications[0].title).toBe('2 recompensas liberadas no Sushi X!');
   });
 });

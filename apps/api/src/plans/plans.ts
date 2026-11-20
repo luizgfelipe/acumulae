@@ -44,6 +44,7 @@ export const DEFAULT_PLANS: PlanFields[] = [
     reports: true,
     customerExport: true,
     networkDashboard: false,
+    maxAnnouncementsPerMonth: 8,
     supportChannel: SupportChannel.WHATSAPP,
   },
   {
@@ -61,6 +62,7 @@ export const DEFAULT_PLANS: PlanFields[] = [
     reports: false,
     customerExport: false,
     networkDashboard: false,
+    maxAnnouncementsPerMonth: 2,
     supportChannel: SupportChannel.EMAIL,
   },
   {
@@ -78,6 +80,7 @@ export const DEFAULT_PLANS: PlanFields[] = [
     reports: true,
     customerExport: true,
     networkDashboard: false,
+    maxAnnouncementsPerMonth: 8,
     supportChannel: SupportChannel.WHATSAPP,
   },
   {
@@ -95,6 +98,7 @@ export const DEFAULT_PLANS: PlanFields[] = [
     reports: true,
     customerExport: true,
     networkDashboard: true,
+    maxAnnouncementsPerMonth: 30,
     supportChannel: SupportChannel.WHATSAPP_PRIORITARIO,
   },
 ];

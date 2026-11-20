@@ -191,11 +191,12 @@ export class AdminService {
   async planInfo(ctx: AdminCtx) {
     const eff = await effectivePlan(this.prisma, ctx.tenantId);
     const p = eff.plan;
-    const [customers, programs, stores, staff] = await Promise.all([
+    const [customers, programs, stores, staff, announcements] = await Promise.all([
       activeCustomers(this.prisma, ctx.tenantId),
       this.prisma.loyaltyProgram.count({ where: { tenantId: ctx.tenantId, active: true } }),
       activeStores(this.prisma, ctx.tenantId),
       staffInUse(this.prisma, ctx.tenantId),
+      this.prisma.announcement.count({ where: { tenantId: ctx.tenantId, createdAt: { gte: startOfMonthSaoPaulo() } } }),
     ]);
     return {
       plan: { code: p.code, name: p.name, priceCents: p.priceCents, supportChannel: p.supportChannel },
@@ -208,6 +209,7 @@ export class AdminService {
         activePrograms: { used: programs, max: p.maxActivePrograms },
         stores: { used: stores, max: eff.maxStores, included: p.includedStores, extraPriceCents: eff.expired ? null : p.extraStorePriceCents },
         staff: { used: staff, max: p.maxStaff },
+        announcementsPerMonth: { used: announcements, max: p.maxAnnouncementsPerMonth },
       },
       features: {
         cardCustomization: p.cardCustomization,

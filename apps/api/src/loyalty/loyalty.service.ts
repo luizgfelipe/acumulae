@@ -3,7 +3,18 @@ import { LedgerSource, LoyaltyProgram, Membership, Prisma } from '@prisma/client
 import { randomUUID } from 'crypto';
 import { AppError, badRequest, conflict, notFound } from '../common/errors';
 import { describeWeekdays, isoWeekdaySaoPaulo } from '../common/time';
+import {
+  creditMessage,
+  creditReversedMessage,
+  notify,
+  redeemReversedMessage,
+  redeemedMessage,
+  rewardUnlockedMessage,
+  tenantName,
+} from '../notifications/messages';
 import { PrismaService, Tx } from '../prisma/prisma.service';
+
+const unitsOf = (p: LoyaltyProgram) => ({ one: p.unitLabel, many: pluralize(p.unitLabel, p.unitLabelPlural) });
 
 export interface CreditInput {
   tenantId: string;
@@ -279,6 +290,23 @@ export class LoyaltyService {
         firstVisitAt: m.firstVisitAt ?? now,
       },
     });
+
+    // Completou o cartão: a notificação da recompensa já diz tudo; senão, avisa os selos recebidos.
+    const tenant = await tenantName(tx, input.tenantId);
+    await notify(
+      tx,
+      m,
+      unlocked > 0
+        ? rewardUnlockedMessage({ tenant, count: unlocked, reward: program.rewardDescription })
+        : creditMessage({
+            tenant,
+            quantity: input.quantity,
+            balance,
+            goal: program.goal,
+            units: unitsOf(program),
+            reward: program.rewardDescription,
+          }),
+    );
     return {
       replay: false,
       entry,
@@ -386,6 +414,7 @@ export class LoyaltyService {
       data: { cachedRewardsAvailable: m.cachedRewardsAvailable - quantity, lastVisitAt: now },
     });
     const rewards = await tx.reward.findMany({ where: { id: { in: chosen.slice(0, quantity).map((r) => r.id) } } });
+    await notify(tx, m, redeemedMessage({ tenant: await tenantName(tx, input.tenantId), count: quantity, reward: chosen[0].description }));
     return { replay: false, entries, rewards, card: summarize(updated, program) };
   }
 
@@ -431,6 +460,7 @@ export class LoyaltyService {
           data: { status: 'DISPONIVEL', redeemedEntryId: null, redeemedAt: null, redeemedStoreId: null },
         });
         await tx.membership.update({ where: { id: m.id }, data: { cachedRewardsAvailable: m.cachedRewardsAvailable + 1 } });
+        await notify(tx, m, redeemReversedMessage({ tenant: await tenantName(tx, params.tenantId), reward: reward.description }));
         return { reversal: rev, cancelledRewards: 0 };
       }
 
@@ -481,6 +511,19 @@ export class LoyaltyService {
         available--;
       }
       await tx.membership.update({ where: { id: m.id }, data: { cachedBalance: balance, cachedRewardsAvailable: available } });
+      const program = await tx.loyaltyProgram.findUniqueOrThrow({ where: { id: m.programId } });
+      await notify(
+        tx,
+        m,
+        creditReversedMessage({
+          tenant: await tenantName(tx, params.tenantId),
+          quantity: entry.quantity,
+          cancelledRewards: cancelled,
+          balance,
+          goal: program.goal,
+          units: unitsOf(program),
+        }),
+      );
       return { reversal: rev, cancelledRewards: cancelled };
     });
   }

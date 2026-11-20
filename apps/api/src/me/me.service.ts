@@ -230,6 +230,7 @@ export class MeService {
     await this.prisma.$transaction(async (tx) => {
       await tx.customerIdentity.deleteMany({ where: { customerId: me.id } });
       await tx.passwordResetToken.deleteMany({ where: { customerId: me.id } });
+      await tx.notification.deleteMany({ where: { customerId: me.id } });
       await tx.membership.updateMany({
         where: { customerId: me.id },
         data: { marketingConsent: false, marketingConsentAt: now },
