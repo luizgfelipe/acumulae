@@ -393,7 +393,8 @@ Convenções [RECOMENDADO]: PostgreSQL; IDs em UUID; `created_at`/`updated_at` e
 tenants
   id, name, slug (único), status (ACTIVE|SUSPENDED), plan → plans,
   plan_expires_at (depois dela vale o ESSENCIAL), extra_stores,
-  segment (código de src/common/segments.ts, ex.: RESTAURANTE), created_at
+  segment (código de src/common/segments.ts, ex.: RESTAURANTE),
+  show_in_directory (padrão true; guia só lista se também ACTIVE), created_at
   -- logo e cores ficam em tenant_branding
 
 plans                       -- planos de contratação (limites null = ilimitado)

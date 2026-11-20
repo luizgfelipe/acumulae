@@ -6,7 +6,7 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { usePanel } from '@/components/panel-context';
 import { AddressForm } from '@/components/address-form';
 import { CardPreview } from '@/components/card-preview';
-import { Alert, Button, Card, Field, FullPageSpinner, Input, Select, TenantAvatar, cx } from '@/components/ui';
+import { Alert, Button, Card, Field, FullPageSpinner, Input, Select, Switch, TenantAvatar, cx } from '@/components/ui';
 import { AddressFields, addressPayload, draftOf, sameDraft } from '@/lib/address';
 import { errorMessage, staffApi } from '@/lib/api';
 import { BrandColors, CARD_STYLES, CardStyle, cardTheme, contrastRatio } from '@/lib/card-theme';
@@ -21,7 +21,7 @@ interface Segment {
 }
 
 interface Profile {
-  tenant: { name: string; slug: string; segment: string | null; signupUrl: string };
+  tenant: { name: string; slug: string; segment: string | null; showInDirectory: boolean; signupUrl: string };
   segments: Segment[];
   branding: BrandColors & StampStyle & { logoUrl: string | null; version: number };
   stampOptions: { icons: string[]; allowedIcons: string[]; customImage: boolean; planName: string };
@@ -373,9 +373,10 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
 
 function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
   const [segment, setSegment] = useState(profile.tenant.segment ?? '');
+  const [listed, setListed] = useState(profile.tenant.showInDirectory);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
-  const dirty = segment !== (profile.tenant.segment ?? '');
+  const dirty = segment !== (profile.tenant.segment ?? '') || listed !== profile.tenant.showInDirectory;
 
   const groups = profile.segments.reduce<Record<string, Segment[]>>((acc, s) => {
     (acc[s.group] ??= []).push(s);
@@ -387,8 +388,8 @@ function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
     setBusy(true);
     setMsg(null);
     try {
-      onSaved(await staffApi<Profile>('/api/admin/profile', { method: 'PUT', body: { segment: segment || null } }));
-      setMsg({ kind: 'success', text: 'Segmento salvo.' });
+      onSaved(await staffApi<Profile>('/api/admin/profile', { method: 'PUT', body: { segment: segment || null, showInDirectory: listed } }));
+      setMsg({ kind: 'success', text: 'Alterações salvas.' });
     } catch (err) {
       setMsg({ kind: 'error', text: errorMessage(err) });
     } finally {
@@ -403,7 +404,7 @@ function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
         <Field label="Nome" hint="Para trocar o nome do estabelecimento, fale com o suporte do Acumulaê.">
           <Input value={profile.tenant.name} disabled />
         </Field>
-        <Field label="Segmento" hint="Em breve, os clientes vão poder encontrar estabelecimentos por segmento e cidade no app.">
+        <Field label="Segmento" hint="Usado para os clientes encontrarem você no guia do app, por segmento e cidade.">
           <Select value={segment} onChange={(e) => setSegment(e.target.value)}>
             <option value="">Selecione…</option>
             {Object.entries(groups).map(([group, items]) => (
@@ -417,6 +418,15 @@ function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
             ))}
           </Select>
         </Field>
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-stone-200 p-3">
+          <div>
+            <p className="text-sm font-medium text-stone-800">Aparecer no guia do app</p>
+            <p className="text-xs text-stone-500">
+              Clientes do Acumulaê encontram seu estabelecimento por cidade e segmento. Em breve no app.
+            </p>
+          </div>
+          <Switch checked={listed} onChange={setListed} label="Aparecer no guia do app" />
+        </div>
         {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
         <Button type="submit" loading={busy} disabled={!dirty}>
           Salvar

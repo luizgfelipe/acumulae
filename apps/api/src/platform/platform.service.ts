@@ -42,6 +42,7 @@ export const createTenantSchema = z.object({
   plan: z.string().trim().min(1).max(40).default('PILOTO'),
   planExpiresAt: planExpiresAtSchema,
   segment: z.enum(SEGMENT_CODES).nullish(),
+  showInDirectory: z.boolean().optional(),
   extraStores: z.number().int().min(0).max(200).optional(),
   branding: brandingFieldsSchema.optional(),
   store: storeInputSchema,
@@ -83,6 +84,7 @@ export const updateTenantSchema = z.object({
   plan: z.string().trim().min(1).max(40).optional(),
   planExpiresAt: planExpiresAtSchema,
   segment: z.enum(SEGMENT_CODES).nullable().optional(),
+  showInDirectory: z.boolean().optional(),
   /** Unidades extras contratadas, além das inclusas no plano. */
   extraStores: z.number().int().min(0).max(200).optional(),
   branding: brandingFieldsSchema.optional(),
@@ -118,7 +120,7 @@ export class PlatformService {
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         const tenant = await tx.tenant.create({
-          data: { name: input.name, slug: input.slug, plan: input.plan, segment: input.segment ?? null, planExpiresAt: input.planExpiresAt !== undefined ? input.planExpiresAt : defaultExpiry(input.plan), extraStores: input.extraStores },
+          data: { name: input.name, slug: input.slug, plan: input.plan, segment: input.segment ?? null, showInDirectory: input.showInDirectory, planExpiresAt: input.planExpiresAt !== undefined ? input.planExpiresAt : defaultExpiry(input.plan), extraStores: input.extraStores },
         });
         const logo = input.branding?.logo ? parseLogo(input.branding.logo) : null;
         await tx.tenantBranding.create({
@@ -200,6 +202,7 @@ export class PlatformService {
       status: t.status,
       plan: t.plan,
       segment: t.segment,
+      showInDirectory: t.showInDirectory,
       planExpiresAt: t.planExpiresAt,
       planExpired: !!t.planExpiresAt && t.planExpiresAt <= now,
       createdAt: t.createdAt,
@@ -230,6 +233,7 @@ export class PlatformService {
       status: t.status,
       plan: t.plan,
       segment: t.segment,
+      showInDirectory: t.showInDirectory,
       planExpiresAt: t.planExpiresAt,
       planExpired: eff.expired,
       /** Plano que vale agora (o contratado, ou o ESSENCIAL depois da validade). */
@@ -261,10 +265,10 @@ export class PlatformService {
       if (input.plan === PILOT_PLAN || current.plan === PILOT_PLAN) planExpiresAt = defaultExpiry(input.plan);
     }
     await this.prisma.$transaction(async (tx) => {
-      if (input.name || input.plan || planExpiresAt !== undefined || input.extraStores !== undefined || input.segment !== undefined) {
+      if (input.name || input.plan || planExpiresAt !== undefined || input.extraStores !== undefined || input.segment !== undefined || input.showInDirectory !== undefined) {
         await tx.tenant.update({
           where: { id },
-          data: { name: input.name, plan: input.plan, planExpiresAt, extraStores: input.extraStores, segment: input.segment },
+          data: { name: input.name, plan: input.plan, planExpiresAt, extraStores: input.extraStores, segment: input.segment, showInDirectory: input.showInDirectory },
         });
       }
       if (input.branding) {

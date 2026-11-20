@@ -79,20 +79,22 @@ model Plan {
 }
 
 model Tenant {
-  id            String       @id @default(uuid()) @db.Uuid
-  name          String
-  slug          String       @unique
-  status        TenantStatus @default(ACTIVE)
-  plan          String       @default("PILOTO")
-  planRef       Plan         @relation(fields: [plan], references: [code])
+  id              String       @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String       @unique
+  status          TenantStatus @default(ACTIVE)
+  plan            String       @default("PILOTO")
+  planRef         Plan         @relation(fields: [plan], references: [code])
   /// Fim da validade do plano. Depois dela vale o ESSENCIAL até a plataforma trocar o plano. null = sem validade.
-  planExpiresAt DateTime?    @map("plan_expires_at") @db.Timestamptz(3)
+  planExpiresAt   DateTime?    @map("plan_expires_at") @db.Timestamptz(3)
   /// Segmento (código de src/common/segments.ts), para o guia de estabelecimentos.
-  segment       String?
+  segment         String?
+  /// Aparece no guia de estabelecimentos do app (o gestor pode desligar). Só vale com o estabelecimento ativo.
+  showInDirectory Boolean      @default(true) @map("show_in_directory")
   /// Unidades extras contratadas, além das inclusas no plano.
-  extraStores   Int          @default(0) @map("extra_stores")
-  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extraStores     Int          @default(0) @map("extra_stores")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   branding       TenantBranding?
   stores         Store[]

@@ -612,7 +612,7 @@ describe('Endereço pelo CEP e segmento', () => {
   it('o perfil grava o endereço estruturado e o segmento', async () => {
     const { pos } = await setup();
     let r = await pos.get('/api/admin/profile').expect(200);
-    expect(r.body.tenant.segment).toBeNull();
+    expect(r.body.tenant).toMatchObject({ segment: null, showInDirectory: true });
     expect(r.body.segments.map((s: { code: string }) => s.code)).toContain('RESTAURANTE');
 
     r = await pos
@@ -629,6 +629,9 @@ describe('Endereço pelo CEP e segmento', () => {
     r = await pos.put('/api/admin/profile').send({ segment: null }).expect(200);
     expect(r.body.tenant.segment).toBeNull();
     expect(r.body.store.addressFields.city).toBe('Joinville');
+
+    r = await pos.put('/api/admin/profile').send({ showInDirectory: false }).expect(200);
+    expect(r.body.tenant).toMatchObject({ showInDirectory: false, segment: null });
 
     await pos.put('/api/admin/profile').send({ segment: 'INEXISTENTE' }).expect(400);
     await pos.put('/api/admin/profile').send({ address: { ...found, state: 'XX' } }).expect(400);

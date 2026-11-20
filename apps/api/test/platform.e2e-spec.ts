@@ -316,11 +316,13 @@ describe('Segmento e endereço estruturado', () => {
       store: { name: 'Centro', slug: 'centro', address: { cep: '01001-000', street: 'Praça da Sé', number: '1', city: 'São Paulo', state: 'SP' } },
     });
     let r = await platform().get(`/api/platform/tenants/${t.tenantId}`).expect(200);
-    expect(r.body.segment).toBe('PIZZARIA');
+    expect(r.body).toMatchObject({ segment: 'PIZZARIA', showInDirectory: true });
     expect(r.body.stores[0]).toMatchObject({ address: 'Praça da Sé, 1 - São Paulo/SP', addressFields: { cep: '01001000', state: 'SP' } });
 
     r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ segment: 'CAFETERIA' }).expect(200);
     expect(r.body.segment).toBe('CAFETERIA');
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ showInDirectory: false }).expect(200);
+    expect(r.body).toMatchObject({ showInDirectory: false, segment: 'CAFETERIA' });
     await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ segment: 'XYZ' }).expect(400);
   });
 });

@@ -45,6 +45,8 @@ export const profileUpdateSchema = z.object({
   address: addressInputSchema,
   /** null = sem segmento. */
   segment: z.enum(SEGMENT_CODES).nullable().optional(),
+  /** Aparecer no guia de estabelecimentos do app. */
+  showInDirectory: z.boolean().optional(),
 });
 export const storeCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -237,7 +239,7 @@ export class AdminService {
       this.plan(ctx.tenantId),
     ]);
     return {
-      tenant: { name: tenant.name, slug: tenant.slug, segment: tenant.segment, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
+      tenant: { name: tenant.name, slug: tenant.slug, segment: tenant.segment, showInDirectory: tenant.showInDirectory, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
       segments: SEGMENTS,
       // O que o cliente vê hoje: o que o plano vigente não libera aparece no padrão.
       branding: {
@@ -260,7 +262,9 @@ export class AdminService {
     const store = await this.mainStore(ctx.tenantId);
     await this.prisma.$transaction(async (tx) => {
       await tx.store.update({ where: { id: store.id }, data: { name: input.storeName, ...addressData(input.address) } });
-      if (input.segment !== undefined) await tx.tenant.update({ where: { id: ctx.tenantId }, data: { segment: input.segment } });
+      if (input.segment !== undefined || input.showInDirectory !== undefined) {
+        await tx.tenant.update({ where: { id: ctx.tenantId }, data: { segment: input.segment, showInDirectory: input.showInDirectory } });
+      }
     });
     return this.profile(ctx);
   }
