@@ -275,7 +275,7 @@ export class MeService {
   async publicTenant(slug: string) {
     const t = await this.prisma.tenant.findUnique({
       where: { slug },
-      include: { planRef: true, branding: { select: BRANDING_SELECT }, programs: { where: { active: true }, orderBy: { createdAt: 'asc' } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true } } },
+      include: { planRef: true, branding: { select: BRANDING_SELECT }, programs: { where: { active: true }, orderBy: { createdAt: 'asc' } }, stores: { where: { status: 'ACTIVE' }, select: { name: true, address: true, city: true, state: true } } },
     });
     if (!t) throw notFound('Estabelecimento não encontrado.');
     const toPublic = (p: (typeof t.programs)[number]) => ({

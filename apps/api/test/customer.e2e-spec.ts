@@ -109,7 +109,7 @@ describe('Entrada pelo QR do balcão (fluxo 6.1)', () => {
     const { t } = await store({ program: { rewardDescription: 'Sobremesa', goal: 8, redeemWeekdays: [1, 2] } });
     const pub = await http().get(`/api/public/tenants/${t.slug}`).expect(200);
     expect(pub.body.programs[0]).toMatchObject({ goal: 8, rewardDescription: 'Sobremesa', redeemWeekdaysText: 'segunda, terça' });
-    expect(pub.body.stores).toEqual([{ name: 'Centro', address: null }]);
+    expect(pub.body.stores).toEqual([{ name: 'Centro', address: null, city: null, state: null }]);
 
     const c = await customerAgent(app);
     const first = await c.agent.post('/api/me/memberships').send({ slug: t.slug }).expect(201);

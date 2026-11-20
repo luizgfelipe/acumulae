@@ -308,3 +308,19 @@ describe('Planos: grade, validade e unidades extras', () => {
     expect(r.body).toMatchObject({ effectivePlan: 'ESSENCIAL', maxStores: 1 });
   });
 });
+
+describe('Segmento e endereço estruturado', () => {
+  it('cria com segmento e endereço pelo CEP; o PATCH troca o segmento', async () => {
+    const t = await createTenant(app, {
+      segment: 'PIZZARIA',
+      store: { name: 'Centro', slug: 'centro', address: { cep: '01001-000', street: 'Praça da Sé', number: '1', city: 'São Paulo', state: 'SP' } },
+    });
+    let r = await platform().get(`/api/platform/tenants/${t.tenantId}`).expect(200);
+    expect(r.body.segment).toBe('PIZZARIA');
+    expect(r.body.stores[0]).toMatchObject({ address: 'Praça da Sé, 1 - São Paulo/SP', addressFields: { cep: '01001000', state: 'SP' } });
+
+    r = await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ segment: 'CAFETERIA' }).expect(200);
+    expect(r.body.segment).toBe('CAFETERIA');
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ segment: 'XYZ' }).expect(400);
+  });
+});

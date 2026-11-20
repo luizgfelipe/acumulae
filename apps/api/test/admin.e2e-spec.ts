@@ -3,6 +3,7 @@
  */
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { CepService } from '../src/cep/cep.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
   PLATFORM_KEY,
@@ -555,5 +556,93 @@ describe('Painel consolidado da rede (plano Rede)', () => {
     expect(byName.Centro).toMatchObject({ stamps: 2, visits: 1, newCustomers: 1, activeCustomers: 1 });
     expect(byName.Shopping).toMatchObject({ stamps: 3, visits: 1, newCustomers: 0, activeCustomers: 1 });
     expect(r.body.totals).toMatchObject({ stamps: 5, visits: 2, newCustomers: 1, activeCustomers: 1 });
+  });
+});
+
+describe('Endereço pelo CEP e segmento', () => {
+  const found = { cep: '89201000', street: 'Rua do Príncipe', district: 'Centro', city: 'Joinville', state: 'SC' as const };
+  let cep: CepService;
+  let calls: string[];
+
+  beforeEach(() => {
+    cep = app.get(CepService);
+    cep.clearCache();
+    calls = [];
+  });
+  afterAll(() => {
+    cep.providers = original;
+  });
+  let original: CepService['providers'];
+  beforeAll(() => {
+    original = app.get(CepService).providers;
+  });
+
+  const provider = (name: string, fn: (c: string) => Promise<typeof found | null>) => ({
+    name,
+    lookup: (c: string) => {
+      calls.push(name);
+      return fn(c);
+    },
+  });
+
+  it('busca o endereço, usa o reserva quando o principal cai e guarda em cache', async () => {
+    const { pos } = await setup();
+    cep.providers = [provider('a', () => Promise.reject(new Error('fora do ar'))), provider('b', async () => found)];
+
+    const r = await pos.get('/api/admin/cep/89201-000').expect(200);
+    expect(r.body).toEqual(found);
+    await pos.get('/api/admin/cep/89201000').expect(200);
+    expect(calls).toEqual(['a', 'b']);
+  });
+
+  it('CEP inexistente, inválido e serviços fora do ar', async () => {
+    const { pos } = await setup();
+    cep.providers = [provider('a', async () => null), provider('b', async () => null)];
+    expect((await pos.get('/api/admin/cep/00000000').expect(404)).body.code).toBe('CEP_NOT_FOUND');
+    expect((await pos.get('/api/admin/cep/123').expect(400)).body.code).toBe('CEP_INVALID');
+
+    cep.providers = [provider('a', () => Promise.reject(new Error('x')))];
+    expect((await pos.get('/api/admin/cep/01001000').expect(503)).body.code).toBe('CEP_UNAVAILABLE');
+  });
+
+  it('só o gestor consulta o CEP', async () => {
+    await http().get('/api/admin/cep/89201000').expect(401);
+  });
+
+  it('o perfil grava o endereço estruturado e o segmento', async () => {
+    const { pos } = await setup();
+    let r = await pos.get('/api/admin/profile').expect(200);
+    expect(r.body.tenant.segment).toBeNull();
+    expect(r.body.segments.map((s: { code: string }) => s.code)).toContain('RESTAURANTE');
+
+    r = await pos
+      .put('/api/admin/profile')
+      .send({ address: { ...found, cep: '89201-000', number: '330', complement: null }, segment: 'JAPONESA' })
+      .expect(200);
+    expect(r.body.tenant.segment).toBe('JAPONESA');
+    expect(r.body.store).toMatchObject({
+      address: 'Rua do Príncipe, 330 - Centro, Joinville/SC',
+      addressFields: { cep: '89201000', number: '330', city: 'Joinville', state: 'SC' },
+    });
+
+    // Só o segmento: o endereço continua.
+    r = await pos.put('/api/admin/profile').send({ segment: null }).expect(200);
+    expect(r.body.tenant.segment).toBeNull();
+    expect(r.body.store.addressFields.city).toBe('Joinville');
+
+    await pos.put('/api/admin/profile').send({ segment: 'INEXISTENTE' }).expect(400);
+    await pos.put('/api/admin/profile').send({ address: { ...found, state: 'XX' } }).expect(400);
+  });
+
+  it('a unidade nova guarda cidade e UF', async () => {
+    const { pos } = await setup({ plan: 'REDE' });
+    const r = await pos
+      .post('/api/admin/stores')
+      .send({ name: 'Shopping', slug: 'shopping', address: { ...found, number: null } })
+      .expect(201);
+    const s = r.body.find((x: { slug: string }) => x.slug === 'shopping');
+    expect(s).toMatchObject({ address: 'Rua do Príncipe, S/N - Centro, Joinville/SC', addressFields: { city: 'Joinville', state: 'SC' } });
+    const row = await prisma.store.findFirstOrThrow({ where: { id: s.id } });
+    expect(row).toMatchObject({ city: 'Joinville', state: 'SC', cep: '89201000' });
   });
 });

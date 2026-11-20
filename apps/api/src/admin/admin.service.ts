@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { LedgerType, Prisma, StaffRole } from '@prisma/client';
 import { z } from 'zod';
+import { addressData, addressInputSchema, addressView } from '../common/address';
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
 import { maskPhone } from '../common/phone';
@@ -19,6 +20,7 @@ import {
   withinLimit,
 } from '../plans/plans';
 import { MAX_STAMP_IMAGE_BYTES, STAMP_ICONS, allowedStampIcons } from '../common/stamps';
+import { SEGMENTS, SEGMENT_CODES } from '../common/segments';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service';
@@ -40,16 +42,18 @@ export const stampImageUploadSchema = z.object({ image: stampImageDataUrlSchema 
 
 export const profileUpdateSchema = z.object({
   storeName: z.string().trim().min(1).max(120).optional(),
-  address: z.string().trim().max(300).nullish(),
+  address: addressInputSchema,
+  /** null = sem segmento. */
+  segment: z.enum(SEGMENT_CODES).nullable().optional(),
 });
 export const storeCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   slug: slugSchema,
-  address: z.string().trim().max(300).nullish(),
+  address: addressInputSchema,
 });
 export const storeUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
-  address: z.string().trim().max(300).nullish(),
+  address: addressInputSchema,
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 });
 export const staffInviteSchema = z.object({
@@ -233,7 +237,8 @@ export class AdminService {
       this.plan(ctx.tenantId),
     ]);
     return {
-      tenant: { name: tenant.name, slug: tenant.slug, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
+      tenant: { name: tenant.name, slug: tenant.slug, segment: tenant.segment, signupUrl: `${config.publicUrl}/e/${tenant.slug}` },
+      segments: SEGMENTS,
       // O que o cliente vê hoje: o que o plano vigente não libera aparece no padrão.
       branding: {
         logoUrl: logoUrlOf(tenant.slug, branding),
@@ -247,15 +252,15 @@ export class AdminService {
         customImage: plan.customStampImage,
         planName: plan.name,
       },
-      store: { id: store.id, name: store.name, address: store.address },
+      store: { id: store.id, name: store.name, ...addressView(store) },
     };
   }
 
   async updateProfile(ctx: AdminCtx, input: z.infer<typeof profileUpdateSchema>) {
     const store = await this.mainStore(ctx.tenantId);
-    await this.prisma.store.update({
-      where: { id: store.id },
-      data: { name: input.storeName, address: input.address === undefined ? undefined : input.address || null },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.store.update({ where: { id: store.id }, data: { name: input.storeName, ...addressData(input.address) } });
+      if (input.segment !== undefined) await tx.tenant.update({ where: { id: ctx.tenantId }, data: { segment: input.segment } });
     });
     return this.profile(ctx);
   }
@@ -271,7 +276,7 @@ export class AdminService {
       id: s.id,
       name: s.name,
       slug: s.slug,
-      address: s.address,
+      ...addressView(s),
       status: s.status,
       signupUrl: `${config.publicUrl}/e/${tenant.slug}?u=${s.slug}`,
     }));
@@ -284,7 +289,7 @@ export class AdminService {
       await lockTenant(tx, ctx.tenantId);
       const eff = await effectivePlan(tx, ctx.tenantId);
       if (!withinLimit(await activeStores(tx, ctx.tenantId), eff.maxStores)) throw storeLimitError(eff);
-      await tx.store.create({ data: { tenantId: ctx.tenantId, name: input.name, slug: input.slug, address: input.address ?? null } });
+      await tx.store.create({ data: { tenantId: ctx.tenantId, name: input.name, slug: input.slug, ...addressData(input.address) } });
     });
     return this.stores(ctx);
   }
@@ -302,7 +307,7 @@ export class AdminService {
         const eff = await effectivePlan(tx, ctx.tenantId);
         if (!withinLimit(await activeStores(tx, ctx.tenantId), eff.maxStores)) throw storeLimitError(eff);
       }
-      await tx.store.update({ where: { id }, data: { name: input.name, address: input.address, status: input.status } });
+      await tx.store.update({ where: { id }, data: { name: input.name, ...addressData(input.address), status: input.status } });
     });
     return this.stores(ctx);
   }

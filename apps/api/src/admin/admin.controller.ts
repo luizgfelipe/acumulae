@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { CurrentStaff, Staff, TenantStaff } from '../auth/staff-auth.guard';
 import { ZodPipe } from '../common/zod.pipe';
+import { CepService } from '../cep/cep.service';
 import {
   AdminCtx,
   AdminService,
@@ -33,7 +34,14 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly programsSvc: ProgramsService,
     private readonly reports: ReportsService,
+    private readonly cep: CepService,
   ) {}
+
+  /** Endereço pelo CEP, para preencher o cadastro da unidade. */
+  @Get('cep/:cep')
+  lookupCep(@Param('cep') cep: string) {
+    return this.cep.lookup(cep);
+  }
 
   @Get('dashboard')
   dashboard(@CurrentStaff() s: TenantStaff) {
