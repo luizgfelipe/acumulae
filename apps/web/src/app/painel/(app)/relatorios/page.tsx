@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePanel } from '@/components/panel-context';
+import { SendNotificationButton } from '@/components/send-notification';
 import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Select, cx } from '@/components/ui';
+import { MONTHS } from '@/lib/announcements';
 import { errorMessage, staffApi } from '@/lib/api';
 import { formatShortDate } from '@/lib/format';
 import { useLoad } from '@/lib/use-load';
 
-const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 type Tab = 'birthdays' | 'inactive' | 'staff';
 
 export default function ReportsPage() {
@@ -29,7 +30,8 @@ export default function ReportsPage() {
             <li>• Aniversariantes do mês, para mandar um parabéns com desconto</li>
             <li>• Clientes inativos há 30, 60 ou 90 dias, para chamar de volta</li>
             <li>• Lançamentos por funcionário, para conferir o uso do telefone no caixa</li>
-            <li>• Exportar em CSV os clientes que aceitaram receber promoções</li>
+            <li>• Enviar notificação só para os aniversariantes ou os inativos</li>
+            <li>• Exportar os clientes em CSV</li>
           </ul>
           <Link href="/painel/plano" className="mt-4 inline-block font-medium text-brand-700 underline">
             Ver meu plano
@@ -97,7 +99,7 @@ function ExportButton() {
       <Button variant="secondary" size="sm" onClick={download} loading={busy}>
         Exportar clientes (CSV)
       </Button>
-      <p className="mt-1 text-xs text-stone-500">Só quem aceitou receber promoções (LGPD).</p>
+      <p className="mt-1 text-xs text-stone-500">Clientes que aceitaram os Termos de Uso atuais.</p>
       {err && <p className="text-xs text-red-700">{err}</p>}
     </div>
   );
@@ -125,14 +127,20 @@ function Birthdays() {
           <h2 className="font-semibold">Aniversariantes</h2>
           <p className="text-sm text-stone-600">Telefone completo só de quem aceitou receber promoções.</p>
         </div>
-        <div className="w-44">
-          <Select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês">
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>
-                {m[0].toUpperCase() + m.slice(1)}
-              </option>
-            ))}
-          </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <SendNotificationButton
+            segment={{ type: 'birthdays', month }}
+            suggestion={{ title: 'Feliz aniversário! 🎉', body: 'Neste mês do seu aniversário, venha comemorar com a gente.' }}
+          />
+          <div className="w-44">
+            <Select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês">
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i + 1}>
+                  {m[0].toUpperCase() + m.slice(1)}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       </div>
       <ReportBody error={error} loading={!data} empty={data?.items.length === 0} emptyText={`Nenhum cliente faz aniversário em ${MONTHS[month - 1]}.`}>
@@ -196,21 +204,27 @@ function Inactive() {
           <h2 className="font-semibold">Clientes inativos</h2>
           <p className="text-sm text-stone-600">{data ? `${data.total} ${data.total === 1 ? 'cartão' : 'cartões'} sem visita há mais de ${days} dias.` : ' '}</p>
         </div>
-        <div className="w-44">
-          <Select
-            value={days}
-            onChange={(e) => {
-              setDays(Number(e.target.value));
-              setPage(1);
-            }}
-            aria-label="Sem visita há"
-          >
-            {[30, 60, 90].map((d) => (
-              <option key={d} value={d}>
-                Mais de {d} dias
-              </option>
-            ))}
-          </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <SendNotificationButton
+            segment={{ type: 'inactive', days }}
+            suggestion={{ title: 'Estamos com saudade!', body: 'Faz tempo que você não aparece. Passe aqui e continue juntando selos no seu cartão.' }}
+          />
+          <div className="w-44">
+            <Select
+              value={days}
+              onChange={(e) => {
+                setDays(Number(e.target.value));
+                setPage(1);
+              }}
+              aria-label="Sem visita há"
+            >
+              {[30, 60, 90].map((d) => (
+                <option key={d} value={d}>
+                  Mais de {d} dias
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       </div>
       <ReportBody error={error} loading={!data} empty={data?.items.length === 0} emptyText="Nenhum cliente inativo nesse período.">

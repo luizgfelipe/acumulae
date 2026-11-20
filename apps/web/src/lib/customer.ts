@@ -15,6 +15,8 @@ export interface Me {
   birthDate: string | null;
   hasPassword: boolean;
   profileComplete: boolean;
+  /** Aceitou uma versão antiga dos Termos de Uso: o app pede o aceite da atual. */
+  termsOutdated?: boolean;
   pendingConsents: number;
 }
 

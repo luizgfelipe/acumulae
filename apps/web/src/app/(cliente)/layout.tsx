@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { CustomerContext } from '@/components/customer-context';
 import { CustomerShell } from '@/components/customer-shell';
+import { TermsUpdate } from '@/components/terms-update';
 import { FullPageSpinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/customer';
@@ -76,6 +77,7 @@ export default function CustomerLayout({ children }: { children: ReactNode }) {
   return (
     <CustomerContext.Provider value={{ me, reload, unread, setUnread }}>
       <CustomerShell unread={unread}>{children}</CustomerShell>
+      {me.termsOutdated && <TermsUpdate onAccepted={reload} />}
     </CustomerContext.Provider>
   );
 }
