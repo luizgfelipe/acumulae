@@ -229,8 +229,12 @@ Content-Type: application/json
   "name": "Sushi X",
   "slug": "sushi-x",
   "plan": "PILOTO",
+  "segment": "JAPONESA",
   "branding": { "logoUrl": "https://...", "primaryColor": "#D62828" },
-  "store": { "name": "Sushi X - Centro", "slug": "centro", "address": "Rua ..., Joinville/SC" },
+  "store": {
+    "name": "Sushi X - Centro", "slug": "centro",
+    "address": { "cep": "89201-000", "street": "Rua do Príncipe", "number": "330", "district": "Centro", "city": "Joinville", "state": "SC" }
+  },
   "program": { "unitLabel": "rodízio", "goal": 10, "rewardDescription": "1 rodízio grátis" },
   "manager": { "name": "Fulano", "email": "dono@sushix.com.br" }
 }
@@ -388,7 +392,8 @@ Convenções [RECOMENDADO]: PostgreSQL; IDs em UUID; `created_at`/`updated_at` e
 ```text
 tenants
   id, name, slug (único), status (ACTIVE|SUSPENDED), plan → plans,
-  plan_expires_at (depois dela vale o ESSENCIAL), extra_stores, created_at
+  plan_expires_at (depois dela vale o ESSENCIAL), extra_stores,
+  segment (código de src/common/segments.ts, ex.: RESTAURANTE), created_at
   -- logo e cores ficam em tenant_branding
 
 plans                       -- planos de contratação (limites null = ilimitado)
@@ -398,7 +403,9 @@ plans                       -- planos de contratação (limites null = ilimitado
   network_dashboard, support_channel (EMAIL|WHATSAPP|WHATSAPP_PRIORITARIO)
 
 stores                      -- unidades
-  id, tenant_id → tenants, name, slug, address, status, created_at
+  id, tenant_id → tenants, name, slug, status, created_at,
+  address (linha pronta), cep, street, number, complement, district,
+  city, state (UF) -- preenchidos pelo CEP; índice (state, city) para o guia
 
 staff_users                 -- atendentes e gestores
   id, name, email (único), password_hash, status, created_at

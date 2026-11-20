@@ -110,3 +110,12 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Painel da rede (Rede):** compara as unidades no mês (visitas, selos, clientes novos pelo primeiro selo na unidade, resgates) e os clientes ativos de cada uma; o total de clientes ativos conta uma vez quem frequenta mais de uma unidade.
 - **Como a plataforma administra:** `PUT /api/platform/plans/{CODE}` altera preços, limites (`null` = ilimitado) e recursos; `PATCH /api/platform/tenants/{id}` com `plan`, `planExpiresAt` (data, vale até o fim do dia, ou `null`) e `extraStores`.
 - **Pendente:** o painel ainda não mostra um contato do suporte (e-mail ou WhatsApp) para pedir a troca de plano; e o `?u=` do QR de cada unidade ainda não é usado para registrar em qual unidade o cliente se cadastrou.
+
+## Endereço pelo CEP e segmento (22/11/2026)
+
+- **Endereço estruturado:** cada unidade guarda CEP, rua, número (vazio = S/N), complemento, bairro, cidade e UF; `stores.address` continua com a linha pronta ("Rua X, 123 - Bairro, Cidade/UF"), montada pela API, para quem só exibe. A API da plataforma ainda aceita `address` em texto livre (fica sem cidade/UF e não entra no filtro do guia); o painel só grava o formato estruturado. Endereços antigos em texto aparecem no painel como aviso até o gestor informar o CEP.
+- **Busca do CEP:** `GET /api/admin/cep/{cep}` (só gestor). A API oficial dos Correios exige contrato, então usamos a BrasilAPI (que consulta os Correios e outras bases) com o ViaCEP de reserva; 3 s de timeout por serviço e cache em memória de 7 dias (inclusive para CEP inexistente). Fora do ar → 503 `CEP_UNAVAILABLE` e o gestor preenche à mão. A busca passa pela nossa API para não depender de CORS e poder trocar de serviço sem mexer no app.
+- **Cidade e UF vindas do CEP ficam travadas** no formulário, para o guia não ter "Joinville", "joinville" e "Joinvile" como cidades diferentes. Só ficam livres quando o CEP não é encontrado.
+- **Segmento:** um por estabelecimento (`tenants.segment`), escolhido no Perfil do painel ou definido pela plataforma (`segment` em `POST/PATCH /api/platform/tenants`). A lista fica em `apps/api/src/common/segments.ts` (código fixo, rótulo e grupo editáveis) e o painel a recebe pela API.
+- **Próximo passo (guia de estabelecimentos no app):** listar por UF, cidade e segmento usando o índice `stores (state, city)`; antes, decidir se o estabelecimento precisa autorizar aparecer no guia e se o filtro considera só unidades ativas de estabelecimentos ativos.
+
