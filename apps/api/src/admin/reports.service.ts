@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { maskPhone } from '../common/phone';
 import { pageSchema } from '../common/schemas';
+import { TERMS_DATA_SHARING_SINCE } from '../common/terms';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { ACTIVE_CUSTOMER_DAYS, activeCustomers, effectivePlan, planFeatureError } from '../plans/plans';
 import { PrismaService } from '../prisma/prisma.service';
@@ -233,20 +234,21 @@ export class ReportsService {
   }
 
   /**
-   * CSV com os clientes que aceitaram receber promoções deste estabelecimento (LGPD): só eles podem ser
-   * exportados. Fica registrado no log quem exportou e quantas linhas.
+   * CSV com os clientes do estabelecimento que aceitaram os Termos de Uso com o compartilhamento do
+   * cadastro (TERMS_DATA_SHARING_SINCE). Quem só aceitou uma versão antiga fica de fora até aceitar a atual.
+   * A coluna "Aceita promoções" diz para quem dá para mandar ofertas. Fica no log quem exportou e quantas linhas.
    */
   async exportCustomers(ctx: AdminCtx) {
     await this.require(ctx, 'customerExport');
     const [tenant, rows] = await Promise.all([
       this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { slug: true } }),
       this.prisma.membership.findMany({
-        where: { tenantId: ctx.tenantId, marketingConsent: true, customer: { status: 'ACTIVE' } },
+        where: { tenantId: ctx.tenantId, customer: { status: 'ACTIVE', termsVersion: { gte: TERMS_DATA_SHARING_SINCE } } },
         orderBy: [{ customer: { name: 'asc' } }, { program: { name: 'asc' } }],
         include: { customer: { select: { name: true, phoneE164: true, email: true, birthDate: true } }, program: { select: { name: true } } },
       }),
     ]);
-    const header = ['Nome', 'Telefone', 'E-mail', 'Aniversário', 'Programa', 'Saldo', 'Recompensas disponíveis', 'Última visita', 'Cliente desde'];
+    const header = ['Nome', 'Telefone', 'E-mail', 'Aniversário', 'Aceita promoções', 'Programa', 'Saldo', 'Recompensas disponíveis', 'Última visita', 'Cliente desde'];
     const date = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '');
     const lines = rows.map((m) =>
       [
@@ -254,6 +256,7 @@ export class ReportsService {
         m.customer.phoneE164 ?? '',
         m.customer.email ?? '',
         date(m.customer.birthDate),
+        m.marketingConsent ? 'Sim' : 'Não',
         m.program.name,
         m.cachedBalance,
         m.cachedRewardsAvailable,

@@ -320,6 +320,8 @@ model Customer {
   passwordHash    String?        @map("password_hash")
   status          CustomerStatus @default(ACTIVE)
   termsAcceptedAt DateTime?      @map("terms_accepted_at") @db.Timestamptz(3)
+  /// Versão dos Termos de Uso aceita (data, AAAA-MM-DD). Nula = aceitou a versão anterior ao controle de versões.
+  termsVersion    String?        @map("terms_version")
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(3)
@@ -628,6 +630,8 @@ model Announcement {
   staffUserId String   @map("staff_user_id") @db.Uuid
   title       String
   body        String
+  /// Para quem foi: "all" (todos que aceitaram promoções), "birthdays:MM" ou "inactive:DIAS" (filtros dos relatórios).
+  segment     String   @default("all")
   /// Quantos clientes receberam (fotografia no momento do envio).
   recipients  Int
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)

@@ -511,10 +511,12 @@ describe('Relatórios e exportação (Profissional)', () => {
     expect(r.body.items[0]).toMatchObject({ name: 'Gestor Teste', credits: 2, stamps: 3, phoneCredits: 1, phoneShare: 0.5, reversedCredits: 1 });
   });
 
-  it('CSV só com quem aceitou promoções, com BOM e células protegidas contra fórmulas', async () => {
+  it('CSV com todos que aceitaram os termos atuais (com a coluna de promoções), BOM e células protegidas contra fórmulas', async () => {
     const { pos } = await setup({ plan: 'PROFISSIONAL' });
     await member(pos, { name: '=HIPERLINK("x")', consent: true });
     await member(pos, { name: 'Sem Consentimento', consent: false });
+    const old = await member(pos, { name: 'Termos Antigos' });
+    await prisma.customer.update({ where: { id: old.id }, data: { termsVersion: null } });
     const r = await pos.get('/api/admin/customers/export.csv').buffer(true).parse((res, cb) => {
       let data = '';
       res.setEncoding('utf8');
@@ -526,7 +528,11 @@ describe('Relatórios e exportação (Profissional)', () => {
     const body = r.body as string;
     expect(body.startsWith('﻿Nome;Telefone')).toBe(true);
     expect(body).toContain(`"'=HIPERLINK(""x"")"`);
-    expect(body).not.toContain('Sem Consentimento');
+    const lines = body.split('\r\n');
+    expect(lines[0]).toContain(';Aceita promoções;');
+    expect(lines.find((l) => l.includes('HIPERLINK'))).toContain(';Sim;');
+    expect(lines.find((l) => l.includes('Sem Consentimento'))).toContain(';Não;');
+    expect(body).not.toContain('Termos Antigos');
   });
 });
 

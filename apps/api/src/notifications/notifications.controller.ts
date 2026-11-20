@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CurrentCustomer, CustomerAuthGuard, CustomerPrincipal } from '../auth/customer-auth.guard';
 import { CurrentStaff, Staff, TenantStaff } from '../auth/staff-auth.guard';
 import { ZodPipe } from '../common/zod.pipe';
-import { AnnouncementsService, NotificationsService, announcementSchema, notificationsQuerySchema } from './notifications.service';
+import { AnnouncementsService, NotificationsService, Segment, announcementSchema, notificationsQuerySchema, segmentSchema } from './notifications.service';
 import { PushService, pushSubscriptionSchema, pushUnsubscribeSchema } from './push.service';
 
 /** Notificações do cliente (sino do app). */
@@ -73,6 +73,12 @@ export class AnnouncementsController {
   @Get()
   list(@CurrentStaff() s: TenantStaff) {
     return this.announcements.overview({ tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId });
+  }
+
+  /** Prévia do envio para um filtro dos relatórios (?type=birthdays&month=11 ou ?type=inactive&days=30). */
+  @Get('preview')
+  preview(@CurrentStaff() s: TenantStaff, @Query(new ZodPipe(segmentSchema)) q: Segment) {
+    return this.announcements.preview({ tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId }, q);
   }
 
   @Post()

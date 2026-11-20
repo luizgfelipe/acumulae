@@ -196,3 +196,67 @@ describe('avisos do estabelecimento', () => {
     await request(app.getHttpServer()).post('/api/admin/announcements').send({ title: 'Olá', body: 'Teste' }).expect(401);
   });
 });
+
+describe('notificações pelos filtros dos relatórios', () => {
+  async function client(pos: Awaited<ReturnType<typeof store>>['pos'], opts: { consent: boolean; birthDate?: string; daysAgo?: number }) {
+    const m = await member(pos);
+    if (opts.birthDate) await m.c.agent.patch('/api/me').send({ birthDate: opts.birthDate }).expect(200);
+    const cards = await m.c.agent.get('/api/me/memberships').expect(200);
+    await m.c.agent.patch(`/api/me/memberships/${cards.body[0].membershipId}/consent`).send({ marketingConsent: opts.consent }).expect(200);
+    if (opts.daysAgo) {
+      await prisma.membership.update({ where: { id: cards.body[0].membershipId }, data: { lastVisitAt: new Date(Date.now() - opts.daysAgo * 86_400_000) } });
+    }
+    await m.c.agent.post('/api/me/notifications/read-all').expect(200);
+    return m.c;
+  }
+  const unread = async (c: Awaited<ReturnType<typeof client>>) => (await c.agent.get('/api/me/notifications/unread-count')).body.unread;
+
+  it('inativos há 30 dias: prévia e envio só para quem está no filtro e aceitou promoções', async () => {
+    const { pos } = await store({ plan: 'PROFISSIONAL' });
+    const goneYes = await client(pos, { consent: true, daysAgo: 40 });
+    const goneNo = await client(pos, { consent: false, daysAgo: 40 });
+    const recent = await client(pos, { consent: true });
+
+    const p = await pos.get('/api/admin/announcements/preview').query({ type: 'inactive', days: 30 }).expect(200);
+    expect(p.body).toEqual({ total: 2, audience: 1, usage: { used: 0, max: 8 } });
+
+    const sent = await pos
+      .post('/api/admin/announcements')
+      .send({ title: 'Saudade de você', body: 'Volte esta semana e ganhe um selo extra.', segment: { type: 'inactive', days: 30 } })
+      .expect(201);
+    expect(sent.body.recipients).toBe(1);
+    expect(await unread(goneYes)).toBe(1);
+    expect(await unread(goneNo)).toBe(0);
+    expect(await unread(recent)).toBe(0);
+
+    const o = await pos.get('/api/admin/announcements').expect(200);
+    expect(o.body.items[0]).toMatchObject({ segment: 'inactive:30', recipients: 1 });
+    expect(o.body.usage.used).toBe(1); // conta no limite do plano
+  });
+
+  it('aniversariantes do mês', async () => {
+    const { pos } = await store({ plan: 'PROFISSIONAL' });
+    const may = await client(pos, { consent: true, birthDate: '1990-05-12' });
+    const june = await client(pos, { consent: true, birthDate: '1990-06-01' });
+    await pos
+      .post('/api/admin/announcements')
+      .send({ title: 'Feliz aniversário', body: 'Um rodízio por nossa conta.', segment: { type: 'birthdays', month: 5 } })
+      .expect(201);
+    expect(await unread(may)).toBe(1);
+    expect(await unread(june)).toBe(0);
+  });
+
+  it('filtro sem ninguém que aceitou não gasta o limite; plano sem relatórios não usa filtros', async () => {
+    const { pos } = await store({ plan: 'PROFISSIONAL' });
+    await client(pos, { consent: false, daysAgo: 100 });
+    const r = await pos.post('/api/admin/announcements').send({ title: 'Olá', body: 'Volte!', segment: { type: 'inactive', days: 90 } }).expect(409);
+    expect(r.body.code).toBe('NO_RECIPIENTS');
+    expect((await pos.get('/api/admin/announcements').expect(200)).body.usage.used).toBe(0);
+    await pos.post('/api/admin/announcements').send({ title: 'Olá', body: 'Volte!', segment: { type: 'inactive', days: 45 } }).expect(400);
+
+    const basic = await store({ plan: 'ESSENCIAL' });
+    await basic.pos.get('/api/admin/announcements/preview').query({ type: 'inactive', days: 30 }).expect(403);
+    const f = await basic.pos.post('/api/admin/announcements').send({ title: 'Olá', body: 'Volte!', segment: { type: 'birthdays', month: 1 } }).expect(403);
+    expect(f.body.code).toBe('PLAN_FEATURE_UNAVAILABLE');
+  });
+});

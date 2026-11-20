@@ -11,6 +11,7 @@ import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginRateLimiter } from './rate-limiter.service';
 import { SessionsService } from './sessions.service';
+import { TERMS_VERSION, acceptedCurrentTerms } from '../common/terms';
 
 const RESET_TTL_MINUTES = 30;
 
@@ -52,6 +53,8 @@ export function publicCustomer(c: Customer) {
     birthDate: c.birthDate ? c.birthDate.toISOString().slice(0, 10) : null,
     hasPassword: !!c.passwordHash,
     profileComplete: !!c.phoneE164 && !!c.termsAcceptedAt,
+    /** Aceitou uma versão antiga dos Termos: o app pede o aceite da atual. */
+    termsOutdated: !!c.termsAcceptedAt && !acceptedCurrentTerms(c),
   };
 }
 
@@ -103,6 +106,7 @@ export class CustomerAuthService {
           birthDate,
           passwordHash: await hashPassword(input.password),
           termsAcceptedAt: new Date(),
+          termsVersion: TERMS_VERSION,
         },
       });
     } catch (e) {

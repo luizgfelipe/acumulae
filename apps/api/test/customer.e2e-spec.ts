@@ -224,3 +224,17 @@ describe('Exclusão de conta (fluxo 6.8)', () => {
     await customerAgent(app, { phone: c.phone, email: c.email });
   });
 });
+
+describe('versão dos Termos de Uso', () => {
+  it('quem aceitou uma versão antiga vê o aviso e aceita a atual', async () => {
+    const c = await customerAgent(app);
+    expect((await c.agent.get('/api/me').expect(200)).body.termsOutdated).toBe(false);
+
+    await app.get(PrismaService).customer.update({ where: { id: c.id }, data: { termsVersion: null } });
+    expect((await c.agent.get('/api/me').expect(200)).body).toMatchObject({ termsOutdated: true, profileComplete: true });
+
+    await c.agent.post('/api/me/terms').send({}).expect(400);
+    const r = await c.agent.post('/api/me/terms').send({ acceptTerms: true }).expect(200);
+    expect(r.body.termsOutdated).toBe(false);
+  });
+});

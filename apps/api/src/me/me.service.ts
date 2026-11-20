@@ -13,6 +13,11 @@ import { describeWeekdays } from '../common/time';
 import { LoyaltyService, pluralize, redeemRestriction, summarize } from '../loyalty/loyalty.service';
 import { PersonalQrService } from '../loyalty/personal-qr.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TERMS_VERSION } from '../common/terms';
+
+export const acceptTermsSchema = z.object({
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: 'é preciso aceitar os termos' }) }),
+});
 
 export const completeProfileSchema = z.object({
   phone: z.string().trim().min(8).max(30),
@@ -73,8 +78,15 @@ export class MeService {
         birthDate: input.birthDate === undefined ? undefined : toDate(input.birthDate),
         name: input.name,
         termsAcceptedAt: new Date(),
+        termsVersion: TERMS_VERSION,
       },
     });
+    return publicCustomer(c);
+  }
+
+  /** Aceite da versão atual dos Termos de Uso e da Política de Privacidade. */
+  async acceptTerms(me: CustomerPrincipal) {
+    const c = await this.prisma.customer.update({ where: { id: me.id }, data: { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION } });
     return publicCustomer(c);
   }
 

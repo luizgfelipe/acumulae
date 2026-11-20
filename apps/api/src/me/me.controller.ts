@@ -7,6 +7,7 @@ import { ZodPipe } from '../common/zod.pipe';
 import {
   MeService,
   changePasswordSchema,
+  acceptTermsSchema,
   completeProfileSchema,
   consentSchema,
   deleteMeSchema,
@@ -38,6 +39,13 @@ export class MeController {
     @Body(new ZodPipe(completeProfileSchema)) body: z.infer<typeof completeProfileSchema>,
   ) {
     return this.me.completeProfile(c, body);
+  }
+
+  /** Aceite da versão atual dos Termos (quem aceitou uma versão antiga). */
+  @Post('terms')
+  @HttpCode(200)
+  acceptTerms(@CurrentCustomer() c: CustomerPrincipal, @Body(new ZodPipe(acceptTermsSchema)) _body: z.infer<typeof acceptTermsSchema>) {
+    return this.me.acceptTerms(c);
   }
 
   @Post('password')
