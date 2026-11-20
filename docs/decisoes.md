@@ -98,6 +98,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
   | Cor secundária e modelos | sim | não | sim | sim |
   | Relatórios e CSV | sim | não | sim | sim |
   | Painel da rede | não | não | não | sim |
+  | Avisos aos clientes por mês | 8 | 2 | 8 | 30 |
   | Suporte | WhatsApp | e-mail | WhatsApp | WhatsApp prioritário |
 
   O Essencial fica de propósito só R$ 10 abaixo do Profissional (estratégia do "chamariz"), para o Profissional parecer o melhor negócio.
@@ -125,3 +126,17 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 ## Leitor de QR no app do cliente (20/11/2026)
 
 - **Ler QR** (`/ler`, na barra de baixo e ao lado de "Meu QR" na tela de cartões): o cliente lê pela câmera do app o QR do balcão (`/e/{slug}`) ou o QR temporário do caixa (`/c/{token}`), sem precisar abrir a câmera do celular. O app só aproveita o caminho do link (nunca o domínio), então um QR de outro site é recusado em vez de virar redirecionamento. Se o cliente ler um QR pessoal (`AC1.`), o app avisa que é o QR de um cliente.
+
+## Notificações no app do cliente (20/11/2026)
+
+- **Sino no cabeçalho** com o número de não lidas e a tela `/notificacoes`. Só dentro do app (sem push, WhatsApp ou e-mail): o app confere as não lidas ao abrir, ao trocar de tela, ao voltar para o app e a cada minuto.
+- **Automáticas** (tabela `notifications`), criadas na mesma transação da movimentação, então um replay pela chave de idempotência não duplica e um lançamento que falha não deixa notificação:
+  - selos recebidos, com quanto falta para a recompensa;
+  - recompensa liberada (quando o lançamento completa o cartão, vai só esta, não a dos selos);
+  - recompensa resgatada;
+  - estorno de consumo (com as recompensas canceladas e o saldo) e de resgate.
+- **Avisos do estabelecimento** (painel → Avisos, `POST /api/admin/announcements`, só gestor): título (até 80) e mensagem (até 500). Vão **só para quem aceitou promoções** daquele estabelecimento (consentimento da seção 10) e com conta ativa, uma notificação por cliente mesmo com 2 cartões no lugar. Sem ninguém para receber, o envio é recusado e não gasta o limite.
+- **Limite de avisos por mês** no plano (`plans.max_announcements_per_month`, `null` = ilimitado; mês do calendário no horário de Brasília): Essencial 2, Profissional e Piloto 8, Rede 30. A plataforma altera com `maxAnnouncementsPerMonth` em `PUT /api/platform/plans/{CODE}`. O uso aparece em Avisos e em Meu plano.
+- **Excluir a conta** apaga as notificações do cliente.
+- **Telas do cliente sem "piscar":** Cartões, Meu QR, Ler QR, Conta, cartão e Notificações ficam no layout `app/(cliente)/layout.tsx`, que carrega o cliente uma vez e mantém o cabeçalho e o menu montados entre as trocas de tela.
+- **Pendente:** notificações antigas não são apagadas automaticamente (avaliar uma limpeza depois de alguns meses); push no celular fica para quando houver Wallet/PWA push.
