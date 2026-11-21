@@ -11,6 +11,14 @@ describe('textos das notificações', () => {
     });
   });
 
+  it('crédito com recompensa ainda não resgatada lembra o cliente', () => {
+    const base = { tenant: 'Sushi X', quantity: 1, balance: 1, goal: 10, units, reward: '1 rodízio grátis' };
+    expect(creditMessage({ ...base, rewardsAvailable: 1 }).body).toBe(
+      'Seu cartão está com 1 de 10. Faltam 9 rodízios para: 1 rodízio grátis. Você tem 1 recompensa para usar.',
+    );
+    expect(creditMessage({ ...base, rewardsAvailable: 2 }).body).toMatch(/Você tem 2 recompensas para usar.$/);
+  });
+
   it('resgate de uma e de várias recompensas', () => {
     expect(redeemedMessage({ tenant: 'Sushi X', count: 1, reward: '1 rodízio grátis' }).title).toBe('Recompensa resgatada no Sushi X');
     expect(redeemedMessage({ tenant: 'Sushi X', count: 2, reward: '1 rodízio grátis' }).title).toBe('2 recompensas resgatadas no Sushi X');

@@ -305,6 +305,7 @@ export class LoyaltyService {
             goal: program.goal,
             units: unitsOf(program),
             reward: program.rewardDescription,
+            rewardsAvailable: available,
           }),
     );
     return {

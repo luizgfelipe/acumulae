@@ -16,12 +16,23 @@ export interface NotificationText {
 }
 
 /** Selos recebidos sem completar o cartão. */
-export function creditMessage(p: { tenant: string; quantity: number; balance: number; goal: number; units: Units; reward: string }): NotificationText {
+export function creditMessage(p: {
+  tenant: string;
+  quantity: number;
+  balance: number;
+  goal: number;
+  units: Units;
+  reward: string;
+  /** Recompensas já liberadas e ainda não resgatadas: o aviso lembra o cliente. */
+  rewardsAvailable?: number;
+}): NotificationText {
   const missing = Math.max(0, p.goal - p.balance);
+  const pending = p.rewardsAvailable ?? 0;
+  const reminder = pending === 0 ? '' : pending === 1 ? ' Você tem 1 recompensa para usar.' : ` Você tem ${pending} recompensas para usar.`;
   return {
     kind: 'CREDITO',
     title: `+${qty(p.quantity, p.units)} no ${p.tenant}`,
-    body: `Seu cartão está com ${p.balance} de ${p.goal}. ${missing === 1 ? 'Falta' : 'Faltam'} ${qty(missing, p.units)} para: ${p.reward}.`,
+    body: `Seu cartão está com ${p.balance} de ${p.goal}. ${missing === 1 ? 'Falta' : 'Faltam'} ${qty(missing, p.units)} para: ${p.reward}.${reminder}`,
   };
 }
 
