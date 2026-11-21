@@ -94,12 +94,12 @@ export default function CheckoutClaimPage() {
           </div>
           {result.rewardsUnlocked > 0 && (
             <Alert kind="success">
-              🎉 Você ganhou <strong>{c.rewardDescription}</strong>! Mostre seu QR no caixa para resgatar.
+              🎉 Você ganhou <strong>{c.rewardDescription}</strong>! Para resgatar, mostre seu QR ou informe seu telefone no caixa.
             </Alert>
           )}
           {result.rewardsUnlocked === 0 && c.rewardsAvailable > 0 && (
             <Alert kind="info">
-              🎁 {rewardsLabel(c.rewardsAvailable)}: {c.rewardDescription}. Mostre seu QR no caixa para resgatar.
+              🎁 {rewardsLabel(c.rewardsAvailable)}: {c.rewardDescription}. Para resgatar, mostre seu QR ou informe seu telefone no caixa.
             </Alert>
           )}
           <StampGrid

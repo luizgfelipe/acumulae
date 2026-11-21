@@ -119,7 +119,7 @@ function MembershipPage() {
             />
             {complete ? (
               <p className="mt-4 rounded-xl px-3 py-2 text-center text-sm font-medium" style={{ background: `${th.accent}1A`, color: th.accent }}>
-                Mostre seu QR no caixa para resgatar. O cartão recomeça depois do resgate.
+                Para resgatar, mostre seu QR ou informe seu telefone no caixa. O cartão recomeça depois do resgate.
               </p>
             ) : (
               available.length > 0 && (
@@ -170,7 +170,7 @@ function MembershipPage() {
             {d.rules.redeemBlockedToday ? (
               <p className="mt-3 text-sm text-amber-800">{d.rules.redeemBlockedToday}</p>
             ) : (
-              <p className="mt-3 text-sm text-emerald-800">Para resgatar, mostre seu QR no caixa.</p>
+              <p className="mt-3 text-sm text-emerald-800">Para resgatar, mostre seu QR ou informe seu telefone no caixa.</p>
             )}
             <LinkButton href="/qr" variant="dark" className="mt-3 w-full">
               Mostrar meu QR
