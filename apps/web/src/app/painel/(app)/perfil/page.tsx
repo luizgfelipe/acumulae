@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { QRCodeSVG } from 'qrcode.react';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { usePanel } from '@/components/panel-context';
 import { AddressForm } from '@/components/address-form';
 import { CardPreview } from '@/components/card-preview';
-import { Alert, Button, Card, Field, FullPageSpinner, Input, Select, Switch, TenantAvatar, cx } from '@/components/ui';
+import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Select, Switch, TenantAvatar, cx } from '@/components/ui';
 import { AddressFields, addressPayload, draftOf, sameDraft } from '@/lib/address';
 import { errorMessage, staffApi } from '@/lib/api';
 import { BrandColors, CARD_STYLES, CardStyle, cardTheme, contrastRatio } from '@/lib/card-theme';
@@ -30,9 +29,30 @@ interface Profile {
 
 type Msg = { kind: 'success' | 'error'; text: string } | null;
 
+type Tab = 'dados' | 'aparencia';
+const TABS: Array<[Tab, string]> = [
+  ['dados', 'Dados'],
+  ['aparencia', 'Aparência do cartão'],
+];
+
 export default function ProfilePage() {
   const { reload: reloadPanel, plan } = usePanel();
   const { data, error, setData } = useLoad(() => staffApi<Profile>('/api/admin/profile'), []);
+  const [tab, setTab] = useState<Tab>('dados');
+  /** Cores e modelo escolhidos e ainda não salvos: a prévia mostra na hora. */
+  const [draft, setDraft] = useState<BrandColors | null>(null);
+
+  // A aba fica no endereço (?aba=aparencia) para dar para mandar o link direto.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('aba');
+    if (t === 'aparencia' || t === 'dados') setTab(t);
+  }, []);
+  function choose(t: Tab) {
+    setTab(t);
+    const url = new URL(window.location.href);
+    url.searchParams.set('aba', t);
+    window.history.replaceState(null, '', url);
+  }
 
   if (error) return <Alert>{error}</Alert>;
   if (!data) return <FullPageSpinner />;
@@ -44,15 +64,45 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Perfil</h1>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Perfil</h1>
+          <p className="text-stone-600">Como o {data.tenant.name} aparece para os clientes no app.</p>
+        </div>
+        <Link
+          href="/painel/qr"
+          className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-800 transition-colors hover:bg-brand-100"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" />
+          </svg>
+          QR do balcão
+        </Link>
+      </div>
+
+      <div className="flex gap-1 rounded-xl bg-stone-200/70 p-1 text-sm font-medium" role="tablist">
+        {TABS.map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => choose(key)}
+            className={cx(
+              'flex-1 rounded-lg px-3 py-2 transition-colors',
+              tab === key ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'dados' ? (
+        <div className="grid gap-6 lg:grid-cols-2">
           <AboutCard profile={data} onSaved={update} />
-          <LogoCard profile={data} onSaved={update} />
-          <StampCard profile={data} onSaved={update} />
           {multiStore ? (
-            <Card>
+            <Card className="h-fit">
               <h2 className="mb-1 font-semibold">Dados das unidades</h2>
               <p className="text-sm text-stone-600">
                 Com mais de uma unidade, nome e endereço de cada uma ficam na aba{' '}
@@ -66,18 +116,25 @@ export default function ProfilePage() {
             <StoreCard profile={data} onSaved={update} />
           )}
         </div>
-        <div className="space-y-6">
-          <PreviewCard profile={data} />
-          <CounterQrCard profile={data} />
+      ) : (
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+          <div className="space-y-6">
+            <LogoCard profile={data} onSaved={update} onDraft={setDraft} />
+            <StampCard profile={data} onSaved={update} />
+          </div>
+          {/* No celular a prévia vem antes dos controles, para ver a mudança sem rolar a tela. */}
+          <div className="order-first lg:sticky lg:top-6 lg:order-none">
+            <PreviewCard profile={data} draft={draft} />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 // ───────────── Logo e cor ─────────────
 
-function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
+function LogoCard({ profile, onSaved, onDraft }: { profile: Profile; onSaved: (p: Profile) => void; onDraft: (d: BrandColors | null) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   // Cor secundária e modelos: Profissional e Rede. Enquanto carrega, não trava.
   const custom = usePanel().plan?.features.cardCustomization ?? true;
@@ -150,6 +207,13 @@ function LogoCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile
     draft.primaryColor !== saved.primaryColor.toUpperCase() ||
     draft.secondaryColor !== (saved.secondaryColor?.toUpperCase() ?? null) ||
     draft.cardStyle !== saved.cardStyle;
+  // Avisa a prévia do que ainda não foi salvo (só cores válidas).
+  useEffect(() => {
+    onDraft(changed && valid ? draft : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changed, valid, draft.primaryColor, draft.secondaryColor, draft.cardStyle, onDraft]);
+  useEffect(() => () => onDraft(null), [onDraft]);
+
   // Selos e barra ficam sobre fundo branco: avisa quando a cor deles quase some.
   const lowContrast = valid && contrastRatio(cardTheme(draft).accent, '#ffffff') < 3;
 
@@ -489,13 +553,20 @@ function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
   );
 }
 
-// ───────────── Pré-visualização e QR do balcão ─────────────
+// ───────────── Pré-visualização ─────────────
 
-function PreviewCard({ profile }: { profile: Profile }) {
+function PreviewCard({ profile, draft }: { profile: Profile; draft: BrandColors | null }) {
+  const brand = { ...profile.branding, ...(draft ?? {}) };
   return (
     <Card>
-      <h2 className="mb-3 text-sm font-semibold text-stone-500">Como o cartão aparece no app do cliente</h2>
-      <CardPreview name={profile.tenant.name} subtitle={profile.store.name} logoUrl={profile.branding.logoUrl} brand={profile.branding} />
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-stone-500">Como o cartão aparece no app do cliente</h2>
+        {draft && <Badge color="amber">Prévia, não salvo</Badge>}
+      </div>
+      <CardPreview name={profile.tenant.name} subtitle={profile.store.name} logoUrl={profile.branding.logoUrl} brand={brand} />
+      <p className="mt-3 text-xs text-stone-500">
+        {draft ? 'Clique em "Salvar cores e modelo" para os clientes verem assim.' : 'Exemplo com 7 de 10 selos. Logo, cores, modelo e selo aparecem como os clientes veem.'}
+      </p>
     </Card>
   );
 }
@@ -521,49 +592,5 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <Input value={value} onChange={(e) => onChange(e.target.value)} maxLength={7} />
       </div>
     </Field>
-  );
-}
-
-function CounterQrCard({ profile }: { profile: Profile }) {
-  const [copied, setCopied] = useState(false);
-  const url = profile.tenant.signupUrl;
-
-  function print() {
-    const el = document.getElementById('counter-qr');
-    const w = window.open('', '_blank', 'width=600,height=800');
-    if (!el || !w) return;
-    w.document.write(
-      `<!doctype html><html><head><title>QR do balcão</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;padding:40px;text-align:center}p{margin:6px 0}svg{width:320px;height:320px;margin:24px auto}</style></head><body><div>${el.innerHTML}</div><script>window.onload=()=>{window.print()}</script></body></html>`,
-    );
-    w.document.close();
-  }
-
-  return (
-    <Card>
-      <h2 className="mb-1 font-semibold">QR do balcão</h2>
-      <p className="mb-4 text-sm text-stone-600">Imprima e deixe no caixa: o cliente aponta a câmera, cria a conta e entra no programa.</p>
-      <div id="counter-qr" className="rounded-2xl border border-stone-200 p-5 text-center">
-        <p className="text-lg font-bold">{profile.tenant.name}</p>
-        <p className="mb-3 text-sm text-stone-600">Participe do nosso programa de fidelidade</p>
-        <div className="mx-auto w-fit">
-          <QRCodeSVG value={url} size={180} level="M" marginSize={0} />
-        </div>
-        <p className="mt-3 text-sm font-medium">Aponte a câmera do celular</p>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <Button
-          variant="secondary"
-          onClick={() => {
-            navigator.clipboard?.writeText(url).then(() => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            });
-          }}
-        >
-          {copied ? 'Copiado!' : 'Copiar link'}
-        </Button>
-        <Button onClick={print}>Imprimir</Button>
-      </div>
-    </Card>
   );
 }
