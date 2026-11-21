@@ -9,7 +9,7 @@ import { ACTIVE_CUSTOMER_DAYS, activeCustomers, effectivePlan, planFeatureError 
 import { PrismaService } from '../prisma/prisma.service';
 import type { AdminCtx } from './admin.service';
 
-export const birthdaysQuerySchema = z.object({ month: z.coerce.number().int().min(1).max(12).optional() });
+export const birthdaysQuerySchema = pageSchema.extend({ month: z.coerce.number().int().min(1).max(12).optional() });
 export const inactiveQuerySchema = pageSchema.extend({ days: z.coerce.number().int().refine((d) => [30, 60, 90].includes(d), 'use 30, 60 ou 90') });
 export const staffReportQuerySchema = z.object({ from: z.string().date().optional(), to: z.string().date().optional() });
 
@@ -117,13 +117,14 @@ export class ReportsService {
     return consent ? phone : maskPhone(phone);
   }
 
-  /** Aniversariantes do mês (padrão: mês atual em São Paulo). Um cliente aparece uma vez, mesmo com vários cartões. */
+  /**
+   * Aniversariantes do mês (padrão: mês atual em São Paulo), por dia e nome, paginados no servidor.
+   * Um cliente aparece uma vez, mesmo com vários cartões (o da visita mais recente).
+   */
   async birthdays(ctx: AdminCtx, q: z.infer<typeof birthdaysQuerySchema>) {
     await this.require(ctx, 'reports');
     const month = q.month ?? Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', month: '2-digit' }).format(new Date()));
-    const rows = await this.prisma.$queryRaw<
-      { customerId: string; membershipId: string; name: string; phone: string | null; birthDate: Date; consent: boolean | null; lastVisitAt: Date | null }[]
-    >`
+    const base = Prisma.sql`
       SELECT DISTINCT ON (c.id)
         c.id AS "customerId", m.id AS "membershipId", c.name, c.phone_e164 AS phone, c.birth_date AS "birthDate",
         m.marketing_consent AS consent, m.last_visit_at AS "lastVisitAt"
@@ -132,8 +133,19 @@ export class ReportsService {
       WHERE m.tenant_id = ${ctx.tenantId}::uuid AND c.status = 'ACTIVE' AND c.birth_date IS NOT NULL
         AND EXTRACT(MONTH FROM c.birth_date) = ${month}
       ORDER BY c.id, m.last_visit_at DESC NULLS LAST`;
-    const items = rows
-      .map((r) => ({
+    const [[{ total }], rows] = await Promise.all([
+      this.prisma.$queryRaw<{ total: bigint }[]>`SELECT COUNT(*) AS total FROM (${base}) b`,
+      this.prisma.$queryRaw<
+        { customerId: string; membershipId: string; name: string; phone: string | null; birthDate: Date; consent: boolean | null; lastVisitAt: Date | null }[]
+      >`SELECT * FROM (${base}) b ORDER BY EXTRACT(DAY FROM b."birthDate"), b.name, b."customerId"
+         LIMIT ${q.pageSize} OFFSET ${(q.page - 1) * q.pageSize}`,
+    ]);
+    return {
+      month,
+      total: Number(total),
+      page: q.page,
+      pageSize: q.pageSize,
+      items: rows.map((r) => ({
         customerId: r.customerId,
         membershipId: r.membershipId,
         name: r.name,
@@ -141,9 +153,8 @@ export class ReportsService {
         phone: this.contact(r.consent, r.phone),
         marketingConsent: r.consent === true,
         lastVisitAt: r.lastVisitAt,
-      }))
-      .sort((a, b) => a.day - b.day || a.name.localeCompare(b.name, 'pt-BR'));
-    return { month, items };
+      })),
+    };
   }
 
   /** Cartões sem visita há N dias (30, 60 ou 90), os mais antigos primeiro. */

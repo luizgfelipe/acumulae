@@ -484,6 +484,18 @@ describe('Relatórios e exportação (Profissional)', () => {
     await pos.get('/api/admin/reports/birthdays?month=13').expect(400);
   });
 
+  it('aniversariantes paginados no servidor, por dia e nome', async () => {
+    const { pos } = await setup({ plan: 'PROFISSIONAL' });
+    for (const [name, day] of [['Duda', 9], ['Edu', 2], ['Fê', 9], ['Gil', 30], ['Hugo', 15]] as const) {
+      await member(pos, { name, birthDate: `1990-07-${String(day).padStart(2, '0')}` });
+    }
+    const p1 = await pos.get('/api/admin/reports/birthdays?month=7&pageSize=2').expect(200);
+    expect(p1.body).toMatchObject({ month: 7, total: 5, page: 1, pageSize: 2 });
+    expect(p1.body.items.map((i: { name: string }) => i.name)).toEqual(['Edu', 'Duda']);
+    const p3 = await pos.get('/api/admin/reports/birthdays?month=7&pageSize=2&page=3').expect(200);
+    expect(p3.body.items.map((i: { name: string }) => i.name)).toEqual(['Gil']);
+  });
+
   it('inativos: só cartões sem visita há mais de N dias', async () => {
     const { t, pos } = await setup({ plan: 'PROFISSIONAL' });
     const old = await member(pos, { name: 'Sumida' });

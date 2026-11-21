@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Q
 import { z } from 'zod';
 import { CurrentCustomer, CustomerAuthGuard, CustomerPrincipal } from '../auth/customer-auth.guard';
 import { CurrentStaff, Staff, TenantStaff } from '../auth/staff-auth.guard';
+import { pageSchema } from '../common/schemas';
 import { ZodPipe } from '../common/zod.pipe';
 import { AnnouncementsService, NotificationsService, Segment, announcementSchema, notificationsQuerySchema, segmentSchema } from './notifications.service';
 import { PushService, pushSubscriptionSchema, pushUnsubscribeSchema } from './push.service';
@@ -71,8 +72,8 @@ export class AnnouncementsController {
   constructor(private readonly announcements: AnnouncementsService) {}
 
   @Get()
-  list(@CurrentStaff() s: TenantStaff) {
-    return this.announcements.overview({ tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId });
+  list(@CurrentStaff() s: TenantStaff, @Query(new ZodPipe(pageSchema)) q: z.infer<typeof pageSchema>) {
+    return this.announcements.overview({ tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId }, q);
   }
 
   /** Prévia do envio para um filtro dos relatórios (?type=birthdays&month=11 ou ?type=inactive&days=30). */

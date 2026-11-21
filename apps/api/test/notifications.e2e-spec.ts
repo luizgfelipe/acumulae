@@ -259,4 +259,33 @@ describe('notificações pelos filtros dos relatórios', () => {
     const f = await basic.pos.post('/api/admin/announcements').send({ title: 'Olá', body: 'Volte!', segment: { type: 'birthdays', month: 1 } }).expect(403);
     expect(f.body.code).toBe('PLAN_FEATURE_UNAVAILABLE');
   });
+
+  it('envio pelo filtro alcança quem está em outras páginas do relatório', async () => {
+    const { pos } = await store({ plan: 'PROFISSIONAL' });
+    const all = [];
+    for (let i = 0; i < 3; i++) all.push(await client(pos, { consent: true, daysAgo: 40 }));
+    const page1 = await pos.get('/api/admin/reports/inactive?days=30&pageSize=1').expect(200);
+    expect(page1.body).toMatchObject({ total: 3, pageSize: 1 });
+    expect(page1.body.items).toHaveLength(1);
+
+    const sent = await pos
+      .post('/api/admin/announcements')
+      .send({ title: 'Saudade', body: 'Volte!', segment: { type: 'inactive', days: 30 } })
+      .expect(201);
+    expect(sent.body.recipients).toBe(3);
+    for (const c of all) expect(await unread(c)).toBe(1);
+  });
+
+  it('histórico de enviadas paginado no servidor', async () => {
+    const { pos } = await store({ plan: 'REDE' });
+    await client(pos, { consent: true });
+    for (const title of ['Primeira', 'Segunda', 'Terceira']) {
+      await pos.post('/api/admin/announcements').send({ title, body: 'Novidade' }).expect(201);
+    }
+    const p1 = await pos.get('/api/admin/announcements?pageSize=2').expect(200);
+    expect(p1.body).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+    expect(p1.body.items.map((a: { title: string }) => a.title)).toEqual(['Terceira', 'Segunda']);
+    const p2 = await pos.get('/api/admin/announcements?pageSize=2&page=2').expect(200);
+    expect(p2.body.items.map((a: { title: string }) => a.title)).toEqual(['Primeira']);
+  });
 });

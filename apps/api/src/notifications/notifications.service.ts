@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { AdminCtx } from '../admin/admin.service';
 import { logoUrlOf } from '../common/branding';
 import { AppError } from '../common/errors';
+import { pageSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { effectivePlan, lockTenant, planFeatureError, withinLimit } from '../plans/plans';
 import { PrismaService } from '../prisma/prisma.service';
@@ -136,21 +137,27 @@ export class AnnouncementsService {
     return db.announcement.count({ where: { tenantId, createdAt: { gte: startOfMonthSaoPaulo(now) } } });
   }
 
-  async overview(ctx: AdminCtx) {
-    const [eff, used, audience, items] = await Promise.all([
+  /** Uso do mês, público e o histórico paginado (mais recentes primeiro). */
+  async overview(ctx: AdminCtx, q: z.infer<typeof pageSchema> = { page: 1, pageSize: 20 }) {
+    const [eff, used, audience, total, items] = await Promise.all([
       effectivePlan(this.prisma, ctx.tenantId),
       this.usedThisMonth(this.prisma, ctx.tenantId),
       this.count(ctx.tenantId, { type: 'all' }).then((c) => c.audience),
+      this.prisma.announcement.count({ where: { tenantId: ctx.tenantId } }),
       this.prisma.announcement.findMany({
         where: { tenantId: ctx.tenantId },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (q.page - 1) * q.pageSize,
+        take: q.pageSize,
         include: { staffUser: { select: { name: true } } },
       }),
     ]);
     return {
       usage: { used, max: eff.plan.maxAnnouncementsPerMonth },
       audience,
+      total,
+      page: q.page,
+      pageSize: q.pageSize,
       items: items.map((a) => ({
         id: a.id,
         title: a.title,
