@@ -17,7 +17,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Q-02**: o caixa orienta "cada um no seu cadastro". O limite por lançamento (padrão 20) evita abuso.
 - **Q-03**: o app mostra só os estabelecimentos com vínculo.
 - **Q-04**: o vínculo é criado já na entrada pelo QR do balcão (0/meta).
-- **Q-05**: no MVP só vale a restrição por dia da semana. `stamp_validity_days` e `rewards.expires_at` existem, mas não há job de expiração.
+- **Q-05**: no MVP só vale a restrição por dia da semana. `stamp_validity_days` e `rewards.expires_at` existem, mas não há job de expiração (proposta em "Pendências conhecidas").
 
 ## Ledger
 
@@ -49,7 +49,14 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 ## Pendências conhecidas (próximos passos)
 
 - Restante da personalização visual (fundo, selos, temas), previsto para a Fase 2.
-- Job de expiração de selos/recompensas (Q-05).
+- **Expiração de selos e recompensas (Q-05)** — avaliada em 21/11/2026, fica como próxima tarefa. Já existem `loyalty_programs.stamp_validity_days`, `rewards.expires_at` e o tipo de ledger `EXPIRACAO`; falta a regra, o job, as telas e os avisos. Proposta:
+  - **Opcional por programa, desligada por padrão.** O gestor liga em Programas e escolhe o prazo (30, 60, 90 ou 180 dias).
+  - **Por inatividade, não selo a selo:** os selos vencem se o cliente ficar X dias sem visitar; cada visita renova o prazo do cartão inteiro.
+  - **Avisos antes de vencer** (notificação no app e push, ex.: 7 dias antes e na véspera). É o aviso que traz o cliente de volta, não o selo sumir.
+  - **Prazo visível** no cartão do app ("Selos válidos até 15/12"), na página do QR do balcão e no caixa; a expiração entra no histórico.
+  - **Recompensa liberada com prazo próprio** (opcional, ex.: 30 dias), também com aviso.
+  - **Sem efeito retroativo:** ao ligar, o prazo começa a contar a partir daquele dia para todos.
+  - A decidir: por inatividade (recomendado) ou por selo; se a recompensa liberada também expira.
 - Rate limit em Redis, caso a API rode em mais de uma instância.
 - Correção de telefone e mesclagem de contas pelo admin da plataforma (suporte).
 - Revisão jurídica dos Termos de Uso e da Política de Privacidade.
