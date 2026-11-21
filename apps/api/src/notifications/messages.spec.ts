@@ -36,6 +36,16 @@ describe('textos das notificações', () => {
     );
   });
 
+  it('estorno com recompensa pendente segue o cartão do app (completo ou com o aviso)', () => {
+    const base = { tenant: 'Sushi X', quantity: 1, cancelledRewards: 0, goal: 10, units };
+    expect(creditReversedMessage({ ...base, balance: 0, rewardsAvailable: 1 }).body).toBe(
+      'O estabelecimento estornou 1 rodízio. Seu cartão continua completo: você tem 1 recompensa para usar.',
+    );
+    expect(creditReversedMessage({ ...base, balance: 2, rewardsAvailable: 2 }).body).toBe(
+      'O estabelecimento estornou 1 rodízio. Seu cartão está com 2 de 10. Você tem 2 recompensas para usar.',
+    );
+  });
+
   it('estorno de resgate devolve a recompensa', () => {
     expect(redeemReversedMessage({ tenant: 'Sushi X', reward: '1 rodízio grátis' }).body).toBe('A recompensa "1 rodízio grátis" voltou para o seu cartão.');
   });

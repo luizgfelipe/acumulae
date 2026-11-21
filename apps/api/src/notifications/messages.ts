@@ -59,13 +59,22 @@ export function creditReversedMessage(p: {
   balance: number;
   goal: number;
   units: Units;
+  /** Recompensas que continuam disponíveis depois do estorno. */
+  rewardsAvailable?: number;
 }): NotificationText {
   const cancelled =
     p.cancelledRewards === 0 ? '' : p.cancelledRewards === 1 ? ' 1 recompensa foi cancelada.' : ` ${p.cancelledRewards} recompensas foram canceladas.`;
+  const pending = p.rewardsAvailable ?? 0;
+  const rewards = pending === 1 ? '1 recompensa para usar' : `${pending} recompensas para usar`;
+  // Saldo zerado com recompensa pendente: no app o cartão aparece completo, então o texto acompanha.
+  const status =
+    pending > 0 && p.balance === 0
+      ? ` Seu cartão continua completo: você tem ${rewards}.`
+      : ` Seu cartão está com ${p.balance} de ${p.goal}.${pending > 0 ? ` Você tem ${rewards}.` : ''}`;
   return {
     kind: 'ESTORNO',
     title: `Lançamento estornado no ${p.tenant}`,
-    body: `O estabelecimento estornou ${qty(p.quantity, p.units)}.${cancelled} Seu cartão está com ${p.balance} de ${p.goal}.`,
+    body: `O estabelecimento estornou ${qty(p.quantity, p.units)}.${cancelled}${status}`,
   };
 }
 

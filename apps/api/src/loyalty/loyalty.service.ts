@@ -523,6 +523,7 @@ export class LoyaltyService {
           balance,
           goal: program.goal,
           units: unitsOf(program),
+          rewardsAvailable: available,
         }),
       );
       return { reversal: rev, cancelledRewards: cancelled };
