@@ -8,6 +8,7 @@ import { QrScanner } from '@/components/qr-scanner';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Button, FullPageSpinner, Input, Modal, Spinner, TenantAvatar, cx } from '@/components/ui';
 import { ApiError, errorMessage, newIdempotencyKey, staffApi } from '@/lib/api';
+import { cardDisplay } from '@/lib/card-display';
 import { formatTime, maskPhoneInput, plural } from '@/lib/format';
 import { staffLogout, useStaff } from '@/lib/staff';
 
@@ -331,6 +332,8 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRedeem, setConfirmRedeem] = useState(false);
+  /** Lançar selo com recompensa disponível pede confirmação: o mais comum é o cliente querer usar a recompensa. */
+  const [confirmCredit, setConfirmCredit] = useState(false);
   const [redeemQty, setRedeemQty] = useState(1);
   const creditKey = useRef(newIdempotencyKey());
   const redeemKey = useRef(newIdempotencyKey());
@@ -346,6 +349,15 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   }
 
   const discard = discardPreview(c, qty);
+  const canRedeem = c.rewardsAvailable > 0 && c.redeem.allowed;
+  const { complete, shown } = cardDisplay(c);
+
+  function openRedeem() {
+    setConfirmCredit(false);
+    setRedeemQty(1);
+    redeemKey.current = newIdempotencyKey();
+    setConfirmRedeem(true);
+  }
 
   function selectProgram(id: string) {
     setProgramId(id);
@@ -374,6 +386,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
         detail: [view.programs.length > 1 ? c.programName : null, ...parts].filter(Boolean).join(' · '),
       });
     } catch (e) {
+      setConfirmCredit(false);
       setError(errorMessage(e));
       setBusy(false);
     }
@@ -420,23 +433,36 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
           <div className="flex items-baseline justify-between">
             <span className="text-sm text-stone-600">{view.programs.length > 1 ? c.programName : 'Progresso'}</span>
             <span className="text-xl font-bold tabular-nums">
-              {c.balance}/{c.goal}
+              {complete && <span className="mr-2 text-sm font-semibold text-emerald-700">Cartão completo</span>}
+              {shown}/{c.goal}
             </span>
           </div>
-          <ProgressBar value={c.balance} max={c.goal} color="#E85D04" />
+          <ProgressBar value={shown} max={c.goal} color={complete ? '#059669' : '#E85D04'} />
         </div>
-        {c.rewardsAvailable > 0 && (
-          <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-emerald-900">
-            <p className="font-semibold">
-              {c.rewardsAvailable === 1 ? '1 recompensa disponível' : `${c.rewardsAvailable} recompensas disponíveis`}: {c.rewardDescription}
-            </p>
-          </div>
-        )}
       </div>
+
+      {/* Com recompensa disponível, usar a recompensa é a ação principal. */}
+      {c.rewardsAvailable > 0 && (
+        <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-5 text-emerald-950">
+          <p className="text-sm font-medium text-emerald-800">
+            {c.rewardsAvailable === 1 ? '1 recompensa disponível' : `${c.rewardsAvailable} recompensas disponíveis`}
+          </p>
+          <p className="text-xl font-bold">🎁 {c.rewardDescription}</p>
+          {c.redeem.allowed ? (
+            <Button size="xl" variant="success" className="mt-4 w-full" onClick={openRedeem}>
+              Utilizar recompensa
+            </Button>
+          ) : (
+            <div className="mt-3">
+              <Alert kind="warning">{c.redeem.reason}</Alert>
+            </div>
+          )}
+        </div>
+      )}
 
       {c.programActive ? (
         <div className="rounded-2xl border border-stone-200 bg-white p-5">
-          <p className="mb-3 text-sm font-medium text-stone-700">Quantos {c.unitLabelPlural}?</p>
+          <p className="mb-3 text-sm font-medium text-stone-700">Quantidade de {c.unitLabelPlural}</p>
           <div className="flex items-center justify-center gap-4">
             <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
               −
@@ -454,7 +480,13 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
               </Alert>
             </div>
           )}
-          <Button size="xl" className="mt-4 w-full" loading={busy && !confirmRedeem} onClick={launch}>
+          <Button
+            size={canRedeem ? 'lg' : 'xl'}
+            variant={canRedeem ? 'secondary' : undefined}
+            className="mt-4 w-full"
+            loading={busy && !confirmRedeem}
+            onClick={() => (canRedeem ? setConfirmCredit(true) : launch())}
+          >
             Lançar {plural(qty, c.unitLabel, c.unitLabelPlural)}
           </Button>
         </div>
@@ -464,25 +496,25 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
         </Alert>
       )}
 
-      {c.rewardsAvailable > 0 &&
-        (c.redeem.allowed ? (
-          <Button
-            size="lg"
-            variant="dark"
-            className="w-full"
-            onClick={() => {
-              setRedeemQty(1);
-              redeemKey.current = newIdempotencyKey();
-              setConfirmRedeem(true);
-            }}
-          >
-            Utilizar recompensa disponível
-          </Button>
-        ) : (
-          <Alert kind="warning">{c.redeem.reason}</Alert>
-        ))}
-
       {error && <Alert>{error}</Alert>}
+
+      <Modal open={confirmCredit} onClose={() => !busy && setConfirmCredit(false)} title="Lançar sem usar a recompensa?">
+        <div className="space-y-3 text-stone-700">
+          <p>
+            <strong>{view.name}</strong> tem {c.rewardsAvailable === 1 ? '1 recompensa disponível' : `${c.rewardsAvailable} recompensas disponíveis`}:{' '}
+            <strong>{c.rewardDescription}</strong>.
+          </p>
+          <p className="text-sm text-stone-500">Se o cliente veio usar a recompensa, toque em &quot;Utilizar recompensa&quot;. A recompensa continua guardada se você só lançar.</p>
+        </div>
+        <div className="mt-5 grid gap-3">
+          <Button size="lg" variant="success" className="w-full" onClick={openRedeem} disabled={busy}>
+            Utilizar recompensa
+          </Button>
+          <Button size="lg" variant="secondary" className="w-full" onClick={launch} loading={busy && confirmCredit}>
+            Só lançar {plural(qty, c.unitLabel, c.unitLabelPlural)}
+          </Button>
+        </div>
+      </Modal>
 
       <Modal open={confirmRedeem} onClose={() => setConfirmRedeem(false)} title="Utilizar recompensa">
         <div className="space-y-2 text-stone-700">
@@ -519,7 +551,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
           <Button variant="secondary" onClick={() => setConfirmRedeem(false)}>
             Cancelar
           </Button>
-          <Button variant="dark" onClick={redeem} loading={busy}>
+          <Button variant="success" onClick={redeem} loading={busy}>
             Confirmar {redeemQty > 1 ? `(${redeemQty})` : ''}
           </Button>
         </div>

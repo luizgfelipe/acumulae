@@ -7,7 +7,7 @@ export function cx(...c: Array<string | false | null | undefined>) {
   return c.filter(Boolean).join(' ');
 }
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark' | 'success';
 
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-md hover:shadow-brand-600/30 disabled:bg-brand-200',
@@ -15,6 +15,7 @@ const VARIANTS: Record<Variant, string> = {
   ghost: 'bg-transparent text-stone-700 hover:bg-stone-100 hover:text-stone-900',
   danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md hover:shadow-red-600/30 disabled:bg-red-300',
   dark: 'bg-stone-900 text-white shadow-sm hover:bg-stone-800 hover:shadow-md hover:shadow-stone-900/25 disabled:bg-stone-400',
+  success: 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 disabled:bg-emerald-300',
 };
 
 /** Transição, "afundar" ao clicar e nada disso quando desabilitado. */
