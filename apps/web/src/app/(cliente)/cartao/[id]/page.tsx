@@ -3,8 +3,9 @@
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { StampGrid } from '@/components/stamps';
-import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
+import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, TenantAvatar, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { cardDisplay, rewardsLabel } from '@/lib/card-display';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
 import { LEDGER_LABELS, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
@@ -71,13 +72,17 @@ function MembershipPage() {
   const available = d.rewards.filter((r) => r.status === 'DISPONIVEL');
   const redeemed = d.rewards.filter((r) => r.status === 'RESGATADA');
   const missing = Math.max(0, d.goal - d.balance);
+  const { complete, shown } = cardDisplay({ balance: d.balance, goal: d.goal, rewardsAvailable: available.length });
 
   return (
     <>
       <div className="space-y-5 pt-2">
         {isNew && <Alert kind="success">Pronto! Agora é só acumular a cada visita ao {d.tenant.name}.</Alert>}
 
-        <div className="overflow-hidden rounded-3xl border-2 shadow-lg shadow-stone-900/10" style={{ ...th.header, borderColor: th.border }}>
+        <div
+          className={cx('overflow-hidden rounded-3xl border-2 shadow-lg shadow-stone-900/10', complete && 'card-complete')}
+          style={{ ...th.header, borderColor: complete ? th.accent : th.border }}
+        >
           <div className="flex items-center gap-3 px-5 pt-5">
             <TenantAvatar name={d.tenant.name} logoUrl={d.tenant.logoUrl} color="rgba(255,255,255,0.25)" size={48} />
             <div className="min-w-0">
@@ -91,12 +96,38 @@ function MembershipPage() {
           <div className="mt-5 rounded-t-3xl bg-white p-5 text-stone-900">
             <div className="mb-4 flex items-baseline justify-between">
               <span className="text-4xl font-extrabold tabular-nums">
-                {d.balance}
+                {shown}
                 <span className="text-xl text-stone-400">/{d.goal}</span>
               </span>
-              <span className="text-sm text-stone-600">{missing === 0 ? 'Meta atingida!' : `Faltam ${plural(missing, d.unitLabel, d.unitLabelPlural)}`}</span>
+              {complete ? (
+                <span className="text-sm font-semibold" style={{ color: th.accent }}>
+                  🎉 Cartão completo!
+                </span>
+              ) : (
+                <span className="text-sm text-stone-600">{missing === 0 ? 'Meta atingida!' : `Faltam ${plural(missing, d.unitLabel, d.unitLabelPlural)}`}</span>
+              )}
             </div>
-            <StampGrid filled={d.balance} goal={d.goal} color={th.accent} checkColor={th.accentFg} icon={d.tenant.stampIcon} imageUrl={d.tenant.stampImageUrl} size={d.goal > 15 ? 'sm' : 'md'} />
+            <StampGrid
+              filled={shown}
+              goal={d.goal}
+              color={th.accent}
+              checkColor={th.accentFg}
+              icon={d.tenant.stampIcon}
+              imageUrl={d.tenant.stampImageUrl}
+              size={d.goal > 15 ? 'sm' : 'md'}
+              complete={complete}
+            />
+            {complete ? (
+              <p className="mt-4 rounded-xl px-3 py-2 text-center text-sm font-medium" style={{ background: `${th.accent}1A`, color: th.accent }}>
+                Mostre seu QR no caixa para resgatar. O cartão recomeça depois do resgate.
+              </p>
+            ) : (
+              available.length > 0 && (
+                <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-center text-sm font-medium text-emerald-800">
+                  🎁 {rewardsLabel(available.length)}. Veja abaixo.
+                </p>
+              )
+            )}
           </div>
         </div>
 

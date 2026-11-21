@@ -1,4 +1,5 @@
 import { stampIconOf } from '@/lib/stamp-icons';
+import type React from 'react';
 import { cx } from './ui';
 
 /**
@@ -13,6 +14,7 @@ export function StampGrid({
   icon,
   imageUrl,
   size = 'md',
+  complete = false,
 }: {
   filled: number;
   goal: number;
@@ -23,6 +25,8 @@ export function StampGrid({
   icon?: string;
   imageUrl?: string | null;
   size?: 'sm' | 'md';
+  /** Cartão completo com recompensa a resgatar: os selos pulsam, um depois do outro. */
+  complete?: boolean;
 }) {
   const cols = goal <= 10 ? 5 : goal <= 20 ? 10 : 10;
   const dim = size === 'sm' ? 'h-6 w-6' : 'h-9 w-9';
@@ -38,8 +42,16 @@ export function StampGrid({
                 'grid place-items-center overflow-hidden rounded-full border-2 transition-all',
                 dim,
                 on ? 'border-transparent' : 'border-dashed border-stone-300',
+                complete && 'stamp-complete',
               )}
-              style={on ? (imageUrl ? { borderColor: color } : { background: color }) : undefined}
+              style={
+                on
+                  ? {
+                      ...(imageUrl ? { borderColor: color } : { background: color }),
+                      ...(complete ? ({ '--glow': `${color}73`, animationDelay: `${i * 60}ms, ${800 + i * 60}ms` } as React.CSSProperties) : {}),
+                    }
+                  : undefined
+              }
             >
               {on &&
                 (imageUrl ? (

@@ -6,8 +6,9 @@ import { useCustomer } from '@/components/customer-context';
 import { PublicShell } from '@/components/customer-shell';
 import { InstallBanner } from '@/components/install-prompt';
 import { ProgressBar } from '@/components/stamps';
-import { Alert, Badge, Card, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
+import { Alert, Badge, Card, FullPageSpinner, LinkButton, TenantAvatar, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { cardDisplay, rewardsLabel } from '@/lib/card-display';
 import { MembershipCard } from '@/lib/customer';
 import { cardTheme } from '@/lib/card-theme';
 import { plural } from '@/lib/format';
@@ -122,12 +123,16 @@ function Cards({ firstName }: { firstName: string }) {
 
 function MembershipTile({ card: c, showProgram }: { card: MembershipCard; showProgram: boolean }) {
   const th = cardTheme(c.tenant);
+  const { complete, shown } = cardDisplay(c);
   const missing = Math.max(0, c.goal - c.balance);
   return (
     <Link
       href={`/cartao/${c.membershipId}`}
-      className="block overflow-hidden rounded-2xl border-2 bg-white shadow-lg shadow-stone-900/10 transition hover:shadow-xl active:scale-[0.99]"
-      style={{ borderColor: th.border }}
+      className={cx(
+        'block overflow-hidden rounded-2xl border-2 bg-white shadow-lg shadow-stone-900/10 transition hover:shadow-xl active:scale-[0.99]',
+        complete && 'card-complete',
+      )}
+      style={{ borderColor: complete ? th.accent : th.border }}
     >
       <div className="flex items-center gap-3 px-4 py-3" style={th.header}>
         <TenantAvatar name={c.tenant.name} logoUrl={c.tenant.logoUrl} color="rgba(255,255,255,0.25)" size={40} />
@@ -136,19 +141,24 @@ function MembershipTile({ card: c, showProgram }: { card: MembershipCard; showPr
           <p className="truncate text-xs opacity-85">{showProgram ? `${c.programName} · ${c.rewardDescription}` : c.rewardDescription}</p>
         </div>
         <span className="text-2xl font-extrabold tabular-nums">
-          {c.balance}
+          {shown}
           <span className="text-base font-semibold opacity-80">/{c.goal}</span>
         </span>
       </div>
       <div className="space-y-2 px-4 py-3">
-        <ProgressBar value={c.balance} max={c.goal} color={th.accent} />
+        <ProgressBar value={shown} max={c.goal} color={th.accent} />
         <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="text-stone-600">
-            {missing === 0 ? 'Meta atingida!' : `Faltam ${plural(missing, c.unitLabel, c.unitLabelPlural)}`}
-          </span>
-          {c.rewardsAvailable > 0 && (
-            <Badge color="green">{c.rewardsAvailable === 1 ? 'Recompensa disponível' : `${c.rewardsAvailable} recompensas disponíveis`}</Badge>
+          {complete ? (
+            <span className="font-semibold" style={{ color: th.accent }}>
+              🎉 Cartão completo! Resgate no caixa
+            </span>
+          ) : (
+            <span className="text-stone-600">
+              {missing === 0 ? 'Meta atingida!' : `Faltam ${plural(missing, c.unitLabel, c.unitLabelPlural)}`}
+            </span>
           )}
+          {c.rewardsAvailable > 0 && !complete && <Badge color="green">{rewardsLabel(c.rewardsAvailable)}</Badge>}
+          {complete && c.rewardsAvailable > 1 && <Badge color="green">{c.rewardsAvailable} recompensas</Badge>}
           {!c.tenant.active && <Badge color="amber">Pausado</Badge>}
           {c.tenant.active && !c.programActive && <Badge color="stone">Encerrado</Badge>}
         </div>

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PublicShell } from '@/components/customer-shell';
 import { InstallNow } from '@/components/install-prompt';
 import { StampGrid } from '@/components/stamps';
+import { cardDisplay, rewardsLabel } from '@/lib/card-display';
 import { Alert, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
@@ -88,7 +89,7 @@ export default function CheckoutClaimPage() {
           <div>
             <h1 className="text-3xl font-extrabold">+{plural(result.quantity, c.unitLabel, c.unitLabelPlural)}</h1>
             <p className="mt-1 text-lg text-stone-600">
-              no {result.tenantName}. Você tem <strong>{c.balance}/{c.goal}</strong>.
+              no {result.tenantName}. Você tem <strong>{cardDisplay(c).shown}/{c.goal}</strong>.
             </p>
           </div>
           {result.rewardsUnlocked > 0 && (
@@ -96,7 +97,21 @@ export default function CheckoutClaimPage() {
               🎉 Você ganhou <strong>{c.rewardDescription}</strong>! Mostre seu QR no caixa para resgatar.
             </Alert>
           )}
-          <StampGrid filled={c.balance} goal={c.goal} color={th.accent} checkColor={th.accentFg} icon={info?.tenant.stampIcon} imageUrl={info?.tenant.stampImageUrl} size={c.goal > 15 ? 'sm' : 'md'} />
+          {result.rewardsUnlocked === 0 && c.rewardsAvailable > 0 && (
+            <Alert kind="info">
+              🎁 {rewardsLabel(c.rewardsAvailable)}: {c.rewardDescription}. Mostre seu QR no caixa para resgatar.
+            </Alert>
+          )}
+          <StampGrid
+            filled={cardDisplay(c).shown}
+            goal={c.goal}
+            color={th.accent}
+            checkColor={th.accentFg}
+            icon={info?.tenant.stampIcon}
+            imageUrl={info?.tenant.stampImageUrl}
+            size={c.goal > 15 ? 'sm' : 'md'}
+            complete={cardDisplay(c).complete}
+          />
           <LinkButton href={`/cartao/${c.membershipId}`} className="h-13 w-full text-lg">
             Ver meu cartão
           </LinkButton>
