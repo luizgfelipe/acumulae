@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { QRCodeSVG } from 'qrcode.react';
 import { FormEvent, useState } from 'react';
 import { AddressForm } from '@/components/address-form';
+import { CounterQr } from '@/components/counter-qr';
 import { usePanel } from '@/components/panel-context';
 import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Modal } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
@@ -160,24 +160,14 @@ export default function StoresPage() {
 
       <Modal open={!!printing} onClose={() => setPrinting(null)} title="QR do balcão">
         {printing && (
-          <div className="space-y-4">
-            <div id="print-area" className="rounded-2xl border border-stone-200 p-6 text-center">
-              <p className="text-lg font-bold">{me.context?.tenantName}</p>
-              <p className="text-sm text-stone-600">{printing.name}</p>
-              <p className="mb-4 text-sm text-stone-600">Participe do nosso programa de fidelidade</p>
-              <div className="mx-auto w-fit">
-                <QRCodeSVG value={printing.signupUrl} size={220} level="M" marginSize={0} />
-              </div>
-              <p className="mt-4 text-sm font-medium">Aponte a câmera do celular</p>
-              <p className="mt-1 text-xs text-stone-500">{printing.signupUrl}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="secondary" onClick={() => navigator.clipboard?.writeText(printing.signupUrl)}>
-                Copiar link
-              </Button>
-              <Button onClick={() => printQr()}>Imprimir</Button>
-            </div>
-          </div>
+          <CounterQr
+            tenantName={me.context?.tenantName ?? ''}
+            storeName={printing.name}
+            url={printing.signupUrl}
+            logoUrl={me.context?.logoUrl ?? null}
+            color={me.context?.primaryColor ?? '#E85D04'}
+            fileName={`qr-${printing.slug}`}
+          />
         )}
       </Modal>
     </div>
@@ -257,14 +247,3 @@ function EditStore({
   );
 }
 
-/** Imprime só o cartaz do QR, numa janela separada. */
-function printQr() {
-  const el = document.getElementById('print-area');
-  if (!el) return;
-  const w = window.open('', '_blank', 'width=600,height=800');
-  if (!w) return;
-  w.document.write(
-    `<!doctype html><html><head><title>QR do balcão</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;padding:40px;text-align:center}p{margin:4px 0}svg{width:320px;height:320px;margin:24px auto}</style></head><body><div>${el.innerHTML}</div><script>window.onload=()=>{window.print()}</script></body></html>`,
-  );
-  w.document.close();
-}

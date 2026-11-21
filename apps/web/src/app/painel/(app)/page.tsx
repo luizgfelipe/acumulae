@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePanel } from '@/components/panel-context';
 import { Alert, Card, FullPageSpinner } from '@/components/ui';
 import { staffApi } from '@/lib/api';
@@ -48,6 +49,23 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+      <Link
+        href="/painel/qr"
+        className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-brand-50 p-4 transition-colors hover:bg-brand-100 sm:p-5"
+      >
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white text-brand-700 shadow-sm" aria-hidden>
+          <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" />
+          </svg>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-stone-900">QR do balcão</span>
+          <span className="block text-sm text-stone-600">Imprima o cartaz para os clientes entrarem no programa pela câmera do celular.</span>
+        </span>
+        <span aria-hidden className="text-xl text-brand-700">
+          ›
+        </span>
+      </Link>
     </div>
   );
 }

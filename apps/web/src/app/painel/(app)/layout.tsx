@@ -13,6 +13,7 @@ import { useLoad } from '@/lib/use-load';
 /** `feature`: recurso do plano; sem ele o item aparece com cadeado e a tela explica como liberar. */
 const NAV: Array<{ href: string; label: string; feature?: 'reports' | 'networkDashboard' }> = [
   { href: '/painel', label: 'Indicadores' },
+  { href: '/painel/qr', label: 'QR do balcão' },
   { href: '/painel/clientes', label: 'Clientes' },
   { href: '/painel/movimentacoes', label: 'Movimentações' },
   { href: '/painel/notificacoes', label: 'Notificações' },
