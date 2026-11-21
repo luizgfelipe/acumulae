@@ -53,6 +53,11 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - Rate limit em Redis, caso a API rode em mais de uma instância.
 - Correção de telefone e mesclagem de contas pelo admin da plataforma (suporte).
 - Revisão jurídica dos Termos de Uso e da Política de Privacidade.
+- **Origem do cadastro (por qual unidade e canal o cliente entrou)** — avaliado em 20/11/2026, fica para quando houver o primeiro cliente no plano Rede ou com mais de uma unidade:
+  - Hoje o painel da Rede já atribui o cliente novo à unidade do **primeiro selo**. O `?u=` do QR de cada unidade só muda o nome no cartaz; não é gravado.
+  - Proposta: guardar no cartão a unidade de entrada (do `?u=`) e, se fizer sentido, o canal (cartaz impresso × link/imagem nas redes, ex.: `?origem=link`), na entrada pelo `/e/{slug}` (`POST /api/me/memberships`).
+  - Uso: "cadastros pelo QR" por unidade no painel da Rede (qual cartaz funciona) e o filtro **"Cadastrados que nunca voltaram"** (cartão sem nenhum selo) em Relatórios, com envio de notificação como os demais filtros.
+  - O filtro "nunca voltaram" serve para todos os planos com relatórios, mesmo com uma unidade, e pode ser feito antes do resto.
 
 ## Revisões após o primeiro uso (19/11/2026)
 
@@ -111,7 +116,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Relatórios (Profissional e Rede):** aniversariantes do mês, inativos há 30/60/90 dias e por funcionário (lançamentos, % pelo telefone, créditos estornados e resgates; destaca quem usa o telefone 2× acima da média da equipe, com pelo menos 5 lançamentos). O CSV de clientes traz todos os clientes do estabelecimento que aceitaram os Termos de Uso atuais (ver "Versão dos Termos de Uso"), com a coluna "Aceita promoções" para saber a quem mandar ofertas; protege as células contra fórmulas e registra no log quem exportou.
 - **Painel da rede (Rede):** compara as unidades no mês (visitas, selos, clientes novos pelo primeiro selo na unidade, resgates) e os clientes ativos de cada uma; o total de clientes ativos conta uma vez quem frequenta mais de uma unidade.
 - **Como a plataforma administra:** `PUT /api/platform/plans/{CODE}` altera preços, limites (`null` = ilimitado) e recursos; `PATCH /api/platform/tenants/{id}` com `plan`, `planExpiresAt` (data, vale até o fim do dia, ou `null`) e `extraStores`.
-- **Pendente:** o painel ainda não mostra um contato do suporte (e-mail ou WhatsApp) para pedir a troca de plano; e o `?u=` do QR de cada unidade ainda não é usado para registrar em qual unidade o cliente se cadastrou.
+- **Pendente:** o painel ainda não mostra um contato do suporte (e-mail ou WhatsApp) para pedir a troca de plano; e a origem do cadastro (unidade e canal pelo `?u=` do QR) ainda não é registrada (ver "Pendências conhecidas").
 
 ## Endereço pelo CEP e segmento (22/11/2026)
 
