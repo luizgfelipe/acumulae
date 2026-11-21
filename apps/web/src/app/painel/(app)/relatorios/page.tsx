@@ -11,6 +11,8 @@ import { formatShortDate } from '@/lib/format';
 import { useLoad } from '@/lib/use-load';
 
 type Tab = 'birthdays' | 'inactive' | 'staff';
+/** Linhas por página nos relatórios (a paginação é feita no servidor). */
+const PAGE_SIZE = 25;
 
 export default function ReportsPage() {
   const { plan } = usePanel();
@@ -119,13 +121,23 @@ interface BirthdayItem {
 
 function Birthdays() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const { data, error } = useLoad(() => staffApi<{ month: number; items: BirthdayItem[] }>('/api/admin/reports/birthdays', { query: { month } }), [month]);
+  const [page, setPage] = useState(1);
+  const { data, error } = useLoad(
+    () =>
+      staffApi<{ month: number; total: number; page: number; pageSize: number; items: BirthdayItem[] }>('/api/admin/reports/birthdays', {
+        query: { month, page, pageSize: PAGE_SIZE },
+      }),
+    [month, page],
+  );
   return (
     <Card className="p-0">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-100 p-5">
         <div>
           <h2 className="font-semibold">Aniversariantes</h2>
-          <p className="text-sm text-stone-600">Telefone completo só de quem aceitou receber promoções.</p>
+          <p className="text-sm text-stone-600">
+            {data ? `${data.total === 1 ? '1 cliente faz' : `${data.total} clientes fazem`} aniversário em ${MONTHS[month - 1]}. ` : ''}
+            Telefone completo só de quem aceitou receber promoções.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <SendNotificationButton
@@ -133,7 +145,14 @@ function Birthdays() {
             suggestion={{ title: 'Feliz aniversário! 🎉', body: 'Neste mês do seu aniversário, venha comemorar com a gente.' }}
           />
           <div className="w-44">
-            <Select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês">
+            <Select
+              value={month}
+              onChange={(e) => {
+                setMonth(Number(e.target.value));
+                setPage(1);
+              }}
+              aria-label="Mês"
+            >
               {MONTHS.map((m, i) => (
                 <option key={m} value={i + 1}>
                   {m[0].toUpperCase() + m.slice(1)}
@@ -170,6 +189,7 @@ function Birthdays() {
             ))}
           </tbody>
         </table>
+        <Pager page={page} total={data?.total ?? 0} pageSize={data?.pageSize ?? PAGE_SIZE} onPage={setPage} />
       </ReportBody>
     </Card>
   );
@@ -193,10 +213,9 @@ function Inactive() {
   const [days, setDays] = useState(30);
   const [page, setPage] = useState(1);
   const { data, error } = useLoad(
-    () => staffApi<{ total: number; page: number; pageSize: number; items: InactiveItem[] }>('/api/admin/reports/inactive', { query: { days, page, pageSize: 25 } }),
+    () => staffApi<{ total: number; page: number; pageSize: number; items: InactiveItem[] }>('/api/admin/reports/inactive', { query: { days, page, pageSize: PAGE_SIZE } }),
     [days, page],
   );
-  const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   return (
     <Card className="p-0">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-100 p-5">
@@ -255,19 +274,7 @@ function Inactive() {
             ))}
           </tbody>
         </table>
-        {pages > 1 && (
-          <div className="flex items-center justify-between border-t border-stone-100 px-5 py-3 text-sm">
-            <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              Anterior
-            </Button>
-            <span className="text-stone-600">
-              Página {page} de {pages}
-            </span>
-            <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-              Próxima
-            </Button>
-          </div>
-        )}
+        <Pager page={page} total={data?.total ?? 0} pageSize={data?.pageSize ?? PAGE_SIZE} onPage={setPage} />
       </ReportBody>
     </Card>
   );
@@ -350,6 +357,25 @@ function StaffReport() {
         </div>
       </ReportBody>
     </Card>
+  );
+}
+
+/** Anterior / Próxima das listas paginadas no servidor. */
+function Pager({ page, total, pageSize, onPage }: { page: number; total: number; pageSize: number; onPage: (p: number) => void }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between border-t border-stone-100 px-5 py-3 text-sm">
+      <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        Anterior
+      </Button>
+      <span className="text-stone-600">
+        Página {page} de {pages}
+      </span>
+      <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+        Próxima
+      </Button>
+    </div>
   );
 }
 

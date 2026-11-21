@@ -10,17 +10,28 @@ import { errorMessage, staffApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 import { useLoad } from '@/lib/use-load';
 
+type Sent = { id: string; title: string; body: string; recipients: number; segment: string; createdAt: string; sentBy: string };
+
 interface Overview {
   usage: { used: number; max: number | null };
   /** Clientes que aceitaram receber promoções. */
   audience: number;
-  items: Array<{ id: string; title: string; body: string; recipients: number; segment: string; createdAt: string; sentBy: string }>;
+  /** Histórico paginado no servidor (mais recentes primeiro). */
+  total: number;
+  page: number;
+  pageSize: number;
+  items: Sent[];
 }
+
+const HISTORY_PAGE = 20;
 
 /** Notificações: o gestor escreve uma mensagem que chega no sino do app (e no celular) de quem aceitou promoções. */
 export default function AnnouncementsPage() {
   const { me, plan, reload: reloadPanel } = usePanel();
-  const { data, error, reload } = useLoad(() => staffApi<Overview>('/api/admin/announcements'), []);
+  const { data, error, reload } = useLoad(() => staffApi<Overview>('/api/admin/announcements', { query: { pageSize: HISTORY_PAGE } }), []);
+  /** Páginas seguintes do histórico, carregadas no "Ver mais". */
+  const [older, setOlder] = useState<{ page: number; items: Sent[] }>({ page: 1, items: [] });
+  const [loadingMore, setLoadingMore] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -36,6 +47,22 @@ export default function AnnouncementsPage() {
   const blocked = left === 0;
   const valid = title.trim().length >= 3 && body.trim().length >= 3;
 
+  const history = [...data.items, ...older.items];
+  const hasMore = history.length < data.total;
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const next = older.page + 1;
+      const r = await staffApi<Overview>('/api/admin/announcements', { query: { page: next, pageSize: HISTORY_PAGE } });
+      setOlder((cur) => ({ page: next, items: [...cur.items, ...r.items] }));
+    } catch (err) {
+      setMsg({ kind: 'error', text: errorMessage(err) });
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   function ask(e: FormEvent) {
     e.preventDefault();
     if (!valid || blocked || data!.audience === 0) return;
@@ -50,6 +77,7 @@ export default function AnnouncementsPage() {
       setTitle('');
       setBody('');
       setMsg({ kind: 'success', text: `Notificação enviada para ${clients(r.recipients)}.` });
+      setOlder({ page: 1, items: [] });
       reload();
       reloadPanel();
     } catch (err) {
@@ -132,12 +160,14 @@ export default function AnnouncementsPage() {
       </div>
 
       <Card className="p-0">
-        <h2 className="px-5 pt-5 pb-3 font-semibold">Enviadas</h2>
-        {data.items.length === 0 ? (
+        <h2 className="px-5 pt-5 pb-3 font-semibold">
+          Enviadas {data.total > 0 && <span className="font-normal text-stone-500">({data.total})</span>}
+        </h2>
+        {history.length === 0 ? (
           <p className="px-5 pb-5 text-sm text-stone-500">Nenhuma notificação enviada ainda.</p>
         ) : (
           <ul className="divide-y divide-stone-100 border-t border-stone-100">
-            {data.items.map((a) => (
+            {history.map((a) => (
               <li key={a.id} className="px-5 py-3.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                   <p className="font-medium">{a.title}</p>
@@ -150,6 +180,13 @@ export default function AnnouncementsPage() {
               </li>
             ))}
           </ul>
+        )}
+        {hasMore && (
+          <div className="border-t border-stone-100 p-4">
+            <Button variant="secondary" className="w-full" loading={loadingMore} onClick={loadMore}>
+              Ver mais antigas
+            </Button>
+          </div>
         )}
       </Card>
 

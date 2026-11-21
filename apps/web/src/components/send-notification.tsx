@@ -117,6 +117,7 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
                   ? `${clients(preview.audience)} no filtro.`
                   : `${clients(preview.audience)} de ${preview.total} no filtro ${preview.audience === 1 ? 'aceitou' : 'aceitaram'} receber promoções. Só ${preview.audience === 1 ? 'ele recebe' : 'eles recebem'}.`}
                 {left !== null && ` Gasta 1 das ${notifications(left)} que restam no mês.`}
+                <span className="mt-1 block text-xs text-stone-500">Vai para todos do filtro, não só os da página que está aberta no relatório.</span>
               </p>
             ) : (
               !error && <p className="mt-0.5 text-stone-500">Contando os clientes…</p>
