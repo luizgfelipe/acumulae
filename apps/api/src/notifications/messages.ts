@@ -40,7 +40,7 @@ export function rewardUnlockedMessage(p: { tenant: string; count: number; reward
   return {
     kind: 'RECOMPENSA_LIBERADA',
     title: p.count === 1 ? `Recompensa liberada no ${p.tenant}!` : `${p.count} recompensas liberadas no ${p.tenant}!`,
-    body: `${p.reward}. Mostre seu QR no caixa para resgatar.`,
+    body: `${p.reward}. Para resgatar, mostre seu QR ou informe seu telefone no caixa.`,
   };
 }
 
