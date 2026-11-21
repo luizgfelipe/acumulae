@@ -75,16 +75,13 @@ export function PlanCompare() {
                 <h3 className="text-xl font-extrabold">{p.name}</h3>
                 {mine && <Badge color="brand">Seu plano</Badge>}
               </div>
-              <p className="mt-1">
-                {p.priceCents > 0 ? (
-                  <>
-                    <span className="text-2xl font-bold">{brl(p.priceCents)}</span>
-                    <span className="text-sm text-stone-500"> /mês</span>
-                  </>
-                ) : (
-                  <span className="text-2xl font-bold">Grátis</span>
-                )}
-              </p>
+              {/* Preço 0 = valor combinado com o Acumulaê (ex.: Piloto): fica sem valor na tela. */}
+              {p.priceCents > 0 && (
+                <p className="mt-1">
+                  <span className="text-2xl font-bold">{brl(p.priceCents)}</span>
+                  <span className="text-sm text-stone-500"> /mês</span>
+                </p>
+              )}
               <dl className="mt-4 flex-1 divide-y divide-stone-100 text-sm">
                 {ROWS.map((r) => {
                   const v = r.value(p);
