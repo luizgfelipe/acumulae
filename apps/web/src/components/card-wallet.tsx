@@ -2,18 +2,21 @@
 
 import { ChevronRight, Gift, Layers, List, Search } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { CardSort, cardDisplay, isAlmostThere, isCardActive, rewardsLabel, sortCards } from '@/lib/card-display';
 import { cardTheme } from '@/lib/card-theme';
 import type { MembershipCard } from '@/lib/customer';
 import { plural } from '@/lib/format';
 import { ProgressBar } from './stamps';
-import { Badge, LinkButton, TenantAvatar, cx } from './ui';
+import { Badge, Button, Modal, TenantAvatar, cx } from './ui';
 
 type View = 'stack' | 'list';
 
 const VIEW_KEY = 'acumulae:cartoes-visual';
 const SORT_KEY = 'acumulae:cartoes-ordem';
+/** Últimas recompensas já mostradas no modal (para só abrir sozinho quando aparecer uma nova). */
+const REWARDS_SEEN_KEY = 'acumulae:recompensas-vistas';
 /** A partir de quantos cartões aparece a busca. */
 const SEARCH_FROM = 6;
 /** Quanto um cartão fechado da pilha cobre o de cima (px). */
@@ -150,38 +153,71 @@ export function CardWallet({ cards }: { cards: MembershipCard[] }) {
   );
 }
 
-/** Aviso no topo quando há recompensa liberada: é o que o cliente mais quer ver ao abrir o app. */
+/**
+ * Recompensas para usar: uma faixa fina no topo que abre um modal com a lista e o atalho para o QR.
+ * O modal abre sozinho uma vez quando aparece recompensa nova (lembrado por aparelho); depois, só a faixa.
+ */
 function RewardsHighlight({ cards }: { cards: MembershipCard[] }) {
   const total = cards.reduce((n, c) => n + c.rewardsAvailable, 0);
+  const router = useRouter();
+  const signature = cards
+    .map((c) => `${c.membershipId}:${c.rewardsAvailable}`)
+    .sort()
+    .join('|');
+  const [open, setOpen] = useState(() => readPref(REWARDS_SEEN_KEY, [signature], '') !== signature);
+
+  const close = () => {
+    setOpen(false);
+    savePref(REWARDS_SEEN_KEY, signature);
+  };
+
   return (
-    <section className="rounded-2xl border border-secondary-300 bg-secondary-100 p-4" aria-label="Recompensas para usar">
-      <div className="flex items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-600 text-white" aria-hidden>
-          <Gift className="h-5 w-5" />
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-3 rounded-2xl border border-secondary-300 bg-secondary-100 px-3 py-2.5 text-left transition-colors hover:bg-secondary-300/50"
+      >
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-600 text-white" aria-hidden>
+          <Gift className="h-4 w-4" />
         </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-bold text-stone-900">{rewardsLabel(total)}</h2>
-          <p className="text-sm text-stone-600">Mostre seu QR no caixa para resgatar.</p>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{rewardsLabel(total)}</span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-stone-500" aria-hidden />
+      </button>
+
+      <Modal open={open} onClose={close} title={rewardsLabel(total)}>
+        <p className="-mt-2 text-sm text-stone-600">Mostre seu QR no caixa para resgatar.</p>
+        <ul className="mt-3 divide-y divide-stone-200">
+          {cards.map((c) => (
+            <li key={c.membershipId}>
+              <Link href={`/cartao/${c.membershipId}`} onClick={close} className="flex items-center gap-3 py-2.5 text-sm hover:text-accent-600">
+                <TenantAvatar name={c.tenant.name} logoUrl={c.tenant.logoUrl} color={cardTheme(c.tenant).accent} size={32} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{c.tenant.name}</span>
+                  <span className="block truncate text-stone-600">{c.rewardDescription}</span>
+                </span>
+                {c.rewardsAvailable > 1 && <Badge color="brand">{c.rewardsAvailable}×</Badge>}
+                <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-4 grid gap-2">
+          <Button
+            className="h-11"
+            onClick={() => {
+              close();
+              router.push('/qr');
+            }}
+          >
+            Mostrar meu QR
+          </Button>
+          <Button variant="ghost" onClick={close} className="h-11">
+            Agora não
+          </Button>
         </div>
-      </div>
-      <ul className="mt-3 divide-y divide-secondary-300/70">
-        {cards.map((c) => (
-          <li key={c.membershipId}>
-            <Link href={`/cartao/${c.membershipId}`} className="flex items-center gap-3 py-2 text-sm hover:text-accent-600">
-              <span className="min-w-0 flex-1 truncate">
-                <span className="font-semibold">{c.tenant.name}</span>
-                <span className="text-stone-600"> · {c.rewardDescription}</span>
-              </span>
-              {c.rewardsAvailable > 1 && <Badge color="brand">{c.rewardsAvailable}×</Badge>}
-              <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" aria-hidden />
-            </Link>
-          </li>
-        ))}
-      </ul>
-      <LinkButton href="/qr" className="mt-3 h-11 w-full">
-        Mostrar meu QR
-      </LinkButton>
-    </section>
+      </Modal>
+    </>
   );
 }
 
@@ -206,7 +242,7 @@ function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cx(
-            'grid h-8 place-items-center rounded-[10px] px-3 font-medium whitespace-nowrap transition-colors',
+            'grid h-8 place-items-center rounded-[10px] px-2.5 font-medium whitespace-nowrap transition-colors sm:px-3',
             value === o.value ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100',
           )}
         >

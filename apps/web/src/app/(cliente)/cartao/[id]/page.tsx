@@ -1,5 +1,7 @@
 'use client';
 
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { StampGrid } from '@/components/stamps';
@@ -36,6 +38,19 @@ export default function Page() {
   );
 }
 
+/** Volta para a lista. Link fixo (e não histórico) porque o detalhe também abre direto, pela notificação. */
+function BackLink() {
+  return (
+    <Link
+      href="/"
+      className="-ml-2 inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-accent-600 transition-colors hover:bg-accent-100"
+    >
+      <ArrowLeft className="h-4 w-4" aria-hidden />
+      Seus cartões
+    </Link>
+  );
+}
+
 function MembershipPage() {
   const { id } = useParams<{ id: string }>();
   const isNew = useSearchParams().get('novo') === '1';
@@ -62,9 +77,10 @@ function MembershipPage() {
 
   if (error)
     return (
-      <>
+      <div className="space-y-4 pt-2">
+        <BackLink />
         <Alert>{error}</Alert>
-      </>
+      </div>
     );
   if (!d) return <FullPageSpinner />;
 
@@ -77,6 +93,7 @@ function MembershipPage() {
   return (
     <>
       <div className="space-y-5 pt-2">
+        <BackLink />
         {isNew && <Alert kind="success">Pronto! Agora é só acumular a cada visita ao {d.tenant.name}.</Alert>}
 
         <div
