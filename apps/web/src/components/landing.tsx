@@ -72,10 +72,6 @@ function Hero() {
     <section>
       <Container className="grid items-center gap-14 pt-10 pb-20 lg:grid-cols-[1.1fr_1fr] lg:gap-10 lg:pt-16 lg:pb-28">
         <div className="landing-rise space-y-7 text-center lg:text-left">
-          <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/70 px-3 py-1 text-sm font-medium text-brand-800 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-brand-600" />
-            Grátis para clientes
-          </span>
           <h1 className="text-[2.6rem] leading-[1.05] font-extrabold tracking-tight text-stone-900 sm:text-6xl">
             Seu cartão fidelidade,{' '}
             <span className="relative whitespace-nowrap text-brand-600">
