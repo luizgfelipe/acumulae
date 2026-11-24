@@ -1,9 +1,13 @@
 import Link from 'next/link';
-import { ArrowRight, BellRing, ChartColumn, Check, Gift, Palette, QrCode, ShieldCheck, Smartphone, Store, Users, WalletCards } from 'lucide-react';
+import { ArrowRight, BellRing, ChartColumn, Check, Gift, Mail, Palette, QrCode, ShieldCheck, Smartphone, Store, Users, WalletCards } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cardTheme, type CardStyle } from '@/lib/card-theme';
 import { ProgressBar, StampGrid } from './stamps';
 import { LinkButton, Logo, TenantAvatar, cx } from './ui';
+
+/** Contato comercial (por enquanto, e-mail). */
+const SALES_EMAIL = 'acumulae@gmail.com';
+const SALES_MAILTO = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent('Quero o Acumulaê no meu estabelecimento')}`;
 
 /** Página inicial para quem ainda não entrou: apresenta o app ao cliente e ao estabelecimento. */
 export function Landing() {
@@ -311,11 +315,27 @@ function ForBusiness() {
                 ))}
               </ul>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <LinkButton href="/painel/entrar" className="h-12 px-5">
-                  Acessar o painel
+                <a
+                  href={SALES_MAILTO}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold text-white shadow-sm transition duration-150 hover:bg-brand-700 hover:shadow-md hover:shadow-brand-600/30 motion-safe:active:scale-[0.98]"
+                >
+                  <Mail className="h-4.5 w-4.5" aria-hidden />
+                  Quero no meu estabelecimento
+                </a>
+                <Link
+                  href="/painel/entrar"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 font-semibold text-white ring-1 ring-white/25 transition duration-150 hover:bg-white/10 motion-safe:active:scale-[0.98]"
+                >
+                  Já sou parceiro: acessar o painel
                   <ArrowRight className="h-4.5 w-4.5" aria-hidden />
-                </LinkButton>
+                </Link>
               </div>
+              <p className="mt-4 text-sm text-stone-400">
+                Ou escreva para{' '}
+                <a href={SALES_MAILTO} className="font-medium text-brand-200 underline-offset-2 hover:underline">
+                  {SALES_EMAIL}
+                </a>
+              </p>
             </div>
             <div className="relative mx-auto hidden w-full max-w-xs lg:block" aria-hidden>
               <DemoCard d={DEMOS[1]} className="relative z-10 shadow-2xl" />
@@ -366,6 +386,9 @@ function Footer() {
           <Link href="/painel/entrar" className="transition-colors hover:text-stone-800 hover:underline">
             Painel do estabelecimento
           </Link>
+          <a href={SALES_MAILTO} className="transition-colors hover:text-stone-800 hover:underline">
+            Contato comercial
+          </a>
         </nav>
       </Container>
     </footer>
