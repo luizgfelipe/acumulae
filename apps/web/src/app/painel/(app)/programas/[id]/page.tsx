@@ -18,7 +18,7 @@ export default function EditProgramPage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/painel/programas" className="text-sm font-semibold text-brand-700">
+      <Link href="/painel/programas" className="text-sm font-semibold text-accent-600">
         ← Programas
       </Link>
       <div className="flex items-center gap-3">

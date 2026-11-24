@@ -35,7 +35,7 @@ export default function ReportsPage() {
             <li>• Enviar notificação só para os aniversariantes ou os inativos</li>
             <li>• Exportar os clientes em CSV</li>
           </ul>
-          <Link href="/painel/plano" className="mt-4 inline-block font-medium text-brand-700 underline">
+          <Link href="/painel/plano" className="mt-4 inline-block font-medium text-accent-600 underline">
             Ver meu plano
           </Link>
         </Card>
@@ -177,7 +177,7 @@ function Birthdays() {
               <tr key={b.customerId} className="transition-colors hover:bg-stone-50">
                 <td className="px-5 py-3 font-semibold tabular-nums">{String(b.day).padStart(2, '0')}</td>
                 <td className="px-5 py-3">
-                  <Link href={`/painel/clientes/${b.membershipId}`} className="font-medium transition-colors hover:text-brand-700">
+                  <Link href={`/painel/clientes/${b.membershipId}`} className="font-medium transition-colors hover:text-accent-600">
                     {b.name}
                   </Link>
                 </td>
@@ -260,7 +260,7 @@ function Inactive() {
             {data?.items.map((m) => (
               <tr key={m.membershipId} className="transition-colors hover:bg-stone-50">
                 <td className="px-5 py-3">
-                  <Link href={`/painel/clientes/${m.membershipId}`} className="font-medium transition-colors hover:text-brand-700">
+                  <Link href={`/painel/clientes/${m.membershipId}`} className="font-medium transition-colors hover:text-accent-600">
                     {m.name}
                   </Link>
                   <p className="text-xs tabular-nums text-stone-500">{m.phone ?? '—'}</p>

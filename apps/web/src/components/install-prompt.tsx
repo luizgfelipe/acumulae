@@ -131,7 +131,7 @@ export function InstallBanner() {
   if (!visible) return null;
   return (
     <>
-      <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-3">
+      <div className="flex items-center gap-3 rounded-2xl border border-secondary-300 bg-secondary-100 p-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icons/icon-192.png" alt="" width={40} height={40} className="h-10 w-10 rounded-xl" />
         <div className="min-w-0 flex-1">
@@ -146,7 +146,7 @@ export function InstallBanner() {
             dismissBanner();
             setVisible(false);
           }}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-lg leading-none text-stone-500 transition-colors hover:bg-brand-100 hover:text-stone-800"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-lg leading-none text-stone-500 transition-colors hover:bg-secondary-300/60 hover:text-stone-800"
           aria-label="Fechar"
         >
           ×

@@ -72,7 +72,7 @@ export default function CustomersPage() {
               {data?.items.map((c) => (
                 <tr key={c.membershipId} className="hover:bg-stone-50 transition-colors">
                   <td className="px-5 py-3">
-                    <Link href={`/painel/clientes/${c.membershipId}`} className="font-medium hover:text-brand-700 transition-colors">
+                    <Link href={`/painel/clientes/${c.membershipId}`} className="font-medium hover:text-accent-600 transition-colors">
                       {c.name}
                     </Link>
                     {manyPrograms && <span className="block text-xs text-stone-500">{c.programName}</span>}

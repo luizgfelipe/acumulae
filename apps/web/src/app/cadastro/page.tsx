@@ -89,11 +89,11 @@ function SignupPage() {
           <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} className="mt-0.5 h-5 w-5 accent-brand-600" />
           <span>
             Li e aceito os{' '}
-            <Link href="/termos" target="_blank" className="font-medium text-brand-700 underline">
+            <Link href="/termos" target="_blank" className="font-medium text-accent-600 underline">
               Termos de Uso
             </Link>{' '}
             e a{' '}
-            <Link href="/privacidade" target="_blank" className="font-medium text-brand-700 underline">
+            <Link href="/privacidade" target="_blank" className="font-medium text-accent-600 underline">
               Política de Privacidade
             </Link>
             . Cada estabelecimento onde eu consumir verá meu nome e meu histórico de consumo nele.
@@ -121,7 +121,7 @@ function SignupPage() {
 
       <p className="mt-6 text-center text-sm text-stone-600">
         Já tem conta?{' '}
-        <Link href={`/entrar?next=${encodeURIComponent(next)}`} className="font-semibold text-brand-700">
+        <Link href={`/entrar?next=${encodeURIComponent(next)}`} className="font-semibold text-accent-600">
           Entrar
         </Link>
       </p>

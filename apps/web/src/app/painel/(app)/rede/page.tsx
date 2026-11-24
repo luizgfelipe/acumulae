@@ -47,7 +47,7 @@ export default function NetworkPage() {
           <p className="mt-2 text-sm text-stone-700">
             Compare as unidades lado a lado: visitas, selos, clientes novos, resgates e clientes ativos de cada uma, com os totais da rede.
           </p>
-          <Link href="/painel/plano" className="mt-4 inline-block font-medium text-brand-700 underline">
+          <Link href="/painel/plano" className="mt-4 inline-block font-medium text-accent-600 underline">
             Ver meu plano
           </Link>
         </Card>

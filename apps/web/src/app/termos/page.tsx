@@ -6,7 +6,7 @@ export const metadata = { title: 'Termos de Uso' };
 export default function TermsPage() {
   return (
     <article className="mx-auto max-w-2xl space-y-4 px-5 py-8 leading-relaxed text-stone-700">
-      <Link href="/" className="text-sm font-semibold text-brand-700">
+      <Link href="/" className="text-sm font-semibold text-accent-600">
         ← Voltar
       </Link>
       <h1 className="text-2xl font-bold text-stone-900">Termos de Uso</h1>

@@ -41,7 +41,7 @@ export default function StaffForgotPage() {
           </Button>
         </form>
       )}
-      <Link href="/painel/entrar" className="mt-4 block text-center text-sm font-semibold text-brand-700">
+      <Link href="/painel/entrar" className="mt-4 block text-center text-sm font-semibold text-accent-600">
         Voltar para o login
       </Link>
     </StaffCard>

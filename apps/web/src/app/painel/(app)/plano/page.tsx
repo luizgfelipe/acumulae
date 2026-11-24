@@ -96,7 +96,7 @@ export default function PlanPage() {
             </ul>
           </Card>
 
-          <Card className="border-brand-200 bg-brand-50">
+          <Card className="border-secondary-300 bg-secondary-100">
             <h2 className="font-semibold">Quer mudar de plano ou contratar unidades extras?</h2>
             <p className="mt-1 text-sm text-stone-700">
               Fale com o suporte do Acumulaê pelo {SUPPORT_LABELS[plan.plan.supportChannel].toLowerCase()}. A troca vale na hora, e nada do que você já

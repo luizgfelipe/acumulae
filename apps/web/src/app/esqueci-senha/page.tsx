@@ -32,7 +32,7 @@ export default function ForgotPage() {
       {sent ? (
         <div className="mt-4 space-y-4">
           <Alert kind="success">Se houver uma conta, enviamos um link para o e-mail cadastrado. Ele vale por 30 minutos.</Alert>
-          <Link href="/entrar" className="block text-center font-semibold text-brand-700">
+          <Link href="/entrar" className="block text-center font-semibold text-accent-600">
             Voltar para o login
           </Link>
         </div>

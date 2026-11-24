@@ -38,11 +38,11 @@ export function TermsUpdate({ onAccepted }: { onAccepted: () => Promise<void> })
         </p>
         <p className="text-sm">
           Leia os{' '}
-          <Link href="/termos" target="_blank" className="font-medium text-brand-700 underline">
+          <Link href="/termos" target="_blank" className="font-medium text-accent-600 underline">
             Termos de Uso
           </Link>{' '}
           e a{' '}
-          <Link href="/privacidade" target="_blank" className="font-medium text-brand-700 underline">
+          <Link href="/privacidade" target="_blank" className="font-medium text-accent-600 underline">
             Política de Privacidade
           </Link>
           .

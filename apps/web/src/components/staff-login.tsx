@@ -55,7 +55,7 @@ export function StaffLogin({ area }: { area: StaffArea }) {
           </Button>
         </form>
         <div className="mt-5 flex justify-between text-sm">
-          <Link href="/painel/esqueci-senha" className="font-medium text-brand-700">
+          <Link href="/painel/esqueci-senha" className="font-medium text-accent-600">
             Esqueci a senha
           </Link>
           <Link href={area === 'caixa' ? '/painel/entrar' : '/caixa/entrar'} className="text-stone-500">

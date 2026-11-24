@@ -130,7 +130,7 @@ export default function StoresPage() {
                 ? ` Cada unidade extra custa ${brl(usage.extraPriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`
                 : ' Para ter mais unidades, mude de plano.'}
             </p>
-            <Link href="/painel/plano" className="font-medium text-brand-700 underline">
+            <Link href="/painel/plano" className="font-medium text-accent-600 underline">
               Ver meu plano
             </Link>
           </div>
@@ -165,7 +165,7 @@ export default function StoresPage() {
             storeName={printing.name}
             url={printing.signupUrl}
             logoUrl={me.context?.logoUrl ?? null}
-            color={me.context?.primaryColor ?? '#E85D04'}
+            color={me.context?.primaryColor ?? '#FC3B7F'}
             fileName={`qr-${printing.slug}`}
           />
         )}

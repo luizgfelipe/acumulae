@@ -44,7 +44,7 @@ function ResetPage() {
       {done ? (
         <div className="space-y-4">
           <Alert kind="success">Senha alterada! Por segurança, encerramos as sessões em outros aparelhos.</Alert>
-          <Link href="/entrar" className="block text-center font-semibold text-brand-700">
+          <Link href="/entrar" className="block text-center font-semibold text-accent-600">
             Entrar
           </Link>
         </div>

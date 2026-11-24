@@ -20,7 +20,7 @@ export default function NewProgramPage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/painel/programas" className="text-sm font-semibold text-brand-700">
+      <Link href="/painel/programas" className="text-sm font-semibold text-accent-600">
         ← Programas
       </Link>
       <h1 className="text-2xl font-bold">Novo programa</h1>

@@ -55,7 +55,7 @@ export interface CardTheme {
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export function cardTheme(b: Partial<BrandColors> & { primaryColor?: string | null }): CardTheme {
-  const p = b.primaryColor && HEX.test(b.primaryColor) ? b.primaryColor : '#E85D04';
+  const p = b.primaryColor && HEX.test(b.primaryColor) ? b.primaryColor : '#FC3B7F';
   const s = b.secondaryColor && HEX.test(b.secondaryColor) ? b.secondaryColor : p;
   const solid = (c: string): CSSProperties => ({ background: c, color: textOn(c) });
   switch (b.cardStyle) {

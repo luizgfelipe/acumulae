@@ -63,7 +63,7 @@ export default function CheckoutClaimPage() {
 
   if (!info && !error) return <FullPageSpinner />;
 
-  const color = info?.tenant.primaryColor ?? '#E85D04';
+  const color = info?.tenant.primaryColor ?? '#FC3B7F';
   const th = cardTheme(info?.tenant ?? {});
   const header = info && (
     <div className="mb-6 flex items-center gap-3">
@@ -134,7 +134,7 @@ export default function CheckoutClaimPage() {
       <PublicShell>
         {header}
         <Alert kind="warning">{msg}</Alert>
-        <Link href="/" className="mt-6 block text-center font-semibold text-brand-700">
+        <Link href="/" className="mt-6 block text-center font-semibold text-accent-600">
           Ir para meus cartões
         </Link>
       </PublicShell>

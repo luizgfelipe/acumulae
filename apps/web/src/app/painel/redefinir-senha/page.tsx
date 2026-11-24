@@ -43,7 +43,7 @@ function StaffReset() {
       {done ? (
         <>
           <Alert kind="success">Senha alterada. Entre novamente.</Alert>
-          <Link href="/painel/entrar" className="mt-4 block text-center font-semibold text-brand-700">
+          <Link href="/painel/entrar" className="mt-4 block text-center font-semibold text-accent-600">
             Entrar
           </Link>
         </>

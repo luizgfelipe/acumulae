@@ -41,7 +41,7 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/painel/clientes" className="text-sm font-semibold text-brand-700">
+      <Link href="/painel/clientes" className="text-sm font-semibold text-accent-600">
         ← Clientes
       </Link>
       <div className="grid gap-4 lg:grid-cols-3">
@@ -63,7 +63,7 @@ export default function CustomerDetailPage() {
             {c.card.balance}/{c.card.goal} <span className="text-base font-medium text-stone-500">{c.card.unitLabelPlural}</span>
           </p>
           <div className="mt-3">
-            <ProgressBar value={c.card.balance} max={c.card.goal} color="#E85D04" />
+            <ProgressBar value={c.card.balance} max={c.card.goal} color="#FC3B7F" />
           </div>
           <h2 className="mt-5 mb-2 text-sm font-semibold text-stone-700">Recompensas</h2>
           {c.rewards.length === 0 && <p className="text-sm text-stone-500">Nenhuma recompensa ainda.</p>}

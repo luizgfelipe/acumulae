@@ -113,7 +113,7 @@ export default function ProgramsPage() {
       {data.items.length === 0 && (
         <Card className="text-center">
           <p className="text-stone-600">Nenhum programa ainda.</p>
-          <Link href="/painel/programas/novo" className="mt-2 inline-block font-semibold text-brand-700">
+          <Link href="/painel/programas/novo" className="mt-2 inline-block font-semibold text-accent-600">
             Criar o primeiro programa
           </Link>
         </Card>

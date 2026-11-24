@@ -72,7 +72,7 @@ export default function ProfilePage() {
         </div>
         <Link
           href="/painel/qr"
-          className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-800 transition-colors hover:bg-brand-100"
+          className="inline-flex items-center gap-2 rounded-xl border border-secondary-300 bg-secondary-100 px-3 py-2 text-sm font-medium text-secondary-900 transition-colors hover:bg-secondary-300/50"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" />
@@ -106,7 +106,7 @@ export default function ProfilePage() {
               <h2 className="mb-1 font-semibold">Dados das unidades</h2>
               <p className="text-sm text-stone-600">
                 Com mais de uma unidade, nome e endereço de cada uma ficam na aba{' '}
-                <Link href="/painel/unidades" className="font-medium text-brand-700 underline">
+                <Link href="/painel/unidades" className="font-medium text-accent-600 underline">
                   Unidades
                 </Link>
                 .
@@ -286,7 +286,7 @@ function LogoCard({ profile, onSaved, onDraft }: { profile: Profile; onSaved: (p
           {!custom && (
             <p className="mt-2 text-xs text-stone-500">
               Cor secundária e os modelos Degradê e Moldura estão disponíveis a partir do plano Profissional.{' '}
-              <Link href="/painel/plano" className="font-medium text-brand-700 underline">
+              <Link href="/painel/plano" className="font-medium text-accent-600 underline">
                 Ver meu plano
               </Link>
             </p>
@@ -585,7 +585,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
       <div className="flex gap-2">
         <input
           type="color"
-          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#E85D04'}
+          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#FC3B7F'}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
           className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-stone-300"
         />

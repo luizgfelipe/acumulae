@@ -98,7 +98,7 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
           <Alert kind="success">Notificação enviada para {clients(done)}.</Alert>
           <p className="text-sm text-stone-600">
             O histórico fica em{' '}
-            <Link href="/painel/notificacoes" className="font-medium text-brand-700 underline">
+            <Link href="/painel/notificacoes" className="font-medium text-accent-600 underline">
               Notificações
             </Link>
             .

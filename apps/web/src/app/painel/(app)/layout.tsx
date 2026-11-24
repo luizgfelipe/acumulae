@@ -171,7 +171,7 @@ function SideMenu({
         })}
       </nav>
       <div className="mt-auto space-y-1 border-t border-stone-100 px-3 py-3 text-sm">
-        <Link href="/caixa" className="block rounded-lg px-3 py-2.5 font-semibold text-brand-700 hover:bg-brand-50 transition-colors">
+        <Link href="/caixa" className="block rounded-lg px-3 py-2.5 font-semibold text-accent-600 hover:bg-accent-100 transition-colors">
           Abrir o caixa →
         </Link>
         {hasManyWorkplaces && (

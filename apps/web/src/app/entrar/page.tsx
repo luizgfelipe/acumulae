@@ -67,12 +67,12 @@ function LoginPage() {
       </form>
 
       <div className="mt-6 space-y-2 text-center text-sm">
-        <Link href="/esqueci-senha" className="block font-medium text-brand-700">
+        <Link href="/esqueci-senha" className="block font-medium text-accent-600">
           Esqueci minha senha
         </Link>
         <p className="text-stone-600">
           Não tem conta?{' '}
-          <Link href={`/cadastro?next=${encodeURIComponent(next)}`} className="font-semibold text-brand-700">
+          <Link href={`/cadastro?next=${encodeURIComponent(next)}`} className="font-semibold text-accent-600">
             Cadastre-se
           </Link>
         </p>

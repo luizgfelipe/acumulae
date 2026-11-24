@@ -101,7 +101,7 @@ export default function PosPage() {
           </p>
         </div>
         {ctx.role === 'MANAGER' && (
-          <Link href="/painel" className="rounded-lg px-2 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-50 transition-colors">
+          <Link href="/painel" className="rounded-lg px-2 py-1.5 text-sm font-semibold text-accent-600 hover:bg-accent-100 transition-colors">
             Painel
           </Link>
         )}
@@ -437,7 +437,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
               {shown}/{c.goal}
             </span>
           </div>
-          <ProgressBar value={shown} max={c.goal} color={complete ? '#059669' : '#E85D04'} />
+          <ProgressBar value={shown} max={c.goal} color={complete ? '#059669' : '#FC3B7F'} />
         </div>
       </div>
 

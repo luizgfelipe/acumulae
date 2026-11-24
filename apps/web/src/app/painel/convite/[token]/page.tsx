@@ -56,7 +56,7 @@ export default function InvitePage() {
     return (
       <StaffCard title="Convite indisponível">
         <Alert kind="warning">{loadError}</Alert>
-        <Link href="/painel/entrar" className="mt-4 block text-center font-semibold text-brand-700">
+        <Link href="/painel/entrar" className="mt-4 block text-center font-semibold text-accent-600">
           Ir para o login
         </Link>
       </StaffCard>

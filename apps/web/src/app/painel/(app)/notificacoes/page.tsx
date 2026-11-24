@@ -99,7 +99,7 @@ export default function AnnouncementsPage() {
         {plan?.features.reports && (
           <p className="mt-1 text-sm text-stone-500">
             Para mandar só aos aniversariantes ou aos inativos, use o botão &quot;Enviar notificação&quot; em{' '}
-            <Link href="/painel/relatorios" className="font-medium text-brand-700 underline">
+            <Link href="/painel/relatorios" className="font-medium text-accent-600 underline">
               Relatórios
             </Link>
             .

@@ -77,7 +77,7 @@ export default function NotificationsPage() {
       <div className="flex items-end justify-between gap-3">
         <h1 className="text-2xl font-bold">Notificações</h1>
         {unread > 0 && (
-          <button onClick={markAll} className="rounded-lg px-2 py-1.5 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50">
+          <button onClick={markAll} className="rounded-lg px-2 py-1.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-100">
             Marcar todas como lidas
           </button>
         )}
@@ -191,8 +191,8 @@ function PushInvite() {
   }
 
   return (
-    <Card className="relative border-brand-200 bg-brand-50">
-      <button onClick={dismiss} aria-label="Fechar" className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:bg-brand-100">
+    <Card className="relative border-secondary-300 bg-secondary-100">
+      <button onClick={dismiss} aria-label="Fechar" className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:bg-secondary-300/60">
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
           <path d="M6 6l12 12M18 6 6 18" />
         </svg>

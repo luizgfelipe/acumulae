@@ -160,7 +160,7 @@ export function FullPageSpinner() {
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cx('inline-flex items-center gap-2 font-extrabold tracking-tight text-stone-900', className)}>
+    <span className={cx('inline-flex items-center gap-2 font-extrabold tracking-tight text-accent-600', className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/brand/marca.png" alt="" width={45} height={32} className="h-8 w-auto" />
       Acumulaê
@@ -210,7 +210,7 @@ export function TenantAvatar({ name, logoUrl, color, size = 48 }: { name: string
   return (
     <span
       className="grid place-items-center rounded-xl font-bold text-white"
-      style={{ width: size, height: size, background: color ?? '#E85D04', fontSize: size / 2.4 }}
+      style={{ width: size, height: size, background: color ?? '#FC3B7F', fontSize: size / 2.4 }}
     >
       {name.trim()[0]?.toUpperCase()}
     </span>

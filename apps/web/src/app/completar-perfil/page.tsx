@@ -73,8 +73,8 @@ function CompleteProfile() {
         <label className="flex items-start gap-3 text-sm text-stone-700">
           <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} className="mt-0.5 h-5 w-5 accent-brand-600" />
           <span>
-            Li e aceito os <Link href="/termos" target="_blank" className="font-medium text-brand-700 underline">Termos de Uso</Link> e a{' '}
-            <Link href="/privacidade" target="_blank" className="font-medium text-brand-700 underline">Política de Privacidade</Link>.
+            Li e aceito os <Link href="/termos" target="_blank" className="font-medium text-accent-600 underline">Termos de Uso</Link> e a{' '}
+            <Link href="/privacidade" target="_blank" className="font-medium text-accent-600 underline">Política de Privacidade</Link>.
           </span>
         </label>
         {error && <Alert>{error}</Alert>}
