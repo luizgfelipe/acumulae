@@ -1,13 +1,19 @@
+'use client';
+
 import Link from 'next/link';
-import { ArrowRight, BellRing, ChartColumn, Check, Gift, Mail, Palette, QrCode, ShieldCheck, Smartphone, Store, Users, WalletCards } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowRight, BellRing, ChartColumn, Check, Copy, ExternalLink, Gift, Mail, Palette, QrCode, ShieldCheck, Smartphone, Store, Users, WalletCards } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cardTheme, type CardStyle } from '@/lib/card-theme';
 import { ProgressBar, StampGrid } from './stamps';
-import { LinkButton, Logo, TenantAvatar, cx } from './ui';
+import { LinkButton, Logo, Modal, TenantAvatar, cx } from './ui';
 
 /** Contato comercial (por enquanto, e-mail). */
 const SALES_EMAIL = 'acumulae@gmail.com';
-const SALES_MAILTO = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent('Quero o Acumulaê no meu estabelecimento')}`;
+const SALES_SUBJECT = 'Quero o Acumulaê no meu estabelecimento';
+const SALES_MAILTO = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(SALES_SUBJECT)}`;
+const SALES_GMAIL = `https://mail.google.com/mail/?view=cm&fs=1&to=${SALES_EMAIL}&su=${encodeURIComponent(SALES_SUBJECT)}`;
 
 /** Página inicial para quem ainda não entrou: apresenta o app ao cliente e ao estabelecimento. */
 export function Landing() {
@@ -189,7 +195,7 @@ function PhoneMockup() {
       </div>
 
       {/* Avisos flutuando ao redor do celular */}
-      <div className="landing-float absolute top-3 -left-4 flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white/95 px-3 py-2.5 shadow-xl sm:-left-24">
+      <div className="landing-float absolute z-20 top-3 -left-4 flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white/95 px-3 py-2.5 shadow-xl sm:-left-24">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
           <BellRing className="h-4.5 w-4.5" />
         </span>
@@ -198,7 +204,7 @@ function PhoneMockup() {
           <p className="text-[11px] text-stone-500">Pizzaria Bella Massa · agora</p>
         </div>
       </div>
-      <div className="landing-float absolute -right-3 -bottom-5 flex items-center gap-2 rounded-2xl border border-stone-200 bg-white/95 px-3 py-2 shadow-xl [animation-delay:1.4s] sm:-right-10">
+      <div className="landing-float absolute z-20 -right-3 -bottom-5 flex items-center gap-2 rounded-2xl border border-stone-200 bg-white/95 px-3 py-2 shadow-xl [animation-delay:1.4s] sm:-right-10">
         <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-600 text-white">
           <Check className="h-4 w-4" strokeWidth={3} />
         </span>
@@ -311,16 +317,13 @@ function ForBusiness() {
                 ))}
               </ul>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href={SALES_MAILTO}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold text-white shadow-sm transition duration-150 hover:bg-brand-700 hover:shadow-md hover:shadow-brand-600/30 motion-safe:active:scale-[0.98]"
-                >
+                <SalesContact className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold whitespace-nowrap text-white shadow-sm transition duration-150 hover:bg-brand-700 hover:shadow-md hover:shadow-brand-600/30 motion-safe:active:scale-[0.98]">
                   <Mail className="h-4.5 w-4.5" aria-hidden />
                   Quero no meu estabelecimento
-                </a>
+                </SalesContact>
                 <Link
                   href="/painel/entrar"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 font-semibold text-white ring-1 ring-white/25 transition duration-150 hover:bg-white/10 motion-safe:active:scale-[0.98]"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 font-semibold whitespace-nowrap text-white ring-1 ring-white/25 transition duration-150 hover:bg-white/10 motion-safe:active:scale-[0.98]"
                 >
                   Já sou parceiro: acessar o painel
                   <ArrowRight className="h-4.5 w-4.5" aria-hidden />
@@ -328,9 +331,7 @@ function ForBusiness() {
               </div>
               <p className="mt-4 text-sm text-stone-400">
                 Ou escreva para{' '}
-                <a href={SALES_MAILTO} className="font-medium text-brand-200 underline-offset-2 hover:underline">
-                  {SALES_EMAIL}
-                </a>
+                <SalesContact className="font-medium text-brand-200 underline-offset-2 hover:underline">{SALES_EMAIL}</SalesContact>
               </p>
             </div>
             <div className="relative mx-auto hidden w-full max-w-xs lg:block" aria-hidden>
@@ -382,11 +383,62 @@ function Footer() {
           <Link href="/painel/entrar" className="transition-colors hover:text-stone-800 hover:underline">
             Painel do estabelecimento
           </Link>
-          <a href={SALES_MAILTO} className="transition-colors hover:text-stone-800 hover:underline">
-            Contato comercial
-          </a>
+          <SalesContact className="transition-colors hover:text-stone-800 hover:underline">Contato comercial</SalesContact>
         </nav>
       </Container>
     </footer>
+  );
+}
+
+/**
+ * Contato comercial. Um link mailto: puro não faz nada quando o aparelho não tem app de e-mail
+ * configurado (comum no Windows), então o botão abre opções: app de e-mail, Gmail ou copiar o endereço.
+ */
+function SalesContact({ className, children }: { className?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(SALES_EMAIL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* sem permissão de área de transferência: o endereço continua visível para copiar à mão */
+    }
+  };
+  const option = 'flex h-12 w-full items-center gap-3 rounded-xl border border-stone-200 px-4 text-left font-semibold text-stone-800 transition hover:border-stone-300 hover:bg-stone-50';
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={className}>
+        {children}
+      </button>
+      {/* No body: fora do bloco escuro (que deixaria o texto branco) e acima do cabeçalho fixo. */}
+      {mounted &&
+        createPortal(
+          <div className="text-stone-900">
+            <Modal open={open} onClose={() => setOpen(false)} title="Fale com a gente">
+              <p className="text-stone-600">Conte um pouco sobre o seu estabelecimento e a gente responde por e-mail.</p>
+              <p className="mt-3 rounded-xl bg-secondary-50 px-4 py-3 text-center font-semibold text-stone-900 select-all">{SALES_EMAIL}</p>
+              <div className="mt-4 grid gap-2">
+                <a href={SALES_GMAIL} target="_blank" rel="noopener noreferrer" className={option}>
+                  <ExternalLink className="h-5 w-5 text-brand-600" aria-hidden />
+                  Escrever pelo Gmail
+                </a>
+                <a href={SALES_MAILTO} className={option}>
+                  <Mail className="h-5 w-5 text-brand-600" aria-hidden />
+                  Abrir meu app de e-mail
+                </a>
+                <button type="button" onClick={copy} className={option}>
+                  {copied ? <Check className="h-5 w-5 text-emerald-600" strokeWidth={3} aria-hidden /> : <Copy className="h-5 w-5 text-brand-600" aria-hidden />}
+                  {copied ? 'E-mail copiado!' : 'Copiar o e-mail'}
+                </button>
+              </div>
+            </Modal>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
