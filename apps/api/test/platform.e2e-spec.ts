@@ -241,7 +241,7 @@ describe('Planos: grade, validade e unidades extras', () => {
     const r = await platform().get('/api/platform/plans').expect(200);
     const byCode = Object.fromEntries(r.body.map((p: { code: string }) => [p.code, p]));
     expect(byCode.ESSENCIAL).toMatchObject({ priceCents: 6990, maxActivePrograms: 1, maxStaff: 3, reports: false });
-    expect(byCode.PROFISSIONAL).toMatchObject({ priceCents: 7990, maxStaff: null, extraStorePriceCents: 3990, reports: true });
+    expect(byCode.PROFISSIONAL).toMatchObject({ priceCents: 7990, maxStaff: 5, extraStorePriceCents: 3990, reports: true });
     expect(byCode.REDE).toMatchObject({ maxActivePrograms: null, includedStores: 3, networkDashboard: true });
     // O PILOTO libera o mesmo que o Profissional, de graça.
     const { code: _p, name: _pn, priceCents, supportChannel: _ps, listed, tenants: _pt, _count: _pk, ...pilot } = byCode.PILOTO;

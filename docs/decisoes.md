@@ -105,7 +105,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
   | Preço/mês | grátis | R$ 69,90 | R$ 79,90 | R$ 199,90 |
   | Programas ativos | 3 | 1 | 3 | ilimitado |
   | Unidades inclusas / extra | 1 / R$ 39,90 | 1 / — | 1 / R$ 39,90 | 3 / R$ 49,90 |
-  | Funcionários | ilimitado | 3 | ilimitado | ilimitado |
+  | Funcionários | 5 | 3 | 5 | ilimitado |
   | Ícones de selo / imagem própria | 15 / sim | 5 / não | 15 / sim | 15 / sim |
   | Cor secundária e modelos | sim | não | sim | sim |
   | Relatórios e CSV | sim | não | sim | sim |
