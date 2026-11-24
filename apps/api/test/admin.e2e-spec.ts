@@ -389,13 +389,15 @@ describe('Limites do plano vigente', () => {
     expect(plan.body.limits.staff).toEqual({ used: 3, max: 3 });
   });
 
-  it('Profissional: funcionários ilimitados', async () => {
+  it('Profissional: até 5 funcionários', async () => {
     const { pos } = await setup({ plan: 'PROFISSIONAL' });
     for (let n = 0; n < 4; n++) {
       await pos.post('/api/admin/staff').send({ name: `G${n}`, email: `g${n}-${Date.now()}@example.com`, role: 'MANAGER' }).expect(201);
     }
     const plan = await pos.get('/api/admin/plan').expect(200);
-    expect(plan.body.limits.staff).toEqual({ used: 5, max: null });
+    expect(plan.body.limits.staff).toEqual({ used: 5, max: 5 });
+    const r = await pos.post('/api/admin/staff').send({ name: 'G5', email: `g5-${Date.now()}@example.com`, role: 'MANAGER' }).expect(409);
+    expect(r.body.code).toBe('STAFF_LIMIT_REACHED');
   });
 
   it('unidades: inclusas + extras; reativar também respeita o limite', async () => {
