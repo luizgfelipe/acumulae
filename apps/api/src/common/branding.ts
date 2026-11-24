@@ -15,7 +15,7 @@ export const BRANDING_SELECT = {
   version: true,
 } as const;
 
-export const DEFAULT_PRIMARY_COLOR = '#FC3B7F';
+export const DEFAULT_PRIMARY_COLOR = '#F26419';
 
 export const cardStyleSchema = z.nativeEnum(CardStyle);
 
