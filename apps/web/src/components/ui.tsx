@@ -161,12 +161,8 @@ export function FullPageSpinner() {
 export function Logo({ className }: { className?: string }) {
   return (
     <span className={cx('inline-flex items-center gap-2 font-extrabold tracking-tight text-stone-900', className)}>
-      <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 text-white">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="8" />
-          <path d="m8.5 12 2.5 2.5 4.5-5" />
-        </svg>
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/marca.png" alt="" width={45} height={32} className="h-8 w-auto" />
       Acumulaê
     </span>
   );

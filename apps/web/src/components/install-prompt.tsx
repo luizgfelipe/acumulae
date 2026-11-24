@@ -30,7 +30,7 @@ export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => 
       <div className="space-y-5">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icons/192" alt="" width={64} height={64} className="h-16 w-16 rounded-2xl shadow-md" />
+          <img src="/icons/icon-192.png" alt="" width={64} height={64} className="h-16 w-16 rounded-2xl shadow-md" />
           <ul className="space-y-1 text-sm text-stone-700">
             {BENEFITS.map((b) => (
               <li key={b} className="flex gap-2">
@@ -133,7 +133,7 @@ export function InstallBanner() {
     <>
       <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/192" alt="" width={40} height={40} className="h-10 w-10 rounded-xl" />
+        <img src="/icons/icon-192.png" alt="" width={40} height={40} className="h-10 w-10 rounded-xl" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-stone-900">Instale o app</p>
           <p className="text-xs text-stone-600">Seus cartões a um toque, na tela inicial.</p>

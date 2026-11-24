@@ -35,6 +35,13 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${apiUrl}/api/:path*` }];
   },
+  async redirects() {
+    // Endereços antigos dos ícones (antes da logo), ainda gravados em PWAs instaladas.
+    return [
+      { source: '/icons/192', destination: '/icons/icon-192.png', permanent: true },
+      { source: '/icons/512', destination: '/icons/icon-512.png', permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

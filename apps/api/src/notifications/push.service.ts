@@ -188,7 +188,7 @@ export class PushService implements OnApplicationBootstrap, OnModuleDestroy {
         title: r.title,
         body: r.body,
         url: r.membership_id ? `/cartao/${r.membership_id}` : '/notificacoes',
-        icon: (r.tenant_id && icons.get(r.tenant_id)) || '/icons/192',
+        icon: (r.tenant_id && icons.get(r.tenant_id)) || '/icons/icon-192.png',
       };
       for (const sub of subs) if (sub.customerId === r.customer_id) jobs.push({ sub, payload });
     }

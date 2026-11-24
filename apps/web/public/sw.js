@@ -5,7 +5,7 @@
  * - Push: mostra a notificação no celular e, ao tocar, abre a tela certa e marca como lida.
  * Em localhost (next dev) não há cache: o SW só existe ali para testar o push.
  */
-const VERSION = 'acumulae-v1';
+const VERSION = 'acumulae-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = '/offline.html';
 const DEV = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname);
@@ -60,7 +60,7 @@ self.addEventListener('push', (event) => {
     Promise.all([
       self.registration.showNotification(title, {
         body: data.body || '',
-        icon: data.icon || '/icons/192',
+        icon: data.icon || '/icons/icon-192.png',
         badge: '/icons/badge',
         tag: data.id,
         lang: 'pt-BR',
