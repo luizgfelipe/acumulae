@@ -200,7 +200,7 @@ function PushInvite() {
       <h2 className="pr-8 font-semibold">Receba no celular</h2>
       {state === 'off' ? (
         <>
-          <p className="mt-1 text-sm text-stone-600">Avisamos na hora quando você ganhar selos ou liberar uma recompensa, mesmo com o app fechado.</p>
+          <p className="mt-1 text-sm text-stone-600">Saiba na hora quando ganhar selos ou liberar uma recompensa e receba novidades e promoções dos seus estabelecimentos favoritos, mesmo com o app fechado.</p>
           {error && (
             <div className="mt-3">
               <Alert>{error}</Alert>
