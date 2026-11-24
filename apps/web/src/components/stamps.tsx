@@ -2,6 +2,19 @@ import { stampIconOf } from '@/lib/stamp-icons';
 import type React from 'react';
 import { cx } from './ui';
 
+/** Máximo de selos por linha (o que cabe com folga num celular). */
+const MAX_STAMP_COLUMNS = 6;
+
+/**
+ * Colunas da grade com as linhas equilibradas: primeiro quantas linhas são precisas, depois divide por igual.
+ * Ex.: 12 → 6+6, 10 → 5+5, 8 → 4+4, 7 → 4+3, 15 → 5+5+5, 20 → 5×4.
+ */
+export function stampColumns(goal: number) {
+  const n = Math.max(1, goal);
+  const rows = Math.ceil(n / MAX_STAMP_COLUMNS);
+  return Math.ceil(n / rows);
+}
+
 /**
  * Grade de selos: `filled` de `goal` preenchidos com a cor do estabelecimento e o ícone escolhido.
  * Com `imageUrl` (imagem própria do selo), a imagem ocupa o selo cheio no lugar do ícone.
@@ -28,11 +41,11 @@ export function StampGrid({
   /** Cartão completo com recompensa a resgatar: os selos pulsam, um depois do outro. */
   complete?: boolean;
 }) {
-  const cols = goal <= 10 ? 5 : goal <= 20 ? 10 : 10;
+  const cols = stampColumns(goal);
   const dim = size === 'sm' ? 'h-6 w-6' : 'h-9 w-9';
   const Icon = stampIconOf(icon);
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(cols, goal)}, minmax(0, 1fr))` }}>
+    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {Array.from({ length: goal }, (_, i) => {
         const on = i < filled;
         return (
