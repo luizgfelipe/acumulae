@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useCustomer } from '@/components/customer-context';
-import { PublicShell } from '@/components/customer-shell';
+import { Landing } from '@/components/landing';
 import { InstallBanner } from '@/components/install-prompt';
 import { CardWallet } from '@/components/card-wallet';
 import { Alert, Card, FullPageSpinner, LinkButton } from '@/components/ui';
@@ -14,44 +14,6 @@ export default function HomePage() {
   const { me } = useCustomer();
   if (!me) return <Landing />;
   return <Cards firstName={me.name.split(' ')[0]} />;
-}
-
-function Landing() {
-  return (
-    <PublicShell>
-      <section className="space-y-6 pt-6">
-        <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
-          Seu cartão fidelidade,
-          <br />
-          <span className="text-brand-600">sem papel.</span>
-        </h1>
-        <p className="text-lg text-stone-600">
-          Acumule rodízios, sobremesas e o que mais você ama nos restaurantes participantes. Tudo numa conta só, e você nunca perde o
-          progresso.
-        </p>
-        <div className="grid gap-3 pt-2">
-          <LinkButton href="/cadastro" className="h-13 text-lg">
-            Criar minha conta
-          </LinkButton>
-          <LinkButton href="/entrar" variant="secondary" className="h-13 text-lg">
-            Já tenho conta
-          </LinkButton>
-        </div>
-        <ol className="grid gap-3 pt-6 text-stone-700">
-          {[
-            ['1', 'Crie sua conta grátis em menos de 1 minuto.'],
-            ['2', 'No caixa, mostre seu QR ou escaneie o QR do atendente.'],
-            ['3', 'Bateu a meta? A recompensa aparece aqui na hora.'],
-          ].map(([n, t]) => (
-            <li key={n} className="flex items-start gap-3">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">{n}</span>
-              <span className="pt-0.5">{t}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-    </PublicShell>
-  );
 }
 
 function Cards({ firstName }: { firstName: string }) {
