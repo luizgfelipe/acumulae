@@ -5,7 +5,7 @@
  * - Push: mostra a notificação no celular e, ao tocar, abre a tela certa e marca como lida.
  * Em localhost (next dev) não há cache: o SW só existe ali para testar o push.
  */
-const VERSION = 'acumulae-v2';
+const VERSION = 'acumulae-v3';
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = '/offline.html';
 const DEV = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname);
