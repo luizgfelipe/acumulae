@@ -210,7 +210,7 @@ export function TenantAvatar({ name, logoUrl, color, size = 48 }: { name: string
   return (
     <span
       className="grid place-items-center rounded-xl font-bold text-white"
-      style={{ width: size, height: size, background: color ?? '#FC3B7F', fontSize: size / 2.4 }}
+      style={{ width: size, height: size, background: color ?? '#F26419', fontSize: size / 2.4 }}
     >
       {name.trim()[0]?.toUpperCase()}
     </span>

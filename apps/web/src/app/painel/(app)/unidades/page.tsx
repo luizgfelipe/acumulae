@@ -165,7 +165,7 @@ export default function StoresPage() {
             storeName={printing.name}
             url={printing.signupUrl}
             logoUrl={me.context?.logoUrl ?? null}
-            color={me.context?.primaryColor ?? '#FC3B7F'}
+            color={me.context?.primaryColor ?? '#F26419'}
             fileName={`qr-${printing.slug}`}
           />
         )}

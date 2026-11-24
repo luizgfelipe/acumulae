@@ -63,7 +63,7 @@ export default function CheckoutClaimPage() {
 
   if (!info && !error) return <FullPageSpinner />;
 
-  const color = info?.tenant.primaryColor ?? '#FC3B7F';
+  const color = info?.tenant.primaryColor ?? '#F26419';
   const th = cardTheme(info?.tenant ?? {});
   const header = info && (
     <div className="mb-6 flex items-center gap-3">

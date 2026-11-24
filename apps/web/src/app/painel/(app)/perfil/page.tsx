@@ -585,7 +585,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
       <div className="flex gap-2">
         <input
           type="color"
-          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#FC3B7F'}
+          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#F26419'}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
           className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-stone-300"
         />

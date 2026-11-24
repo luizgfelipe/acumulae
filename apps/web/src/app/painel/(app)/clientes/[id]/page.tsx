@@ -63,7 +63,7 @@ export default function CustomerDetailPage() {
             {c.card.balance}/{c.card.goal} <span className="text-base font-medium text-stone-500">{c.card.unitLabelPlural}</span>
           </p>
           <div className="mt-3">
-            <ProgressBar value={c.card.balance} max={c.card.goal} color="#FC3B7F" />
+            <ProgressBar value={c.card.balance} max={c.card.goal} color="#F26419" />
           </div>
           <h2 className="mt-5 mb-2 text-sm font-semibold text-stone-700">Recompensas</h2>
           {c.rewards.length === 0 && <p className="text-sm text-stone-500">Nenhuma recompensa ainda.</p>}

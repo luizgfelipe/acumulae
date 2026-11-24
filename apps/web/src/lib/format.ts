@@ -77,7 +77,7 @@ export const SOURCE_LABELS: Record<string, string> = {
 
 /** Garante legibilidade do texto sobre a cor da marca. */
 export function readableOn(hex: string | null | undefined): '#ffffff' | '#1c1917' {
-  const h = (hex ?? '#FC3B7F').replace('#', '');
+  const h = (hex ?? '#F26419').replace('#', '');
   const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) =>
     c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
   );

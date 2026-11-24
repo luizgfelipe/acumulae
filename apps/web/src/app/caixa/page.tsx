@@ -437,7 +437,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
               {shown}/{c.goal}
             </span>
           </div>
-          <ProgressBar value={shown} max={c.goal} color={complete ? '#059669' : '#FC3B7F'} />
+          <ProgressBar value={shown} max={c.goal} color={complete ? '#059669' : '#F26419'} />
         </div>
       </div>
 
