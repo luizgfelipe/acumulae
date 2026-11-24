@@ -58,7 +58,6 @@ export const planSchema = z.object({
   name: z.string().trim().min(1).max(60),
   /** Preço mensal em centavos (informativo). */
   priceCents: z.number().int().min(0).max(10_000_000).optional(),
-  maxActiveCustomers: limit(10_000_000),
   maxActivePrograms: limit(50),
   includedStores: z.number().int().min(1).max(1000).optional(),
   /** Preço de cada unidade extra em centavos; `null` = o plano não vende unidade extra. */

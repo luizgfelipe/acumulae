@@ -431,8 +431,7 @@ describe('Limites do plano vigente', () => {
     expect(plan.body).toMatchObject({
       plan: { code: 'ESSENCIAL', priceCents: 6990, supportChannel: 'EMAIL' },
       expired: false,
-      activeCustomerDays: 90,
-      limits: { activeCustomers: { used: 1, max: 300 }, activePrograms: { used: 1, max: 1 } },
+      limits: { activePrograms: { used: 1, max: 1 } },
       features: { reports: false, customerExport: false, networkDashboard: false, cardCustomization: false },
     });
   });
@@ -680,7 +679,7 @@ describe('Comparar planos (Meu plano)', () => {
     expect(r.body.items.find((p: { code: string }) => p.code === 'REDE')).toMatchObject({
       name: 'Rede',
       priceCents: 19990,
-      limits: { activeCustomers: null, includedStores: 3, announcementsPerMonth: 30 },
+      limits: { includedStores: 3, announcementsPerMonth: 30 },
       features: { networkDashboard: true, reports: true },
     });
   });

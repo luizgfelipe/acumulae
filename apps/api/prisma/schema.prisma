@@ -47,8 +47,6 @@ model Plan {
   name                     String
   /// Preço mensal em centavos (informativo: a cobrança não passa pelo sistema).
   priceCents               Int            @default(0) @map("price_cents")
-  /// Clientes ativos (com visita nos últimos 90 dias). Só avisa o gestor; nunca trava o caixa.
-  maxActiveCustomers       Int?           @map("max_active_customers")
   /// Quantos programas de fidelidade o estabelecimento pode ter ativos ao mesmo tempo.
   maxActivePrograms        Int?           @default(1) @map("max_active_programs")
   /// Unidades inclusas no plano; as extras compradas ficam em tenants.extra_stores.

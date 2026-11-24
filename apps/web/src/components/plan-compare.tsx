@@ -21,7 +21,6 @@ interface Row {
 }
 
 const ROWS: Row[] = [
-  { label: 'Clientes ativos', value: (p) => limit(p.limits.activeCustomers, 'clientes'), rank: (p) => rankLimit(p.limits.activeCustomers) },
   {
     label: 'Programas ativos',
     value: (p) => (p.limits.activePrograms === null ? 'Ilimitados' : p.limits.activePrograms === 1 ? '1 programa' : `${p.limits.activePrograms} programas`),

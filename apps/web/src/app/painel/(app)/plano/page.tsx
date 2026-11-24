@@ -5,7 +5,7 @@ import { usePanel } from '@/components/panel-context';
 import { PlanCompare } from '@/components/plan-compare';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner, cx } from '@/components/ui';
-import { CUSTOMER_WARNING_RATIO, PlanInfo, SUPPORT_LABELS, Usage, brl, daysLeft, planNotice } from '@/lib/plan';
+import { PlanInfo, SUPPORT_LABELS, Usage, brl, daysLeft, planNotice } from '@/lib/plan';
 
 export default function PlanPage() {
   const { plan, reload } = usePanel();
@@ -56,12 +56,6 @@ export default function PlanPage() {
           <Card>
             <h2 className="mb-4 font-semibold">Uso do plano</h2>
             <div className="space-y-4">
-              <UsageRow
-                label={`Clientes ativos (últimos ${plan.activeCustomerDays} dias)`}
-                usage={plan.limits.activeCustomers}
-                hint="Passar do limite não trava o caixa: os clientes continuam acumulando normalmente."
-                warnRatio={CUSTOMER_WARNING_RATIO}
-              />
               <UsageRow label="Programas ativos" usage={plan.limits.activePrograms} />
               <UsageRow
                 label="Unidades ativas"
@@ -146,7 +140,6 @@ function UpgradeHint({ plan }: { plan: PlanInfo }) {
   const full = Object.entries(plan.limits).filter(([, u]) => u.max !== null && u.used >= u.max).map(([k]) => k);
   if (!full.length || plan.plan.code === 'REDE') return null;
   const labels: Record<string, string> = {
-    activeCustomers: 'clientes ativos',
     activePrograms: 'programas',
     stores: 'unidades',
     staff: 'funcionários',

@@ -7,8 +7,6 @@ import { badRequest, conflict, notFound } from '../common/errors';
 import { maskPhone } from '../common/phone';
 import { BRANDING_SELECT, brandStyle, cardStyleSchema, logoDataUrlSchema, logoUrlOf, parseLogo, stampImageDataUrlSchema } from '../common/branding';
 import {
-  ACTIVE_CUSTOMER_DAYS,
-  activeCustomers,
   activeStores,
   effectivePlan,
   lockTenant,
@@ -191,8 +189,7 @@ export class AdminService {
   async planInfo(ctx: AdminCtx) {
     const eff = await effectivePlan(this.prisma, ctx.tenantId);
     const p = eff.plan;
-    const [customers, programs, stores, staff, announcements] = await Promise.all([
-      activeCustomers(this.prisma, ctx.tenantId),
+    const [programs, stores, staff, announcements] = await Promise.all([
       this.prisma.loyaltyProgram.count({ where: { tenantId: ctx.tenantId, active: true } }),
       activeStores(this.prisma, ctx.tenantId),
       staffInUse(this.prisma, ctx.tenantId),
@@ -203,9 +200,7 @@ export class AdminService {
       contracted: eff.contracted,
       expiresAt: eff.expiresAt,
       expired: eff.expired,
-      activeCustomerDays: ACTIVE_CUSTOMER_DAYS,
       limits: {
-        activeCustomers: { used: customers, max: p.maxActiveCustomers },
         activePrograms: { used: programs, max: p.maxActivePrograms },
         stores: { used: stores, max: eff.maxStores, included: p.includedStores, extraPriceCents: eff.expired ? null : p.extraStorePriceCents },
         staff: { used: staff, max: p.maxStaff },
@@ -240,7 +235,6 @@ export class AdminService {
         priceCents: p.priceCents,
         supportChannel: p.supportChannel,
         limits: {
-          activeCustomers: p.maxActiveCustomers,
           activePrograms: p.maxActivePrograms,
           includedStores: p.includedStores,
           extraStorePriceCents: p.extraStorePriceCents,

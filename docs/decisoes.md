@@ -103,7 +103,6 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
   | | PILOTO | ESSENCIAL | PROFISSIONAL | REDE |
   |---|---|---|---|---|
   | Preço/mês | grátis | R$ 69,90 | R$ 79,90 | R$ 199,90 |
-  | Clientes ativos (90 dias) | 1.500 | 300 | 1.500 | ilimitado |
   | Programas ativos | 3 | 1 | 3 | ilimitado |
   | Unidades inclusas / extra | 1 / R$ 39,90 | 1 / — | 1 / R$ 39,90 | 3 / R$ 49,90 |
   | Funcionários | ilimitado | 3 | ilimitado | ilimitado |
@@ -118,7 +117,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Comparar planos em Meu plano** (`GET /api/admin/plans`): cards com preço, limites e recursos de cada plano, do mais barato ao mais caro, o atual em destaque e, nos outros, em verde o que têm a mais. Aparecem os planos com `plans.listed = true` e sempre o contratado; o Piloto vem com `listed = false` (só quem está nele o vê). A plataforma muda com `listed` em `PUT /api/platform/plans/{CODE}`. Trocar de plano continua pelo suporte.
 - **Validade:** `tenants.plan_expires_at` (opcional). Depois dela vale o ESSENCIAL até a plataforma trocar o plano ou desativar o estabelecimento; o painel avisa 7 dias antes e mostra o plano vencido. Os pilotos ficam no `PILOTO` (mesmos recursos do Profissional, de graça) por 3 meses: criar o estabelecimento no PILOTO ou trocar para ele sem informar `planExpiresAt` define a validade para o fim do dia, daqui a 3 meses (`null` explícito deixa sem validade); sair do PILOTO sem informar a validade a descarta. Ao vencer, o piloto cai para o Essencial e vê no painel o que perdeu, o que ajuda a converter. A migration deu aos pilotos já cadastrados 3 meses a partir da data de cadastro.
 - **Unidades extras:** `tenants.extra_stores` soma às inclusas no plano (não valem com o plano vencido).
-- **Clientes ativos:** clientes distintos com visita nos últimos 90 dias. Passar do limite nunca trava o cadastro nem o caixa; o painel avisa a partir de 90% e sugere o upgrade.
+- **Clientes ativos (24/11/2026):** os planos não limitam mais a quantidade de clientes (a coluna `plans.max_active_customers` foi removida). "Clientes ativos" (visita nos últimos 90 dias) continua só como indicador no painel da rede.
 - **Funcionários:** contam gestores e atendentes ativos e os convites pendentes (um por e-mail).
 - **Downgrade ou vencimento:** limites de quantidade (programas, unidades, funcionários) só bloqueiam criar, ativar, convidar ou reativar além do limite; nada é desativado. Recursos visuais fora do plano (cor secundária, modelo, ícones além dos liberados, imagem do selo) deixam de aparecer para o cliente, mas ficam guardados e voltam num upgrade.
 - **Relatórios (Profissional e Rede):** aniversariantes do mês, inativos há 30/60/90 dias e por funcionário (lançamentos, % pelo telefone, créditos estornados e resgates; destaca quem usa o telefone 2× acima da média da equipe, com pelo menos 5 lançamentos). O CSV de clientes traz todos os clientes do estabelecimento que aceitaram os Termos de Uso atuais (ver "Versão dos Termos de Uso"), com a coluna "Aceita promoções" para saber a quem mandar ofertas; protege as células contra fórmulas e registra no log quem exportou.
