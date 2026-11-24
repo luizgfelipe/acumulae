@@ -31,12 +31,16 @@ export default function PlanPage() {
                 <p className="text-2xl font-extrabold">{plan.contracted.name}</p>
                 {plan.expired && <p className="text-sm text-red-700">Vencido: valendo os recursos do plano {plan.plan.name}</p>}
               </div>
-              {plan.plan.priceCents > 0 && !plan.expired && (
-                <p className="text-right">
-                  <span className="text-xl font-bold">{brl(plan.plan.priceCents)}</span>
-                  <span className="block text-xs text-stone-500">por mês</span>
-                </p>
-              )}
+              {!plan.expired &&
+                (plan.plan.priceCents > 0 ? (
+                  <p className="text-right">
+                    <span className="text-xl font-bold">{brl(plan.plan.priceCents)}</span>
+                    <span className="block text-xs text-stone-500">por mês</span>
+                  </p>
+                ) : (
+                  // Preço 0 = valor personalizado, combinado com o Acumulaê (ex.: Piloto).
+                  <p className="text-right text-sm font-semibold text-stone-600">Valor personalizado</p>
+                ))}
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div>

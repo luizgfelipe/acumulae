@@ -9,9 +9,9 @@ export const FALLBACK_PLAN = 'ESSENCIAL';
 /** Janela que define "cliente ativo" (visita nos últimos N dias). */
 export const ACTIVE_CUSTOMER_DAYS = 90;
 
-/** Plano dos pilotos e quantos meses de validade ele ganha quando a plataforma não informa outra. */
+/** Plano dos pilotos (valor personalizado, cobrado à parte) e quantos meses de validade ele ganha quando a plataforma não informa outra. */
 export const PILOT_PLAN = 'PILOTO';
-export const PILOT_MONTHS = 3;
+export const PILOT_MONTHS = 1;
 
 /** Fim do dia (horário de Brasília) daqui a `months` meses; dia inexistente cai no último do mês. */
 export function expiryAfterMonths(months: number, from = new Date()): Date {
@@ -29,7 +29,7 @@ type PlanFields =Omit<Plan, 'createdAt' | 'updatedAt'>;
  */
 export const DEFAULT_PLANS: PlanFields[] = [
   {
-    // Mesmo que o Profissional, de graça, por PILOT_MONTHS meses.
+    // Mesmo que o Profissional, por PILOT_MONTHS mês. Valor personalizado, cobrado fora do sistema (priceCents 0 = sem preço de tabela).
     code: 'PILOTO',
     name: 'Piloto',
     priceCents: 0,
