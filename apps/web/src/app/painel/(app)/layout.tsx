@@ -10,15 +10,18 @@ import { PlanInfo, planNotice } from '@/lib/plan';
 import { staffLogout, useStaff } from '@/lib/staff';
 import { useLoad } from '@/lib/use-load';
 
-/** `feature`: recurso do plano; sem ele o item aparece com cadeado e a tela explica como liberar. */
-const NAV: Array<{ href: string; label: string; feature?: 'reports' | 'networkDashboard' }> = [
+/**
+ * `feature`: recurso do plano; sem ele o item aparece com cadeado e a tela explica como liberar.
+ * `hideWithout`: some do menu quando o plano não tem o recurso (ex.: Rede, que só faz sentido com várias unidades).
+ */
+const NAV: Array<{ href: string; label: string; feature?: 'reports' | 'networkDashboard'; hideWithout?: boolean }> = [
   { href: '/painel', label: 'Indicadores' },
   { href: '/painel/qr', label: 'QR do balcão' },
   { href: '/painel/clientes', label: 'Clientes' },
   { href: '/painel/movimentacoes', label: 'Movimentações' },
   { href: '/painel/notificacoes', label: 'Notificações' },
   { href: '/painel/relatorios', label: 'Relatórios', feature: 'reports' },
-  { href: '/painel/rede', label: 'Rede', feature: 'networkDashboard' },
+  { href: '/painel/rede', label: 'Rede', feature: 'networkDashboard', hideWithout: true },
   { href: '/painel/programas', label: 'Programas' },
   { href: '/painel/perfil', label: 'Perfil' },
   { href: '/painel/unidades', label: 'Unidades' },
@@ -145,7 +148,7 @@ function SideMenu({
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
       <nav className="flex flex-col gap-1 px-3 py-2">
-        {NAV.map((n) => {
+        {NAV.filter((n) => !(n.hideWithout && n.feature && !features?.[n.feature])).map((n) => {
           const active = n.href === '/painel' ? pathname === '/painel' : pathname.startsWith(n.href);
           const locked = !!n.feature && !!features && !features[n.feature];
           return (
