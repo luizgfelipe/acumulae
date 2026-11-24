@@ -204,7 +204,7 @@ model TenantBranding {
   /// Servido em GET /api/public/tenants/{slug}/logo?v={version}.
   logoData        Bytes?    @map("logo_data")
   logoMime        String?   @map("logo_mime")
-  primaryColor    String    @default("#E85D04") @map("primary_color")
+  primaryColor    String    @default("#FC3B7F") @map("primary_color")
   /// null = a principal faz também o papel da secundária.
   secondaryColor  String?   @map("secondary_color")
   /// Como as duas cores se combinam no cartão do cliente.

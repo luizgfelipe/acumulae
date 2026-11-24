@@ -75,7 +75,7 @@ describe('Cartões do cliente (RN-81, RN-83)', () => {
       goal: 10,
       rewardsAvailable: 0,
       unitLabelPlural: 'rodízios',
-      tenant: { name: 'Sushi do Teste', slug: t.slug, active: true, primaryColor: '#E85D04', logoUrl: null },
+      tenant: { name: 'Sushi do Teste', slug: t.slug, active: true, primaryColor: '#FC3B7F', logoUrl: null },
     });
   });
 
