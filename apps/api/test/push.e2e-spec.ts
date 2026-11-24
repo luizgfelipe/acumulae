@@ -122,7 +122,7 @@ describe('envio', () => {
       title: `+2 rodízios no Tenant ${t.slug}`,
       body: n.body,
       url: `/cartao/${n.membershipId}`,
-      icon: '/icons/192',
+      icon: '/icons/icon-192.png',
     });
 
     sent = [];
