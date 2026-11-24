@@ -121,3 +121,21 @@ body {
     animation: none;
   }
 }
+
+/* Cartão que abre na pilha da home. */
+@keyframes stack-open {
+  from {
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    transform: none;
+  }
+}
+.stack-open {
+  animation: stack-open 0.3s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stack-open {
+    animation: none;
+  }
+}
