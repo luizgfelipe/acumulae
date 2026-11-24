@@ -6,6 +6,7 @@ import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { PanelContext } from '@/components/panel-context';
 import { Alert, FullPageSpinner, Logo, TenantAvatar, cx } from '@/components/ui';
 import { staffApi } from '@/lib/api';
+import { CONTACT_EMAIL, mailtoContact } from '@/lib/contact';
 import { PlanInfo, planNotice } from '@/lib/plan';
 import { staffLogout, useStaff } from '@/lib/staff';
 import { useLoad } from '@/lib/use-load';
@@ -113,7 +114,13 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
         <main className="min-w-0 flex-1 p-4 md:p-8">
           {ctx.tenantStatus !== 'ACTIVE' && (
             <div className="mb-4">
-              <Alert>Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Fale com o suporte do Acumulaê.</Alert>
+              <Alert>
+                Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Fale com o suporte do Acumulaê pelo e-mail{' '}
+                <a href={mailtoContact('Estabelecimento suspenso')} className="font-semibold underline">
+                  {CONTACT_EMAIL}
+                </a>
+                .
+              </Alert>
             </div>
           )}
           {notice && pathname !== '/painel/plano' && (
@@ -177,6 +184,14 @@ function SideMenu({
         <Link href="/caixa" className="block rounded-lg px-3 py-2.5 font-semibold text-accent-600 hover:bg-accent-100 transition-colors">
           Abrir o caixa →
         </Link>
+        <a
+          href={mailtoContact('Suporte do painel')}
+          className="block rounded-lg px-3 py-2.5 text-stone-600 hover:bg-stone-100 transition-colors"
+          title="Fale com o suporte do Acumulaê"
+        >
+          Suporte
+          <span className="block break-all text-xs text-stone-500 select-all">{CONTACT_EMAIL}</span>
+        </a>
         {hasManyWorkplaces && (
           <Link href="/caixa/unidade?next=/painel" className="block rounded-lg px-3 py-2.5 text-stone-600 hover:bg-stone-100 transition-colors">
             Trocar estabelecimento

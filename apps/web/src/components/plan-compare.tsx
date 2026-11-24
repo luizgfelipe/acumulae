@@ -1,6 +1,7 @@
 'use client';
 
 import { staffApi } from '@/lib/api';
+import { CONTACT_EMAIL } from '@/lib/contact';
 import { ComparePlan, ComparePlans, SUPPORT_LABELS, brl } from '@/lib/plan';
 import { useLoad } from '@/lib/use-load';
 import { Alert, Badge, Card, cx } from './ui';
@@ -104,7 +105,7 @@ export function PlanCompare() {
                   );
                 })}
               </dl>
-              {!mine && <p className="mt-4 text-xs text-stone-500">Para mudar para o {p.name}, fale com o suporte do Acumulaê.</p>}
+              {!mine && <p className="mt-4 text-xs text-stone-500">Para mudar para o {p.name}, fale com o suporte do Acumulaê pelo e-mail {CONTACT_EMAIL}.</p>}
             </Card>
           );
         })}

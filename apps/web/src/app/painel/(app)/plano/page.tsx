@@ -5,6 +5,7 @@ import { usePanel } from '@/components/panel-context';
 import { PlanCompare } from '@/components/plan-compare';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner, cx } from '@/components/ui';
+import { CONTACT_EMAIL, mailtoContact } from '@/lib/contact';
 import { PlanInfo, SUPPORT_LABELS, Usage, brl, daysLeft, planNotice } from '@/lib/plan';
 
 export default function PlanPage() {
@@ -97,7 +98,11 @@ export default function PlanPage() {
           <Card className="border-secondary-300 bg-secondary-100">
             <h2 className="font-semibold">Quer mudar de plano ou contratar unidades extras?</h2>
             <p className="mt-1 text-sm text-stone-700">
-              Fale com o suporte do Acumulaê pelo {SUPPORT_LABELS[plan.plan.supportChannel].toLowerCase()}. A troca vale na hora, e nada do que você já
+              Fale com o suporte do Acumulaê pelo e-mail{' '}
+              <a href={mailtoContact('Mudar de plano')} className="font-semibold underline">
+                {CONTACT_EMAIL}
+              </a>
+              . A troca vale na hora, e nada do que você já
               configurou é apagado: recursos que voltarem a ser liberados reaparecem como estavam.
             </p>
             <UpgradeHint plan={plan} />

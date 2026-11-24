@@ -6,11 +6,12 @@ import { createPortal } from 'react-dom';
 import { ArrowRight, BellRing, ChartColumn, Check, Copy, ExternalLink, Gift, Mail, Palette, QrCode, ShieldCheck, Smartphone, Store, Users, WalletCards } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cardTheme, type CardStyle } from '@/lib/card-theme';
+import { CONTACT_EMAIL } from '@/lib/contact';
 import { ProgressBar, StampGrid } from './stamps';
 import { LinkButton, Logo, Modal, TenantAvatar, cx } from './ui';
 
-/** Contato comercial (por enquanto, e-mail). */
-const SALES_EMAIL = 'acumulae@gmail.com';
+/** Contato comercial (por enquanto, e-mail; o mesmo do suporte). */
+const SALES_EMAIL = CONTACT_EMAIL;
 const SALES_SUBJECT = 'Quero o Acumulaê no meu estabelecimento';
 const SALES_MAILTO = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(SALES_SUBJECT)}`;
 const SALES_GMAIL = `https://mail.google.com/mail/?view=cm&fs=1&to=${SALES_EMAIL}&su=${encodeURIComponent(SALES_SUBJECT)}`;

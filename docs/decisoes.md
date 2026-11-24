@@ -123,7 +123,8 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Relatórios (Profissional e Rede):** aniversariantes do mês, inativos há 30/60/90 dias e por funcionário (lançamentos, % pelo telefone, créditos estornados e resgates; destaca quem usa o telefone 2× acima da média da equipe, com pelo menos 5 lançamentos). O CSV de clientes traz todos os clientes do estabelecimento que aceitaram os Termos de Uso atuais (ver "Versão dos Termos de Uso"), com a coluna "Aceita promoções" para saber a quem mandar ofertas; protege as células contra fórmulas e registra no log quem exportou.
 - **Painel da rede (Rede):** compara as unidades no mês (visitas, selos, clientes novos pelo primeiro selo na unidade, resgates) e os clientes ativos de cada uma; o total de clientes ativos conta uma vez quem frequenta mais de uma unidade.
 - **Como a plataforma administra:** `PUT /api/platform/plans/{CODE}` altera preços, limites (`null` = ilimitado) e recursos; `PATCH /api/platform/tenants/{id}` com `plan`, `planExpiresAt` (data, vale até o fim do dia, ou `null`) e `extraStores`.
-- **Pendente:** o painel ainda não mostra um contato do suporte (e-mail ou WhatsApp) para pedir a troca de plano; e a origem do cadastro (unidade e canal pelo `?u=` do QR) ainda não é registrada (ver "Pendências conhecidas").
+- **Suporte (24/11/2026):** o contato do suporte é o mesmo e-mail do comercial (`apps/web/src/lib/contact.ts`). Aparece no menu do painel, em Meu plano, na comparação de planos e no aviso de estabelecimento suspenso.
+- **Pendente:** a origem do cadastro (unidade e canal pelo `?u=` do QR) ainda não é registrada (ver "Pendências conhecidas").
 
 ## Endereço pelo CEP e segmento (22/11/2026)
 
