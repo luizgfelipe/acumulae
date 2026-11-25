@@ -32,7 +32,6 @@ const tenantBody = (over: Record<string, unknown> = {}) => {
     name: 'Pizzaria Y',
     slug,
     store: { name: 'Matriz', slug: 'matriz', address: 'Rua A, 1' },
-    program: { rewardDescription: '1 pizza grátis' },
     manager: { name: 'Dona', email: `dona-${slug}@example.com` },
     ...over,
   };
@@ -49,7 +48,7 @@ async function auditFor(action: string, targetId?: string, statusCode?: number) 
 }
 
 describe('Cadastro do estabelecimento (RN-92 a RN-94)', () => {
-  it('aplica os padrões do programa da RN-23 quando não informados', async () => {
+  it('cria o estabelecimento sem programa: o gestor cria o primeiro no painel', async () => {
     const body = tenantBody();
     const r = await platform().post('/api/platform/tenants').send(body).expect(201);
     expect(r.body.storeSignupQrUrl).toBe(`http://localhost:3000/e/${body.slug}`);
@@ -58,15 +57,8 @@ describe('Cadastro do estabelecimento (RN-92 a RN-94)', () => {
 
     const t = await platform().get(`/api/platform/tenants/${r.body.tenantId}`).expect(200);
     expect(t.body).toMatchObject({ status: 'ACTIVE', plan: 'PILOTO', stores: [{ name: 'Matriz', slug: 'matriz', address: 'Rua A, 1' }] });
-    expect(t.body.programs[0]).toMatchObject({
-      goal: 10,
-      unitLabel: 'selo',
-      maxPerEntry: 20,
-      redeemWeekdays: [],
-      carryOverExcess: true,
-      active: true,
-      rewardDescription: '1 pizza grátis',
-    });
+    expect(t.body.programs).toEqual([]);
+    expect(r.body.programId).toBeUndefined();
     expect(t.body.pendingInvites).toEqual([expect.objectContaining({ email: body.manager.email, role: 'MANAGER' })]);
   });
 
@@ -94,7 +86,9 @@ describe('Cadastro do estabelecimento (RN-92 a RN-94)', () => {
     const r = await platform().post('/api/platform/tenants').send(tenantBody({ plan: 'OURO' })).expect(400);
     expect(r.body.code).toBe('PLAN_NOT_FOUND');
     await platform().post('/api/platform/tenants').send(tenantBody({ slug: 'Com Espaço' })).expect(400);
-    await platform().post('/api/platform/tenants').send(tenantBody({ program: { rewardDescription: 'x', goal: 1 } })).expect(400);
+    // O programa não vem mais pela plataforma: avisa em vez de ignorar.
+    const withProgram = await platform().post('/api/platform/tenants').send(tenantBody({ program: { rewardDescription: 'x' } })).expect(400);
+    expect(JSON.stringify(withProgram.body)).toContain('criado pelo gestor no painel');
     await platform().post('/api/platform/tenants').send(tenantBody({ manager: { name: 'X', email: 'invalido' } })).expect(400);
   });
 

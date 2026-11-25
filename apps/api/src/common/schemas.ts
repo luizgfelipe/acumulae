@@ -19,18 +19,6 @@ export const emailSchema = z
 
 export const weekdaysSchema = z.array(z.number().int().min(1).max(7)).max(7);
 
-export const programFieldsSchema = z.object({
-  name: z.string().trim().min(2).max(60).optional(),
-  carryOverExcess: z.boolean().optional(),
-  unitLabel: z.string().trim().min(1).max(30).optional(),
-  unitLabelPlural: z.string().trim().min(1).max(30).nullish(),
-  goal: z.number().int().min(2).max(50).optional(),
-  rewardDescription: z.string().trim().min(1).max(120),
-  maxPerEntry: z.number().int().min(1).max(100).optional(),
-  redeemWeekdays: weekdaysSchema.optional(),
-  stampValidityDays: z.number().int().min(1).max(3650).nullish(),
-});
-
 export const brandingFieldsSchema = z.object({
   /** Logo como data URL (PNG/JPG/WebP, até 200 KB). Não aceitamos URL externa. */
   logo: logoDataUrlSchema.nullish(),

@@ -1,4 +1,5 @@
-import { hexColorSchema, pageSchema, programFieldsSchema, slugSchema, weekdaysSchema } from './schemas';
+import { programInputSchema } from '../admin/programs.service';
+import { hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from './schemas';
 
 describe('slugSchema', () => {
   it.each(['sushi-x', 'pizzaria-y-2', 'ab'])('aceita "%s"', (s) => {
@@ -32,25 +33,39 @@ describe('weekdaysSchema (RN-23: restrição de resgate por dia da semana)', () 
   });
 });
 
-describe('programFieldsSchema (RN-23)', () => {
-  const ok = { rewardDescription: '1 rodízio grátis' };
+describe('programInputSchema (RN-23)', () => {
+  const ok = {
+    name: 'Cartão Rodízio',
+    unitLabel: 'rodízio',
+    goal: 10,
+    rewardDescription: '1 rodízio grátis',
+    maxPerEntry: 20,
+    redeemWeekdays: [],
+    carryOverExcess: true,
+  };
 
-  it('só a descrição da recompensa é obrigatória (o resto tem padrão)', () => {
-    expect(programFieldsSchema.safeParse(ok).success).toBe(true);
-    expect(programFieldsSchema.safeParse({}).success).toBe(false);
+  it('programa por selo é o padrão', () => {
+    expect(programInputSchema.parse(ok).kind).toBe('SELO');
   });
 
   it('meta é um inteiro de 2 a 50', () => {
-    expect(programFieldsSchema.safeParse({ ...ok, goal: 2 }).success).toBe(true);
-    expect(programFieldsSchema.safeParse({ ...ok, goal: 50 }).success).toBe(true);
-    expect(programFieldsSchema.safeParse({ ...ok, goal: 1 }).success).toBe(false);
-    expect(programFieldsSchema.safeParse({ ...ok, goal: 51 }).success).toBe(false);
-    expect(programFieldsSchema.safeParse({ ...ok, goal: 9.5 }).success).toBe(false);
+    expect(programInputSchema.safeParse({ ...ok, goal: 2 }).success).toBe(true);
+    expect(programInputSchema.safeParse({ ...ok, goal: 50 }).success).toBe(true);
+    expect(programInputSchema.safeParse({ ...ok, goal: 1 }).success).toBe(false);
+    expect(programInputSchema.safeParse({ ...ok, goal: 51 }).success).toBe(false);
+    expect(programInputSchema.safeParse({ ...ok, goal: 9.5 }).success).toBe(false);
   });
 
   it('máximo por lançamento é de 1 a 100', () => {
-    expect(programFieldsSchema.safeParse({ ...ok, maxPerEntry: 0 }).success).toBe(false);
-    expect(programFieldsSchema.safeParse({ ...ok, maxPerEntry: 101 }).success).toBe(false);
+    expect(programInputSchema.safeParse({ ...ok, maxPerEntry: 0 }).success).toBe(false);
+    expect(programInputSchema.safeParse({ ...ok, maxPerEntry: 101 }).success).toBe(false);
+  });
+
+  it('por valor exige o valor do selo e a compra máxima', () => {
+    const v = { ...ok, kind: 'VALOR' };
+    expect(programInputSchema.safeParse(v).success).toBe(false);
+    expect(programInputSchema.safeParse({ ...v, stampValueCents: 1000 }).success).toBe(false);
+    expect(programInputSchema.safeParse({ ...v, stampValueCents: 1000, maxAmountPerEntryCents: 100_000 }).success).toBe(true);
   });
 });
 

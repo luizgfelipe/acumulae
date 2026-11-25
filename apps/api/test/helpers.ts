@@ -40,8 +40,14 @@ export function phone() {
   return `(47) 9${n.slice(0, 4)}-${n.slice(4)}`;
 }
 
+/**
+ * Estabelecimento pronto para os testes. A plataforma não cria mais programa (o gestor cria no painel);
+ * aqui o programa padrão é criado direto no banco, como preparação, para os testes que lançam selos.
+ * `program: null` = estabelecimento sem programa. As demais chaves vão para o POST da plataforma.
+ */
 export async function createTenant(app: INestApplication, overrides: Record<string, unknown> = {}) {
   const slug = `t-${uniq()}`;
+  const { program, ...tenantOverrides } = overrides as { program?: Record<string, unknown> | null };
   const res = await request(app.getHttpServer())
     .post('/api/platform/tenants')
     .set('X-Platform-Key', PLATFORM_KEY)
@@ -49,14 +55,19 @@ export async function createTenant(app: INestApplication, overrides: Record<stri
       name: `Tenant ${slug}`,
       slug,
       store: { name: 'Centro', slug: 'centro' },
-      program: { unitLabel: 'rodízio', goal: 10, rewardDescription: '1 rodízio grátis' },
       manager: { name: 'Gestor', email: `gestor-${slug}@example.com` },
       // Padrão dos testes: o plano mais restrito. Sem `plan`, a API usa o PILOTO.
       plan: 'ESSENCIAL',
-      ...overrides,
+      ...tenantOverrides,
     })
     .expect(201);
-  return { ...res.body, slug } as {
+  const created =
+    program === null
+      ? null
+      : await app.get(PrismaService).loyaltyProgram.create({
+          data: { tenantId: res.body.tenantId, unitLabel: 'rodízio', goal: 10, rewardDescription: '1 rodízio grátis', ...program },
+        });
+  return { ...res.body, slug, programId: created?.id ?? '' } as {
     tenantId: string;
     storeId: string;
     programId: string;

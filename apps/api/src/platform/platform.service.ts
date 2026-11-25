@@ -11,7 +11,6 @@ import { DEFAULT_PLANS, FALLBACK_PLAN, PILOT_MONTHS, PILOT_PLAN, clearPlanCache,
 import {
   brandingFieldsSchema,
   emailSchema,
-  programFieldsSchema,
   slugSchema,
 } from '../common/schemas';
 import { PrismaService } from '../prisma/prisma.service';
@@ -46,7 +45,11 @@ export const createTenantSchema = z.object({
   extraStores: z.number().int().min(0).max(200).optional(),
   branding: brandingFieldsSchema.optional(),
   store: storeInputSchema,
-  program: programFieldsSchema,
+  /** Os programas são criados pelo gestor no painel, depois do cadastro (aqui não é mais aceito). */
+  program: z
+    .unknown()
+    .refine((v) => v === undefined, 'o programa de fidelidade agora é criado pelo gestor no painel, depois do cadastro')
+    .optional(),
   manager: z.object({ name: z.string().trim().min(1).max(120), email: emailSchema }),
 });
 
@@ -111,7 +114,7 @@ export class PlatformService {
     return `${config.publicUrl}/e/${slug}`;
   }
 
-  /** RN-92: tenant + primeira unidade + programa + convite do gestor, numa transação. */
+  /** RN-92: tenant + primeira unidade + convite do gestor, numa transação. O programa o gestor cria no painel. */
   async createTenant(input: z.infer<typeof createTenantSchema>) {
     await this.ensurePlan(input.plan);
     const existing = await this.prisma.tenant.findUnique({ where: { slug: input.slug } });
@@ -145,26 +148,11 @@ export class PlatformService {
             ...addressData(input.store.address),
           },
         });
-        const p = input.program;
-        const program = await tx.loyaltyProgram.create({
-          data: {
-            tenantId: tenant.id,
-            rewardDescription: p.rewardDescription,
-            name: p.name ?? 'Programa de fidelidade',
-            carryOverExcess: p.carryOverExcess ?? true,
-            unitLabel: p.unitLabel ?? 'selo',
-            unitLabelPlural: p.unitLabelPlural ?? null,
-            goal: p.goal ?? 10,
-            maxPerEntry: p.maxPerEntry ?? 20,
-            redeemWeekdays: p.redeemWeekdays ?? [],
-            stampValidityDays: p.stampValidityDays ?? null,
-          },
-        });
         const invite = await this.invites.create(
           { tenantId: tenant.id, email: input.manager.email, name: input.manager.name, role: 'MANAGER' },
           tx,
         );
-        return { tenant, store, program, invite };
+        return { tenant, store, invite };
       });
 
       await this.invites.sendEmail({
@@ -178,7 +166,6 @@ export class PlatformService {
       return {
         tenantId: result.tenant.id,
         storeId: result.store.id,
-        programId: result.program.id,
         managerInviteUrl: result.invite.url,
         managerInviteExpiresAt: result.invite.expiresAt.toISOString(),
         storeSignupQrUrl: this.signupUrl(result.tenant.slug),

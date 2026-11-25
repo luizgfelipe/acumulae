@@ -53,7 +53,6 @@ describe('API da plataforma', () => {
         name: 'Sushi X',
         slug: 'sushi-x',
         store: { name: 'Centro', slug: 'centro' },
-        program: { rewardDescription: '1 rodízio grátis' },
         manager: { name: 'G', email: 'g@example.com' },
       })
       .expect(409);
