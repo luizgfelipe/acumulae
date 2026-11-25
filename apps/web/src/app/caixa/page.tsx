@@ -9,21 +9,29 @@ import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Button, FullPageSpinner, Input, Modal, Spinner, TenantAvatar, cx } from '@/components/ui';
 import { ApiError, errorMessage, newIdempotencyKey, staffApi } from '@/lib/api';
 import { cardDisplay } from '@/lib/card-display';
-import { formatTime, maskPhoneInput, plural } from '@/lib/format';
+import { MoneyInput } from '@/components/money-input';
+import { formatBRL, formatTime, maskPhoneInput, plural } from '@/lib/format';
 import { staffLogout, useStaff } from '@/lib/staff';
+import { convertAmount } from '@/lib/value';
 
 interface ProgramView {
   programId: string;
   programName: string;
   programActive: boolean;
+  /** SELO: lança selos. VALOR: lança o valor da compra. */
+  kind: 'SELO' | 'VALOR';
+  stampValueCents: number | null;
   carryOverExcess: boolean;
   balance: number;
+  /** Programa por valor: centavos guardados para o próximo selo. */
+  leftoverCents: number;
   goal: number;
   rewardsAvailable: number;
   unitLabel: string;
   unitLabelPlural: string;
   rewardDescription: string;
   maxPerEntry: number;
+  maxAmountPerEntryCents: number | null;
   rewards: { id: string; description: string; unlockedAt: string }[];
   redeem: { allowed: boolean; reason: string | null };
 }
@@ -41,6 +49,8 @@ interface Recent {
   id: string;
   type: 'CREDITO' | 'RESGATE';
   quantity: number;
+  /** Programa por valor: valor da compra. */
+  amountCents: number | null;
   source: string;
   createdAt: string;
   customerName: string;
@@ -325,10 +335,53 @@ function discardPreview(p: ProgramView, qty: number) {
   return total >= p.goal ? total % p.goal : 0;
 }
 
+/** Prévia do lançamento por valor: quantos selos a compra fecha e o que fica guardado. */
+function ValuePreview({
+  c,
+  amount,
+  conv,
+  overMax,
+}: {
+  c: ProgramView;
+  amount: number | null;
+  conv: { stamps: number; leftover: number } | null;
+  overMax: boolean;
+}) {
+  if (overMax) {
+    return (
+      <div className="mt-3">
+        <Alert>O valor máximo por lançamento é {formatBRL(c.maxAmountPerEntryCents!)}. Confira o valor digitado.</Alert>
+      </div>
+    );
+  }
+  if (!amount || !conv) {
+    return <p className="mt-3 text-center text-sm text-stone-500">{formatBRL(c.stampValueCents!)} = 1 {c.unitLabel}</p>;
+  }
+  const completes = Math.floor((c.balance + conv.stamps) / c.goal);
+  return (
+    <div className="mt-3 rounded-xl bg-stone-50 px-4 py-3 text-center">
+      <p className="text-lg font-bold text-stone-900">
+        {conv.stamps > 0 ? `+${plural(conv.stamps, c.unitLabel, c.unitLabelPlural)}` : `Nenhum ${c.unitLabel} ainda`}
+      </p>
+      <p className="text-sm text-stone-600">
+        {c.leftoverCents > 0 && <>Com os {formatBRL(c.leftoverCents)} guardados. </>}
+        {conv.leftover > 0 ? `Ficam ${formatBRL(conv.leftover)} para a próxima compra.` : 'Não sobra nada para a próxima.'}
+      </p>
+      {completes > 0 && (
+        <p className="mt-1 text-sm font-semibold text-emerald-700">
+          🎉 {completes === 1 ? 'Completa o cartão!' : `Completa ${completes} cartões!`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: () => void; onDone: (f: Flash) => void }) {
   const initial = view.programs.find((p) => p.programActive) ?? view.programs[0];
   const [programId, setProgramId] = useState(initial?.programId ?? '');
   const [qty, setQty] = useState(1);
+  /** Programa por valor: valor da compra em centavos. */
+  const [amount, setAmount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRedeem, setConfirmRedeem] = useState(false);
@@ -348,7 +401,14 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
     );
   }
 
-  const discard = discardPreview(c, qty);
+  const byValue = c.kind === 'VALOR' && !!c.stampValueCents;
+  // Por valor: prévia de quantos selos a compra fecha, somada à sobra do cliente.
+  const conv = byValue && amount ? convertAmount(amount, c.leftoverCents, c.stampValueCents!) : null;
+  const stampsToAdd = byValue ? (conv?.stamps ?? 0) : qty;
+  const overMax = byValue && !!amount && !!c.maxAmountPerEntryCents && amount > c.maxAmountPerEntryCents;
+  const canLaunch = !byValue || (!!amount && !overMax);
+  const launchLabel = byValue ? `Lançar ${formatBRL(amount ?? 0)}` : `Lançar ${plural(qty, c.unitLabel, c.unitLabelPlural)}`;
+  const discard = discardPreview(c, stampsToAdd);
   const canRedeem = c.rewardsAvailable > 0 && c.redeem.allowed;
   const { complete, shown } = cardDisplay(c);
 
@@ -362,6 +422,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   function selectProgram(id: string) {
     setProgramId(id);
     setQty(1);
+    setAmount(null);
     setError(null);
     creditKey.current = newIdempotencyKey();
   }
@@ -370,19 +431,22 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
     setBusy(true);
     setError(null);
     try {
-      const r = await staffApi<{ rewardsUnlocked: number; discarded: number; card: ProgramView }>('/api/pos/credits', {
+      const r = await staffApi<{ stamps: number; rewardsUnlocked: number; discarded: number; card: ProgramView }>('/api/pos/credits', {
         method: 'POST',
         headers: { 'Idempotency-Key': creditKey.current },
-        body: { customerRef: view.customerRef, programId: c.programId, quantity: qty },
+        body: { customerRef: view.customerRef, programId: c.programId, ...(byValue ? { amountCents: amount } : { quantity: qty }) },
       });
+      const stamps = plural(r.stamps, c.unitLabel, c.unitLabelPlural);
       const parts = [
+        byValue ? (r.stamps > 0 ? `+${stamps}` : `Nenhum ${c.unitLabel} ainda`) : null,
         r.rewardsUnlocked > 0 ? `🎉 Recompensa liberada: ${c.rewardDescription}!` : null,
         r.discarded > 0 ? `${plural(r.discarded, c.unitLabel, c.unitLabelPlural)} além da meta descartado(s).` : null,
         `Agora: ${r.card.balance}/${r.card.goal}`,
+        byValue && r.card.leftoverCents > 0 ? `${formatBRL(r.card.leftoverCents)} guardados` : null,
       ];
       onDone({
         kind: 'success',
-        title: `+${plural(qty, c.unitLabel, c.unitLabelPlural)} para ${view.name}`,
+        title: byValue ? `${formatBRL(amount ?? 0)} para ${view.name}` : `+${stamps} para ${view.name}`,
         detail: [view.programs.length > 1 ? c.programName : null, ...parts].filter(Boolean).join(' · '),
       });
     } catch (e) {
@@ -438,6 +502,20 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
             </span>
           </div>
           <ProgressBar value={shown} max={c.goal} color={complete ? '#059669' : '#F26419'} />
+          {byValue && (
+            <p className="text-sm text-stone-600">
+              {c.leftoverCents > 0 ? (
+                <>
+                  <strong className="tabular-nums">{formatBRL(c.leftoverCents)}</strong> guardados · faltam{' '}
+                  <span className="tabular-nums">{formatBRL(c.stampValueCents! - c.leftoverCents)}</span> para o próximo {c.unitLabel}
+                </>
+              ) : (
+                <>
+                  {formatBRL(c.stampValueCents!)} = 1 {c.unitLabel}
+                </>
+              )}
+            </p>
+          )}
         </div>
       </div>
 
@@ -462,16 +540,43 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
 
       {c.programActive ? (
         <div className="rounded-2xl border border-stone-200 bg-white p-5">
-          <p className="mb-3 text-sm font-medium text-stone-700">Quantidade de {c.unitLabelPlural}</p>
-          <div className="flex items-center justify-center gap-4">
-            <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
-              −
-            </Button>
-            <span className="w-16 text-center text-5xl font-extrabold tabular-nums">{qty}</span>
-            <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.min(c.maxPerEntry, q + 1))} disabled={qty >= c.maxPerEntry}>
-              +
-            </Button>
-          </div>
+          {byValue ? (
+            <>
+              <label htmlFor="purchase" className="mb-3 block text-sm font-medium text-stone-700">
+                Valor da compra
+              </label>
+              <MoneyInput
+                id="purchase"
+                autoFocus
+                cents={amount}
+                onCents={(v) => {
+                  setAmount(v);
+                  creditKey.current = newIdempotencyKey();
+                }}
+                className="h-16 text-3xl font-extrabold"
+              />
+              <ValuePreview c={c} amount={amount} conv={conv} overMax={overMax} />
+            </>
+          ) : (
+            <>
+              <p className="mb-3 text-sm font-medium text-stone-700">Quantidade de {c.unitLabelPlural}</p>
+              <div className="flex items-center justify-center gap-4">
+                <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
+                  −
+                </Button>
+                <span className="w-16 text-center text-5xl font-extrabold tabular-nums">{qty}</span>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-16 text-2xl"
+                  onClick={() => setQty((q) => Math.min(c.maxPerEntry, q + 1))}
+                  disabled={qty >= c.maxPerEntry}
+                >
+                  +
+                </Button>
+              </div>
+            </>
+          )}
           {discard > 0 && (
             <div className="mt-4">
               <Alert kind="warning">
@@ -485,9 +590,10 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
             variant={canRedeem ? 'secondary' : undefined}
             className="mt-4 w-full"
             loading={busy && !confirmRedeem}
+            disabled={!canLaunch}
             onClick={() => (canRedeem ? setConfirmCredit(true) : launch())}
           >
-            Lançar {plural(qty, c.unitLabel, c.unitLabelPlural)}
+            {launchLabel}
           </Button>
         </div>
       ) : (
@@ -511,7 +617,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
             Utilizar recompensa
           </Button>
           <Button size="lg" variant="secondary" className="w-full" onClick={launch} loading={busy && confirmCredit}>
-            Só lançar {plural(qty, c.unitLabel, c.unitLabelPlural)}
+            Só l{launchLabel.slice(1)}
           </Button>
         </div>
       </Modal>
@@ -566,12 +672,17 @@ interface CheckoutToken {
   id: string;
   url: string;
   quantity: number;
+  amountCents: number | null;
   expiresAt: string;
   programName: string;
 }
 
+/** "R$ 45,00" no programa por valor; senão a quantidade de selos. */
+const tokenLabel = (t: CheckoutToken) => (t.amountCents != null ? formatBRL(t.amountCents) : `+${t.quantity}`);
+
 function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flash) => void }) {
   const [qty, setQty] = useState(1);
+  const [amount, setAmount] = useState<number | null>(null);
   const [programs, setPrograms] = useState<ProgramView[] | null>(null);
   const [programId, setProgramId] = useState('');
   const [token, setToken] = useState<CheckoutToken | null>(null);
@@ -588,6 +699,10 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
       .catch((e) => setError(errorMessage(e)));
   }, []);
 
+  const selected = programs?.find((p) => p.programId === programId) ?? null;
+  const byValue = selected?.kind === 'VALOR';
+  const overMax = byValue && !!amount && !!selected?.maxAmountPerEntryCents && amount > selected.maxAmountPerEntryCents;
+
   async function generate() {
     setBusy(true);
     setError(null);
@@ -595,7 +710,7 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
       setToken(
         await staffApi<CheckoutToken>('/api/pos/checkout-tokens', {
           method: 'POST',
-          body: { quantity: qty, programId: programId || undefined },
+          body: { programId: programId || undefined, ...(byValue ? { amountCents: amount } : { quantity: qty }) },
         }),
       );
     } catch (e) {
@@ -614,7 +729,7 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
       try {
         const s = await staffApi<{ status: string; customerName: string | null }>(`/api/pos/checkout-tokens/${token.id}`);
         if (s.status === 'USED') {
-          onDone({ kind: 'success', title: `Creditado para ${s.customerName}`, detail: `+${token.quantity} via QR temporário` });
+          onDone({ kind: 'success', title: `Creditado para ${s.customerName}`, detail: `${tokenLabel(token)} via QR temporário` });
           return;
         }
         if (s.status === 'EXPIRED') {
@@ -652,7 +767,7 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
     const ss = String(left % 60).padStart(2, '0');
     return (
       <div className="space-y-4 text-center">
-        <StepHeader title={`QR temporário · ${token.quantity}`} onBack={cancel} />
+        <StepHeader title={`QR temporário · ${tokenLabel(token)}`} onBack={cancel} />
         <p className="text-stone-600">Peça para o cliente apontar a câmera do celular.</p>
         <div className="mx-auto w-fit rounded-3xl border-4 border-stone-900 bg-white p-4">
           <QRCodeSVG value={token.url} size={280} level="M" marginSize={0} />
@@ -674,7 +789,15 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
       <div className="rounded-2xl border border-stone-200 bg-white p-5">
         {programs && programs.length > 1 && (
           <div className="mb-4">
-            <ProgramPicker programs={programs} value={programId} onChange={setProgramId} />
+            <ProgramPicker
+              programs={programs}
+              value={programId}
+              onChange={(id) => {
+                setProgramId(id);
+                setAmount(null);
+                setQty(1);
+              }}
+            />
           </div>
         )}
         {programs && programs.length === 0 && (
@@ -682,17 +805,38 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
             <Alert kind="warning">Nenhum programa ativo. Ative um programa no painel.</Alert>
           </div>
         )}
-        <p className="mb-3 text-sm font-medium text-stone-700">Quantidade</p>
-        <div className="flex items-center justify-center gap-4">
-          <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
-            −
-          </Button>
-          <span className="w-16 text-center text-5xl font-extrabold tabular-nums">{qty}</span>
-          <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.min(100, q + 1))}>
-            +
-          </Button>
-        </div>
-        <Button size="xl" variant="dark" className="mt-4 w-full" onClick={generate} loading={busy}>
+        {byValue ? (
+          <>
+            <label htmlFor="checkout-amount" className="mb-3 block text-sm font-medium text-stone-700">
+              Valor da compra
+            </label>
+            <MoneyInput id="checkout-amount" cents={amount} onCents={setAmount} className="h-16 text-3xl font-extrabold" />
+            {overMax ? (
+              <div className="mt-3">
+                <Alert>O valor máximo por lançamento é {formatBRL(selected!.maxAmountPerEntryCents!)}.</Alert>
+              </div>
+            ) : (
+              <p className="mt-3 text-center text-sm text-stone-500">
+                {formatBRL(selected!.stampValueCents!)} = 1 {selected!.unitLabel}. Os {selected!.unitLabelPlural} saem na hora, somados ao que o cliente já
+                tem guardado.
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm font-medium text-stone-700">Quantidade</p>
+            <div className="flex items-center justify-center gap-4">
+              <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
+                −
+              </Button>
+              <span className="w-16 text-center text-5xl font-extrabold tabular-nums">{qty}</span>
+              <Button variant="secondary" size="lg" className="w-16 text-2xl" onClick={() => setQty((q) => Math.min(100, q + 1))}>
+                +
+              </Button>
+            </div>
+          </>
+        )}
+        <Button size="xl" variant="dark" className="mt-4 w-full" onClick={generate} loading={busy} disabled={byValue && (!amount || overMax)}>
           Gerar QR
         </Button>
       </div>
@@ -713,7 +857,14 @@ function RecentList({ items }: { items: Recent[] }) {
               <span className="font-medium">{r.customerName}</span>
               <span className="text-stone-500"> · {formatTime(r.createdAt)}{r.staffName ? ` · ${r.staffName.split(' ')[0]}` : ''}</span>
             </span>
-            {r.type === 'RESGATE' ? <Badge color="green">Resgate</Badge> : <span className="font-semibold text-emerald-700">+{r.quantity}</span>}
+            {r.type === 'RESGATE' ? (
+              <Badge color="green">Resgate</Badge>
+            ) : (
+              <span className="text-right">
+                {r.amountCents != null && <span className="mr-2 text-stone-500 tabular-nums">{formatBRL(r.amountCents)}</span>}
+                <span className="font-semibold text-emerald-700 tabular-nums">+{r.quantity}</span>
+              </span>
+            )}
           </li>
         ))}
       </ul>
