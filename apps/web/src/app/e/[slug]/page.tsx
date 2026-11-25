@@ -80,6 +80,9 @@ function StoreLanding() {
           <TenantAvatar name={tenant.name} logoUrl={tenant.logoUrl} color="rgba(255,255,255,0.25)" size={72} />
           <h1 className="text-2xl font-bold">{tenant.name}</h1>
         </div>
+        {programs.length === 0 && (
+          <p className="p-6 text-center text-stone-600">O programa de fidelidade deste estabelecimento está sendo preparado. Volte em breve!</p>
+        )}
         {programs.length === 1 && (
           <div className="space-y-5 p-6">
             <p className="text-center text-lg">
@@ -109,7 +112,7 @@ function StoreLanding() {
       <div className="mt-6 space-y-3">
         {!tenant.active && <Alert kind="warning">Este estabelecimento está com o programa pausado no momento.</Alert>}
         {error && <Alert>{error}</Alert>}
-        {me ? (
+        {programs.length === 0 ? null : me ? (
           <Button size="lg" className="w-full" onClick={join} loading={joining} disabled={!tenant.active}>
             Participar com minha conta
           </Button>

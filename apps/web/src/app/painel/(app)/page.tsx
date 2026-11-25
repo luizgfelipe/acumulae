@@ -17,6 +17,7 @@ interface Dashboard {
   rewardsRedeemedThisMonth: number;
   rewardsAvailableNow: number;
   unitLabelPlural: string;
+  activePrograms: number;
 }
 
 export default function DashboardPage() {
@@ -40,6 +41,22 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">Olá, {me.user.name.split(' ')[0]}!</h1>
         <p className="text-stone-600">Resumo desde {formatDate(data.since)}.</p>
       </div>
+      {data.activePrograms === 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl border-2 border-brand-200 bg-brand-50 p-5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-brand-900">Falta o programa de fidelidade</p>
+            <p className="text-sm text-brand-900/80">
+              Crie (ou ative) um programa para começar: por selo ou por valor gasto. Sem ele, o caixa não lança e os clientes não conseguem participar.
+            </p>
+          </div>
+          <Link
+            href="/painel/programas"
+            className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 px-4 font-semibold text-white transition hover:bg-brand-700"
+          >
+            Ir para Programas
+          </Link>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
         {tiles.map((t) => (
           <Card key={t.label} className="p-4 sm:p-5">
