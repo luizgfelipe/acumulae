@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronDown, ChevronRight, KeyRound, LogOut, Trash2, TriangleAlert } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { useLoggedCustomer } from '@/components/customer-context';
 import { Alert, Button, Card, Field, Input, Modal, Switch, TenantAvatar } from '@/components/ui';
@@ -17,6 +18,7 @@ export default function AccountPage() {
   const [saving, setSaving] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     setName(me.name);
@@ -65,6 +67,7 @@ export default function AccountPage() {
   }
 
   async function doLogout() {
+    setLoggingOut(true);
     await logout();
     leaveAccount();
   }
@@ -144,22 +147,18 @@ export default function AccountPage() {
 
         <Section title="Acesso">
           <Card className="p-0">
-            <ul className="divide-y divide-stone-100">
-              <li>
-                <ActionRow onClick={() => setPwOpen(true)}>{me.hasPassword ? 'Trocar senha' : 'Criar senha'}</ActionRow>
-              </li>
-              <li>
-                <ActionRow onClick={doLogout}>Sair desta conta</ActionRow>
-              </li>
-            </ul>
+            <ActionRow onClick={() => setPwOpen(true)} icon={<KeyRound className="h-5 w-5" aria-hidden />}>
+              {me.hasPassword ? 'Trocar senha' : 'Criar senha'}
+            </ActionRow>
           </Card>
         </Section>
 
-        <div className="pt-2 text-center">
-          <button onClick={() => setDelOpen(true)} className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50">
-            Excluir minha conta
-          </button>
-        </div>
+        <Button variant="secondary" size="lg" className="w-full" onClick={doLogout} loading={loggingOut}>
+          {!loggingOut && <LogOut className="h-5 w-5" aria-hidden />}
+          Sair desta conta
+        </Button>
+
+        <DangerZone onDelete={() => setDelOpen(true)} />
       </div>
 
       <PasswordModal open={pwOpen} onClose={() => setPwOpen(false)} hasPassword={me.hasPassword} onDone={reload} />
@@ -200,17 +199,41 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ActionRow({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+function ActionRow({ onClick, icon, children }: { onClick: () => void; icon?: ReactNode; children: ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center justify-between px-5 py-3.5 text-left font-medium text-stone-800 transition-colors hover:bg-stone-50 first:rounded-t-2xl last:rounded-b-2xl"
+      className="flex w-full items-center gap-3 rounded-2xl px-5 py-3.5 text-left font-medium text-stone-800 transition-colors hover:bg-stone-50"
     >
-      {children}
-      <span aria-hidden className="text-lg text-stone-400">
-        ›
-      </span>
+      {icon && <span className="text-stone-500">{icon}</span>}
+      <span className="flex-1">{children}</span>
+      <ChevronRight className="h-5 w-5 text-stone-400" aria-hidden />
     </button>
+  );
+}
+
+/**
+ * Excluir a conta fica recolhido numa "zona de perigo": não aparece por engano no meio das
+ * opções do dia a dia, mas continua fácil de achar (direito de exclusão da LGPD).
+ */
+function DangerZone({ onDelete }: { onDelete: () => void }) {
+  return (
+    <details className="group rounded-2xl border border-red-200 bg-red-50/40 open:bg-red-50/70">
+      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl px-5 py-3.5 text-sm font-semibold text-red-800 transition-colors hover:bg-red-50 [&::-webkit-details-marker]:hidden">
+        <TriangleAlert className="h-5 w-5 shrink-0" aria-hidden />
+        <span className="flex-1">Zona de perigo</span>
+        <ChevronDown className="h-5 w-5 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+      </summary>
+      <div className="space-y-3 px-5 pb-5">
+        <p className="text-sm text-red-900/80">
+          Excluir a conta apaga seus dados pessoais, cartões e recompensas de todos os estabelecimentos. Não dá para desfazer.
+        </p>
+        <Button variant="danger" className="w-full" onClick={onDelete}>
+          <Trash2 className="h-4.5 w-4.5" aria-hidden />
+          Excluir minha conta
+        </Button>
+      </div>
+    </details>
   );
 }
 
