@@ -4,7 +4,7 @@ import { ChevronRight, Gift, Layers, List, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { CardSort, cardDisplay, isAlmostThere, isCardActive, rewardsLabel, sortCards } from '@/lib/card-display';
+import { CardSort, cardDisplay, isAlmostThere, isCardActive, leftoverLabel, rewardsLabel, sortCards } from '@/lib/card-display';
 import { cardTheme } from '@/lib/card-theme';
 import type { MembershipCard } from '@/lib/customer';
 import { plural } from '@/lib/format';
@@ -375,6 +375,7 @@ function CardBody({ card: c }: { card: MembershipCard }) {
   const th = cardTheme(c.tenant);
   const { complete, shown } = cardDisplay(c);
   const missing = Math.max(0, c.goal - c.balance);
+  const leftover = leftoverLabel(c);
   return (
     <div className="space-y-2 px-4 py-3">
       <ProgressBar value={shown} max={c.goal} color={th.accent} />
@@ -394,6 +395,7 @@ function CardBody({ card: c }: { card: MembershipCard }) {
           {c.tenant.active && !c.programActive && <Badge color="stone">Encerrado</Badge>}
         </span>
       </div>
+      {leftover && <p className="text-xs text-stone-500">{leftover}</p>}
     </div>
   );
 }

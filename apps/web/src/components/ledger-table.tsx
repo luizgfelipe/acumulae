@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { Alert, Badge, Button, Field, Input, Modal, cx } from './ui';
 import { errorMessage, staffApi } from '@/lib/api';
-import { LEDGER_LABELS, SOURCE_LABELS, formatDateTime } from '@/lib/format';
+import { LEDGER_LABELS, SOURCE_LABELS, formatBRL, formatDateTime } from '@/lib/format';
 
 export interface LedgerItem {
   id: string;
   type: string;
   quantity: number;
+  /** Programa por valor: valor da compra (negativo no estorno). */
+  amountCents?: number | null;
   rewardsDelta: number;
   source: string;
   createdAt: string;
@@ -28,7 +30,20 @@ function amount(e: LedgerItem) {
     const sign = e.rewardsDelta > 0 ? '+' : '';
     return <Badge color={e.rewardsDelta > 0 ? 'green' : 'stone'}>{`${sign}${e.rewardsDelta} recompensa`}</Badge>;
   }
-  return <span className={cx('font-semibold tabular-nums', e.quantity >= 0 ? 'text-emerald-700' : 'text-red-700')}>{e.quantity >= 0 ? `+${e.quantity}` : e.quantity}</span>;
+  const stamps = (
+    <span className={cx('font-semibold tabular-nums', e.quantity >= 0 ? 'text-emerald-700' : 'text-red-700')}>{e.quantity >= 0 ? `+${e.quantity}` : e.quantity}</span>
+  );
+  if (e.amountCents == null) return stamps;
+  // Programa por valor: o valor da compra e os selos que ela fechou.
+  return (
+    <span className="whitespace-nowrap">
+      {stamps}
+      <span className="ml-1.5 text-xs text-stone-500 tabular-nums">
+        {e.amountCents < 0 ? '−' : ''}
+        {formatBRL(Math.abs(e.amountCents))}
+      </span>
+    </span>
+  );
 }
 
 /** Tabela de movimentações do ledger com estorno (RN-70, RN-73). */
@@ -121,7 +136,7 @@ function ReverseModal({ entry, onClose, onDone }: { entry: LedgerItem | null; on
         <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-stone-700">
             {LEDGER_LABELS[entry.type]} de <strong>{entry.customerName}</strong> em {formatDateTime(entry.createdAt)}
-            {entry.type === 'CREDITO' ? ` (${entry.quantity})` : ''}. O lançamento original continua visível; será criada uma movimentação
+            {entry.type === 'CREDITO' ? ` (${entry.amountCents != null ? `compra de ${formatBRL(entry.amountCents)}` : entry.quantity})` : ''}. O lançamento original continua visível; será criada uma movimentação
             contrária.
           </p>
           {entry.type === 'CREDITO' && (

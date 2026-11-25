@@ -6,28 +6,51 @@ import { useEffect, useRef, useState } from 'react';
 import { PublicShell } from '@/components/customer-shell';
 import { InstallNow } from '@/components/install-prompt';
 import { StampGrid } from '@/components/stamps';
-import { cardDisplay, rewardsLabel } from '@/lib/card-display';
+import { cardDisplay, leftoverLabel, rewardsLabel } from '@/lib/card-display';
 import { Alert, FullPageSpinner, LinkButton, TenantAvatar } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
 import { useMe } from '@/lib/customer';
-import { plural } from '@/lib/format';
+import { formatBRL, plural } from '@/lib/format';
 
 interface TokenInfo {
   status: 'PENDING' | 'USED' | 'CANCELLED' | 'EXPIRED';
   quantity: number;
+  /** Programa por valor: valor da compra (os selos dependem do que o cliente já tem guardado). */
+  amountCents: number | null;
   expiresAt: string;
   tenant: BrandColors & StampStyle & { name: string; slug: string; logoUrl: string | null; active: boolean };
   storeName: string;
-  program: { unitLabel: string; unitLabelPlural: string; goal: number; rewardDescription: string } | null;
+  program: {
+    unitLabel: string;
+    unitLabelPlural: string;
+    goal: number;
+    rewardDescription: string;
+    kind: 'SELO' | 'VALOR';
+    stampValueCents: number | null;
+  } | null;
 }
 
 interface ClaimResult {
   tenantName: string;
   quantity: number;
+  amountCents: number | null;
+  /** Selos que entraram de fato. */
+  stamps: number;
   rewardsUnlocked: number;
-  card: { membershipId: string; balance: number; goal: number; rewardsAvailable: number; unitLabel: string; unitLabelPlural: string; rewardDescription: string };
+  card: {
+    membershipId: string;
+    kind: 'SELO' | 'VALOR';
+    stampValueCents: number | null;
+    leftoverCents: number;
+    balance: number;
+    goal: number;
+    rewardsAvailable: number;
+    unitLabel: string;
+    unitLabelPlural: string;
+    rewardDescription: string;
+  };
 }
 
 /** RN-44: QR temporário escaneado pela câmera do celular. */
@@ -87,10 +110,14 @@ export default function CheckoutClaimPage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold">+{plural(result.quantity, c.unitLabel, c.unitLabelPlural)}</h1>
+            <h1 className="text-3xl font-extrabold">
+              {result.stamps > 0 ? `+${plural(result.stamps, c.unitLabel, c.unitLabelPlural)}` : 'Compra registrada!'}
+            </h1>
             <p className="mt-1 text-lg text-stone-600">
+              {result.amountCents != null && <>Compra de {formatBRL(result.amountCents)} </>}
               no {result.tenantName}. Você tem <strong>{cardDisplay(c).shown}/{c.goal}</strong>.
             </p>
+            {leftoverLabel(c) && <p className="mt-1 text-sm text-stone-500">{leftoverLabel(c)}</p>}
           </div>
           {result.rewardsUnlocked > 0 && (
             <Alert kind="success">
@@ -150,11 +177,13 @@ export default function CheckoutClaimPage() {
     <PublicShell>
       {header}
       <h1 className="text-2xl font-bold">
-        Você ganhou {p ? plural(info!.quantity, p.unitLabel, p.unitLabelPlural) : info!.quantity}!
+        {info!.amountCents != null
+          ? `Sua compra de ${formatBRL(info!.amountCents)} vale ${p?.unitLabelPlural ?? 'selos'}!`
+          : `Você ganhou ${p ? plural(info!.quantity, p.unitLabel, p.unitLabelPlural) : info!.quantity}!`}
       </h1>
       <p className="mt-2 text-stone-600">
         Entre ou crie sua conta grátis para guardar no seu cartão fidelidade
-        {p ? ` (a cada ${p.goal}, ganhe ${p.rewardDescription})` : ''}. O código vale por alguns minutos.
+        {p?.kind === 'VALOR' && p.stampValueCents ? ` (cada ${formatBRL(p.stampValueCents)} em compras vale 1 ${p.unitLabel}; a cada ${p.goal}, ganhe ${p.rewardDescription})` : p ? ` (a cada ${p.goal}, ganhe ${p.rewardDescription})` : ''}. O código vale por alguns minutos.
       </p>
       <div className="mt-6 space-y-3">
         <LinkButton href={`/cadastro?next=${back}`} className="h-13 w-full text-lg">

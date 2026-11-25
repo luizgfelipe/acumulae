@@ -11,6 +11,19 @@ export function cardDisplay(c: { balance: number; goal: number; rewardsAvailable
   return { complete, shown: complete ? c.goal : c.balance };
 }
 
+import { formatBRL } from './format';
+
+/**
+ * Programa por valor: a sobra guardada e quanto falta para o próximo selo.
+ * null nos programas por selo.
+ */
+export function leftoverLabel(c: { kind?: 'SELO' | 'VALOR'; stampValueCents?: number | null; leftoverCents?: number; unitLabel: string }) {
+  if (c.kind !== 'VALOR' || !c.stampValueCents) return null;
+  const left = c.leftoverCents ?? 0;
+  if (left <= 0) return `Cada ${formatBRL(c.stampValueCents)} em compras vale 1 ${c.unitLabel}`;
+  return `${formatBRL(left)} guardados · faltam ${formatBRL(c.stampValueCents - left)} para o próximo ${c.unitLabel}`;
+}
+
 /** Aviso da recompensa pendente ("Você tem 1 recompensa para usar"). */
 export function rewardsLabel(n: number) {
   return n === 1 ? 'Você tem 1 recompensa para usar' : `Você tem ${n} recompensas para usar`;

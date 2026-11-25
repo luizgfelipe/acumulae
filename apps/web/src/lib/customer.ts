@@ -32,6 +32,11 @@ export interface MembershipCard {
   programId: string;
   programName: string;
   programActive: boolean;
+  /** SELO ou VALOR (R$ X em compras = 1 selo). */
+  kind: 'SELO' | 'VALOR';
+  stampValueCents: number | null;
+  /** Programa por valor: centavos guardados para o próximo selo. */
+  leftoverCents: number;
   carryOverExcess: boolean;
   balance: number;
   goal: number;

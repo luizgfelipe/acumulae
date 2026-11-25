@@ -6,6 +6,7 @@ import { LedgerItem, LedgerTable } from '@/components/ledger-table';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner } from '@/components/ui';
 import { staffApi } from '@/lib/api';
+import { leftoverLabel } from '@/lib/card-display';
 import { formatDate, formatE164 } from '@/lib/format';
 import { useLoad } from '@/lib/use-load';
 
@@ -20,7 +21,17 @@ interface CustomerDetail {
   firstVisitAt: string | null;
   lastVisitAt: string | null;
   visits: number;
-  card: { balance: number; goal: number; rewardsAvailable: number; rewardDescription: string; unitLabelPlural: string };
+  card: {
+    balance: number;
+    goal: number;
+    rewardsAvailable: number;
+    rewardDescription: string;
+    unitLabel: string;
+    unitLabelPlural: string;
+    kind: 'SELO' | 'VALOR';
+    stampValueCents: number | null;
+    leftoverCents: number;
+  };
   rewards: Array<{ id: string; description: string; status: string; unlockedAt: string; redeemedAt: string | null }>;
   ledger: LedgerItem[];
 }
@@ -65,6 +76,7 @@ export default function CustomerDetailPage() {
           <div className="mt-3">
             <ProgressBar value={c.card.balance} max={c.card.goal} color="#F26419" />
           </div>
+          {leftoverLabel(c.card) && <p className="mt-2 text-sm text-stone-600">{leftoverLabel(c.card)}</p>}
           <h2 className="mt-5 mb-2 text-sm font-semibold text-stone-700">Recompensas</h2>
           {c.rewards.length === 0 && <p className="text-sm text-stone-500">Nenhuma recompensa ainda.</p>}
           <ul className="space-y-1.5 text-sm">

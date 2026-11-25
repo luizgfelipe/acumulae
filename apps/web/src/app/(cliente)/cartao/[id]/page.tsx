@@ -7,15 +7,18 @@ import { Suspense, useEffect, useState } from 'react';
 import { StampGrid } from '@/components/stamps';
 import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, TenantAvatar, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { cardDisplay, rewardsLabel } from '@/lib/card-display';
+import { cardDisplay, leftoverLabel, rewardsLabel } from '@/lib/card-display';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
-import { LEDGER_LABELS, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
+import { LEDGER_LABELS, formatBRL, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
 
 interface Detail {
   membershipId: string;
   programName: string;
   programActive: boolean;
+  kind: 'SELO' | 'VALOR';
+  stampValueCents: number | null;
+  leftoverCents: number;
   balance: number;
   goal: number;
   rewardsAvailable: number;
@@ -27,7 +30,7 @@ interface Detail {
   firstVisitAt: string | null;
   marketingConsent: boolean | null;
   rewards: Array<{ id: string; description: string; status: string; unlockedAt: string; redeemedAt: string | null; redeemedStore: string | null }>;
-  history: Array<{ id: string; type: string; quantity: number; createdAt: string; storeName: string | null }>;
+  history: Array<{ id: string; type: string; quantity: number; amountCents: number | null; createdAt: string; storeName: string | null }>;
 }
 
 export default function Page() {
@@ -134,6 +137,7 @@ function MembershipPage() {
               size={d.goal > 15 ? 'sm' : 'md'}
               complete={complete}
             />
+            {d.kind === 'VALOR' && d.stampValueCents && <LeftoverMeter d={d} color={th.accent} />}
             {complete ? (
               <p className="mt-4 rounded-xl px-3 py-2 text-center text-sm font-medium" style={{ background: `${th.accent}1A`, color: th.accent }}>
                 Para resgatar, mostre seu QR ou informe seu telefone no caixa. O cartão recomeça depois do resgate.
@@ -198,6 +202,11 @@ function MembershipPage() {
         <Card>
           <h2 className="mb-2 font-semibold">Regras</h2>
           <ul className="space-y-1 text-sm text-stone-700">
+            {d.kind === 'VALOR' && d.stampValueCents && (
+              <li>
+                Cada {formatBRL(d.stampValueCents)} em compras vale 1 {d.unitLabel}. O que sobrar de uma compra fica guardado para a próxima.
+              </li>
+            )}
             <li>
               Meta: {d.goal} {d.unitLabelPlural} = {d.rewardDescription}.
             </li>
@@ -227,7 +236,10 @@ function MembershipPage() {
             {d.history.map((h) => (
               <li key={h.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                 <div>
-                  <p className="font-medium">{LEDGER_LABELS[h.type] ?? h.type}</p>
+                  <p className="font-medium">
+                    {LEDGER_LABELS[h.type] ?? h.type}
+                    {h.amountCents != null && <span className="font-normal text-stone-500"> · {formatBRL(Math.abs(h.amountCents))}</span>}
+                  </p>
                   <p className="text-xs text-stone-500">
                     {formatDateTime(h.createdAt)}
                     {h.storeName ? ` · ${h.storeName}` : ''}
@@ -240,6 +252,26 @@ function MembershipPage() {
         </Card>
       </div>
     </>
+  );
+}
+
+/** Programa por valor: barra do próximo selo com a sobra guardada. */
+function LeftoverMeter({ d, color }: { d: Detail; color: string }) {
+  const v = d.stampValueCents!;
+  const pct = Math.min(100, (d.leftoverCents / v) * 100);
+  return (
+    <div className="mt-4 rounded-xl bg-stone-50 px-3 py-2.5">
+      <div className="mb-1.5 flex items-baseline justify-between text-xs">
+        <span className="font-medium text-stone-700">Próximo {d.unitLabel}</span>
+        <span className="tabular-nums text-stone-500">
+          {formatBRL(d.leftoverCents)} de {formatBRL(v)}
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <p className="mt-1.5 text-xs text-stone-500">{leftoverLabel(d)}</p>
+    </div>
   );
 }
 
