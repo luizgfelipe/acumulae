@@ -17,7 +17,7 @@ interface StaffData {
     isMe: boolean;
     stores: { id: string; name: string }[];
   }>;
-  pendingInvites: Array<{ id: string; email: string; name: string | null; role: string; expiresAt: string }>;
+  pendingInvites: Array<{ id: string; email: string; name: string | null; role: string; expiresAt: string; stores: { id: string; name: string }[] }>;
 }
 
 type Store = { id: string; name: string; status: string };
@@ -30,6 +30,8 @@ export default function StaffPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Escolha de unidades de um atendente (editar, ou ao tornar um gestor atendente). */
+  const [storesFor, setStoresFor] = useState<{ member: StaffData['members'][number]; demote: boolean } | null>(null);
   const { plan, reload: reloadPanel } = usePanel();
   const staffLimit = plan?.limits.staff;
 
@@ -58,8 +60,10 @@ export default function StaffPage() {
     try {
       setData(await staffApi<StaffData>(`/api/admin/staff/${id}`, { method: 'PATCH', body }));
       reloadPanel();
+      return true;
     } catch (err) {
       setActionError(errorMessage(err));
+      return false;
     }
   }
 
@@ -90,13 +94,29 @@ export default function StaffPage() {
                   {m.name} {m.isMe && <span className="text-xs text-stone-500">(você)</span>}
                 </p>
                 <p className="text-sm text-stone-500">{m.email}</p>
-                {m.role === 'ATTENDANT' && !singleStore && <p className="text-xs text-stone-500">Unidades: {m.stores.map((s) => s.name).join(', ') || 'nenhuma'}</p>}
+                {m.role === 'ATTENDANT' && !singleStore && (
+                  <p className="text-xs text-stone-500">Unidades: {m.stores.map((s) => s.name).join(', ') || 'nenhuma'}</p>
+                )}
+                {m.role === 'MANAGER' && !singleStore && <p className="text-xs text-stone-500">Todas as unidades</p>}
               </div>
               <Badge color={m.role === 'MANAGER' ? 'brand' : 'stone'}>{m.role === 'MANAGER' ? 'Gestor' : 'Atendente'}</Badge>
               <Badge color={m.status === 'ACTIVE' ? 'green' : 'red'}>{m.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}</Badge>
               {!m.isMe && (
                 <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => update(m.membershipId, { role: m.role === 'MANAGER' ? 'ATTENDANT' : 'MANAGER' })}>
+                  {m.role === 'ATTENDANT' && !singleStore && (
+                    <Button size="sm" variant="secondary" onClick={() => setStoresFor({ member: m, demote: false })}>
+                      Unidades
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      m.role === 'MANAGER' && !singleStore
+                        ? setStoresFor({ member: m, demote: true })
+                        : update(m.membershipId, { role: m.role === 'MANAGER' ? 'ATTENDANT' : 'MANAGER' })
+                    }
+                  >
                     Tornar {m.role === 'MANAGER' ? 'atendente' : 'gestor'}
                   </Button>
                   <Button size="sm" variant={m.status === 'ACTIVE' ? 'ghost' : 'secondary'} className={m.status === 'ACTIVE' ? 'text-red-700' : ''} onClick={() => update(m.membershipId, { status: m.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' })}>
@@ -118,6 +138,9 @@ export default function StaffPage() {
                 <span>
                   {i.name ? `${i.name} · ` : ''}
                   {i.email} ({i.role === 'MANAGER' ? 'gestor' : 'atendente'})
+                  {i.role !== 'MANAGER' && !singleStore && i.stores.length > 0 && (
+                    <span className="text-stone-500"> · {i.stores.map((st) => st.name).join(', ')}</span>
+                  )}
                 </span>
                 <span className="text-stone-500">expira {formatDateTime(i.expiresAt)}</span>
               </li>
@@ -144,31 +167,27 @@ export default function StaffPage() {
             </Select>
           </Field>
           {form.role === 'ATTENDANT' && !singleStore && (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-stone-700">Unidades permitidas</p>
-              <div className="space-y-1.5">
-                {activeStores.map((s) => (
-                  <label key={s.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-brand-600"
-                      checked={form.storeIds.includes(s.id)}
-                      onChange={(e) =>
-                        setForm({ ...form, storeIds: e.target.checked ? [...form.storeIds, s.id] : form.storeIds.filter((x) => x !== s.id) })
-                      }
-                    />
-                    {s.name}
-                  </label>
-                ))}
-              </div>
-            </div>
+            <StorePicker stores={activeStores} value={form.storeIds} onChange={(storeIds) => setForm({ ...form, storeIds })} />
           )}
+          {form.role === 'MANAGER' && !singleStore && <p className="text-xs text-stone-500">Gestores acessam todas as unidades.</p>}
           {formError && <Alert>{formError}</Alert>}
           <Button type="submit" loading={busy}>
             Enviar convite
           </Button>
         </form>
       </Card>
+
+      <StoresModal
+        key={storesFor?.member.membershipId ?? 'none'}
+        target={storesFor}
+        stores={activeStores}
+        onClose={() => setStoresFor(null)}
+        onSave={async (storeIds) => {
+          if (!storesFor) return;
+          const ok = await update(storesFor.member.membershipId, storesFor.demote ? { role: 'ATTENDANT', storeIds } : { storeIds });
+          if (ok) setStoresFor(null);
+        }}
+      />
 
       <Modal open={!!inviteUrl} onClose={() => setInviteUrl(null)} title="Convite criado">
         <p className="text-sm text-stone-700">Enviamos o convite por e-mail. Você também pode mandar este link (uso único, válido por 72 horas):</p>
@@ -181,5 +200,75 @@ export default function StaffPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+/** Unidades em que o atendente pode usar o caixa. */
+function StorePicker({ stores, value, onChange }: { stores: Store[]; value: string[]; onChange: (ids: string[]) => void }) {
+  const all = stores.length > 0 && stores.every((s) => value.includes(s.id));
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <p className="text-sm font-medium text-stone-700">Unidades em que pode trabalhar</p>
+        <button type="button" className="text-xs font-semibold text-accent-600 hover:underline" onClick={() => onChange(all ? [] : stores.map((s) => s.id))}>
+          {all ? 'Desmarcar todas' : 'Marcar todas'}
+        </button>
+      </div>
+      <div className="divide-y divide-stone-100 rounded-xl border border-stone-200">
+        {stores.map((s) => (
+          <label key={s.id} className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-stone-50">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-brand-600"
+              checked={value.includes(s.id)}
+              onChange={(e) => onChange(e.target.checked ? [...value, s.id] : value.filter((x) => x !== s.id))}
+            />
+            {s.name}
+          </label>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-stone-500">O atendente só entra no caixa das unidades marcadas.</p>
+    </div>
+  );
+}
+
+/** Editar as unidades de um atendente, ou escolher as unidades ao tornar um gestor atendente. */
+function StoresModal({
+  target,
+  stores,
+  onClose,
+  onSave,
+}: {
+  target: { member: StaffData['members'][number]; demote: boolean } | null;
+  stores: Store[];
+  onClose: () => void;
+  onSave: (storeIds: string[]) => Promise<void>;
+}) {
+  const [ids, setIds] = useState<string[]>(() => (target && !target.demote ? target.member.stores.map((s) => s.id) : []));
+  const [saving, setSaving] = useState(false);
+  if (!target) return null;
+  return (
+    <Modal open onClose={onClose} title={target.demote ? 'Tornar ' + target.member.name + ' atendente' : 'Unidades de ' + target.member.name}>
+      <div className="space-y-4">
+        {target.demote && <p className="text-sm text-stone-600">Atendentes só usam o caixa. Escolha em quais unidades.</p>}
+        <StorePicker stores={stores} value={ids} onChange={setIds} />
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            disabled={!ids.length}
+            loading={saving}
+            onClick={async () => {
+              setSaving(true);
+              await onSave(ids);
+              setSaving(false);
+            }}
+          >
+            {target.demote ? 'Tornar atendente' : 'Salvar'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
