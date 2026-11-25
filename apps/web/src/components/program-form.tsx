@@ -2,10 +2,19 @@
 
 import { FormEvent, useState } from 'react';
 import { Alert, Button, Field, Input, cx } from './ui';
-import { WEEKDAYS } from '@/lib/format';
+import { MoneyInput } from './money-input';
+import { WEEKDAYS, formatBRL } from '@/lib/format';
+
+export type ProgramKind = 'SELO' | 'VALOR';
 
 export interface ProgramFields {
   name: string;
+  /** SELO: o caixa lança selos. VALOR: o caixa informa o valor da compra e o app converte. */
+  kind: ProgramKind;
+  /** VALOR: quanto vale 1 selo, em centavos. */
+  stampValueCents: number | null;
+  /** VALOR: maior compra aceita num lançamento, em centavos (null = sem limite). */
+  maxAmountPerEntryCents: number | null;
   unitLabel: string;
   unitLabelPlural: string | null;
   goal: number;
@@ -17,6 +26,9 @@ export interface ProgramFields {
 
 export const EMPTY_PROGRAM: ProgramFields = {
   name: '',
+  kind: 'SELO',
+  stampValueCents: null,
+  maxAmountPerEntryCents: 100_000,
   unitLabel: 'selo',
   unitLabelPlural: '',
   goal: 10,
@@ -26,24 +38,50 @@ export const EMPTY_PROGRAM: ProgramFields = {
   carryOverExcess: true,
 };
 
+const KINDS: Array<{ value: ProgramKind; label: string; hint: string }> = [
+  { value: 'SELO', label: 'Por selo', hint: 'O atendente escolhe quantos selos o cliente ganha. Ex.: 1 por rodízio.' },
+  { value: 'VALOR', label: 'Por valor gasto', hint: 'O atendente digita o valor da compra e o app converte em selos, guardando o troco.' },
+];
+
+/** "Ex.: compra de R$ 45,00 → 4 selos, e R$ 5,00 ficam guardados para a próxima." */
+function valueExample(stampValueCents: number, one: string, many: string) {
+  const purchase = Math.round(stampValueCents * 4.5);
+  const stamps = Math.floor(purchase / stampValueCents);
+  const left = purchase % stampValueCents;
+  const units = stamps === 1 ? one : many || `${one}s`;
+  return `Ex.: compra de ${formatBRL(purchase)} → ${stamps} ${units}, e ${formatBRL(left)} ficam guardados para a próxima compra.`;
+}
+
 /** Formulário de programa de fidelidade (criar e editar). */
 export function ProgramForm({
   initial,
   submitLabel,
   onSubmit,
   extra,
+  valueLocked = false,
 }: {
   initial: ProgramFields;
   submitLabel: string;
   onSubmit: (p: ProgramFields) => Promise<void>;
   extra?: React.ReactNode;
+  /** Programa com clientes: o tipo e o valor do selo não mudam mais. */
+  valueLocked?: boolean;
 }) {
   const [p, setP] = useState<ProgramFields>(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const byValue = p.kind === 'VALOR';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (byValue && !p.stampValueCents) {
+      setError('Informe quanto a compra precisa somar para valer 1 selo.');
+      return;
+    }
+    if (byValue && p.maxAmountPerEntryCents && p.stampValueCents && p.maxAmountPerEntryCents < p.stampValueCents) {
+      setError('A compra máxima por lançamento não pode ser menor que o valor do selo.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -63,13 +101,67 @@ export function ProgramForm({
       <Field label="Nome do programa" hint='Aparece no cartão do cliente. Ex.: "Cartão Rodízio".'>
         <Input value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} required minLength={2} maxLength={60} />
       </Field>
+      <fieldset disabled={valueLocked}>
+        <legend className="mb-1.5 text-sm font-medium text-stone-700">Como o cliente acumula</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {KINDS.map((k) => {
+            const on = p.kind === k.value;
+            return (
+              <button
+                type="button"
+                key={k.value}
+                aria-pressed={on}
+                onClick={() => setP({ ...p, kind: k.value })}
+                className={cx(
+                  'rounded-xl border-2 p-3 text-left transition disabled:cursor-not-allowed',
+                  on ? 'border-brand-600 bg-brand-50' : 'border-stone-200 bg-white hover:border-stone-300',
+                  valueLocked && !on && 'opacity-50',
+                )}
+              >
+                <span className={cx('block text-sm font-semibold', on ? 'text-brand-800' : 'text-stone-800')}>{k.label}</span>
+                <span className="mt-0.5 block text-xs text-stone-500">{k.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+        {valueLocked && (
+          <p className="mt-1.5 text-xs text-stone-500">
+            Este programa já tem clientes: o tipo{byValue ? ' e o valor do selo' : ''} não podem mudar. Para outra regra, crie um programa novo.
+          </p>
+        )}
+      </fieldset>
+
+      {byValue && (
+        <div className="space-y-3 rounded-xl border border-brand-100 bg-brand-50/50 p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Cada compra de" hint={`vale 1 ${p.unitLabel || 'selo'}.`}>
+              <MoneyInput cents={p.stampValueCents} onCents={(v) => setP({ ...p, stampValueCents: v })} disabled={valueLocked} required />
+            </Field>
+            <Field label="Compra máxima por lançamento" hint="Evita erro de digitação. Vazio = sem limite.">
+              <MoneyInput cents={p.maxAmountPerEntryCents} onCents={(v) => setP({ ...p, maxAmountPerEntryCents: v })} />
+            </Field>
+          </div>
+          {p.stampValueCents ? <p className="text-xs text-stone-600">{valueExample(p.stampValueCents, p.unitLabel || 'selo', p.unitLabelPlural || '')}</p> : null}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Meta de selos" hint="De 2 a 50.">
+        <Field label={`Meta de ${p.unitLabelPlural || 'selos'}`} hint="De 2 a 50.">
           <Input type="number" min={2} max={50} value={p.goal} onChange={(e) => setP({ ...p, goal: Number(e.target.value) })} required />
         </Field>
-        <Field label="Máximo por lançamento" hint="Antifraude.">
-          <Input type="number" min={1} max={100} value={p.maxPerEntry} onChange={(e) => setP({ ...p, maxPerEntry: Number(e.target.value) })} required />
-        </Field>
+        {byValue ? (
+          p.stampValueCents ? (
+            <div className="self-end pb-1 text-xs text-stone-500">
+              Cartão completo a cada <strong className="text-stone-700">{formatBRL(p.stampValueCents * p.goal)}</strong> em compras.
+            </div>
+          ) : (
+            <div />
+          )
+        ) : (
+          <Field label="Máximo por lançamento" hint="Antifraude.">
+            <Input type="number" min={1} max={100} value={p.maxPerEntry} onChange={(e) => setP({ ...p, maxPerEntry: Number(e.target.value) })} required />
+          </Field>
+        )}
       </div>
       <Field label="Recompensa" hint='Ex.: "1 rodízio grátis".'>
         <Input value={p.rewardDescription} onChange={(e) => setP({ ...p, rewardDescription: e.target.value })} required maxLength={120} />

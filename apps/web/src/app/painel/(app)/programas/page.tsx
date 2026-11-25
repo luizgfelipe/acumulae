@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, Modal } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
+import { formatBRL, valueRule } from '@/lib/format';
 import { ProgramItem, ProgramsList } from '@/lib/programs';
 import { useLoad } from '@/lib/use-load';
 
@@ -70,12 +71,22 @@ export default function ProgramsPage() {
                 <p className="text-sm text-stone-600">
                   A cada {p.goal} {p.unitLabelPluralResolved}: {p.rewardDescription}
                 </p>
+                {p.kind === 'VALOR' && p.stampValueCents && (
+                  <p className="mt-1 text-sm font-medium text-brand-800">Por valor gasto: {valueRule(p.stampValueCents, p.unitLabel)}</p>
+                )}
               </div>
               <Badge color={p.active ? 'green' : 'stone'}>{p.active ? 'Ativo' : 'Desativado'}</Badge>
             </div>
             <ul className="mt-3 space-y-0.5 text-xs text-stone-500">
               <li>{p.carryOverExcess ? 'Guarda o excedente para o próximo cartão' : 'Não guarda o excedente (cartão recomeça do zero)'}</li>
-              <li>Resgate: {p.redeemWeekdaysText ?? 'qualquer dia'} · máximo {p.maxPerEntry} por lançamento</li>
+              <li>
+                Resgate: {p.redeemWeekdaysText ?? 'qualquer dia'} ·{' '}
+                {p.kind === 'VALOR'
+                  ? p.maxAmountPerEntryCents
+                    ? `compra máxima de ${formatBRL(p.maxAmountPerEntryCents)} por lançamento`
+                    : 'sem limite de valor por lançamento'
+                  : `máximo ${p.maxPerEntry} por lançamento`}
+              </li>
               <li>
                 {p.members} {p.members === 1 ? 'cliente' : 'clientes'} · {p.rewardsAvailable} recompensa(s) a resgatar
               </li>

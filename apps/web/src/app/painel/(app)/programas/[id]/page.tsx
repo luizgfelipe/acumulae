@@ -28,6 +28,7 @@ export default function EditProgramPage() {
       <Card className="max-w-2xl">
         <ProgramForm
           initial={p}
+          valueLocked={p.valueLocked}
           submitLabel="Salvar alterações"
           extra={<p className="text-xs text-stone-500">Mudar a meta não altera recompensas já liberadas.</p>}
           onSubmit={async (fields) => {

@@ -8,6 +8,8 @@ export interface ProgramItem extends ProgramFields {
   createdAt: string;
   members: number;
   rewardsAvailable: number;
+  /** Com clientes: tipo e valor do selo travados. */
+  valueLocked: boolean;
 }
 
 export interface ProgramsList {

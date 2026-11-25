@@ -84,3 +84,13 @@ export function readableOn(hex: string | null | undefined): '#ffffff' | '#1c1917
   const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return lum > 0.45 ? '#1c1917' : '#ffffff';
 }
+
+/** "R$ 1.234,50" a partir de centavos. */
+export function formatBRL(cents: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100).replace(/\s/g, ' ');
+}
+
+/** Regra do programa por valor, para exibir: "R$ 10,00 = 1 selo". */
+export function valueRule(stampValueCents: number, unitLabel: string) {
+  return `${formatBRL(stampValueCents)} = 1 ${unitLabel}`;
+}
