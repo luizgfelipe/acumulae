@@ -22,7 +22,7 @@ import { SEGMENTS, SEGMENT_CODES } from '../common/segments';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, Tx } from '../prisma/prisma.service';
 import { InvitesService } from '../staff/invites.service';
 
 export const brandingUpdateSchema = z
@@ -352,17 +352,19 @@ export class AdminService {
   // ───────────── Funcionários ─────────────
 
   async staff(ctx: AdminCtx) {
-    const [members, invites] = await Promise.all([
+    const [members, stores, invites] = await Promise.all([
       this.prisma.staffMembership.findMany({
         where: { tenantId: ctx.tenantId },
         include: { staffUser: true, storeAccess: { include: { store: { select: { id: true, name: true } } } } },
         orderBy: { createdAt: 'asc' },
       }),
+      this.prisma.store.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true } }),
       this.prisma.staffInvite.findMany({
         where: { tenantId: ctx.tenantId, usedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
+    const storeName = new Map(stores.map((st) => [st.id, st]));
     return {
       members: members.map((m) => ({
         membershipId: m.id,
@@ -374,16 +376,35 @@ export class AdminService {
         isMe: m.id === ctx.membershipId,
         stores: m.storeAccess.map((a) => a.store),
       })),
-      pendingInvites: invites.map((i) => ({ id: i.id, email: i.email, name: i.name, role: i.role, expiresAt: i.expiresAt })),
+      pendingInvites: invites.map((i) => ({
+        id: i.id,
+        email: i.email,
+        name: i.name,
+        role: i.role,
+        expiresAt: i.expiresAt,
+        stores: i.role === 'MANAGER' ? [] : i.storeIds.map((id) => storeName.get(id)).filter((x): x is { id: string; name: string } => !!x),
+      })),
     };
   }
 
-  async inviteStaff(ctx: AdminCtx, input: z.infer<typeof staffInviteSchema>) {
-    if (input.role === 'ATTENDANT' && !input.storeIds.length) {
-      throw badRequest('STORES_REQUIRED', 'Selecione pelo menos uma unidade para o atendente.');
+  /**
+   * Unidades de um atendente: só deste estabelecimento e pelo menos uma. Com uma unidade ativa só,
+   * ela é usada quando nenhuma é informada. Gestor acessa todas (a lista é ignorada).
+   */
+  private async attendantStores(db: Tx | PrismaService, tenantId: string, storeIds: string[] | undefined) {
+    const ids = [...new Set(storeIds ?? [])];
+    if (ids.length) {
+      const found = await db.store.count({ where: { tenantId, id: { in: ids } } });
+      if (found !== ids.length) throw badRequest('INVALID_STORE', 'Unidade inválida.');
+      return ids;
     }
-    const valid = await this.prisma.store.count({ where: { tenantId: ctx.tenantId, id: { in: input.storeIds } } });
-    if (valid !== input.storeIds.length) throw badRequest('INVALID_STORE', 'Unidade inválida.');
+    const active = await db.store.findMany({ where: { tenantId, status: 'ACTIVE' }, select: { id: true } });
+    if (active.length === 1) return [active[0].id];
+    throw badRequest('STORES_REQUIRED', 'Selecione pelo menos uma unidade para o atendente.');
+  }
+
+  async inviteStaff(ctx: AdminCtx, input: z.infer<typeof staffInviteSchema>) {
+    input = { ...input, storeIds: input.role === 'MANAGER' ? [] : await this.attendantStores(this.prisma, ctx.tenantId, input.storeIds) };
     const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
     const { url, expiresAt } = await this.prisma.$transaction(async (tx) => {
       await lockTenant(tx, ctx.tenantId);
@@ -408,10 +429,13 @@ export class AdminService {
         if (!withinLimit(await staffInUse(tx, ctx.tenantId), plan.maxStaff)) throw staffLimitError(plan.maxStaff!);
       }
       await tx.staffMembership.update({ where: { id: m.id }, data: { role: input.role, status: input.status } });
-      if (input.storeIds) {
-        const stores = await tx.store.findMany({ where: { tenantId: ctx.tenantId, id: { in: input.storeIds } }, select: { id: true } });
+      // Atendente (inclusive quem acabou de virar atendente) precisa de unidade: as informadas ou as que já tinha.
+      const role = input.role ?? m.role;
+      if (role === 'ATTENDANT') {
+        const current = input.storeIds ?? (await tx.staffStoreAccess.findMany({ where: { staffMembershipId: m.id } })).map((a) => a.storeId);
+        const storeIds = await this.attendantStores(tx, ctx.tenantId, current);
         await tx.staffStoreAccess.deleteMany({ where: { staffMembershipId: m.id } });
-        await tx.staffStoreAccess.createMany({ data: stores.map((s) => ({ staffMembershipId: m.id, storeId: s.id })) });
+        await tx.staffStoreAccess.createMany({ data: storeIds.map((storeId) => ({ staffMembershipId: m.id, storeId })) });
       }
       if (input.status === 'INACTIVE') {
         // Encerra as sessões que estavam neste estabelecimento.

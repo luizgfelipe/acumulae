@@ -151,7 +151,8 @@ describe('Movimentações (RN-73)', () => {
 
 describe('Funcionários', () => {
   it('atendente precisa de pelo menos uma unidade, e só deste estabelecimento', async () => {
-    const { pos } = await setup();
+    // Com duas unidades (com uma só, ela é atribuída sozinha).
+    const { pos } = await twoStores();
     const other = await createTenant(app);
     const none = await pos.post('/api/admin/staff').send({ email: 'x@example.com', role: 'ATTENDANT', storeIds: [] }).expect(400);
     expect(none.body.code).toBe('STORES_REQUIRED');
@@ -204,6 +205,65 @@ describe('Funcionários', () => {
     const me = await att.agent.get('/api/staff/auth/me').expect(200);
     expect(me.body.workplaces[0].stores.map((s: { id: string }) => s.id)).toEqual([t.storeId]);
     await pos.post('/api/staff/auth/context').send({ tenantId: t.tenantId, storeId: extra.body.storeId }).expect(200);
+  });
+
+  /** Estabelecimento com duas unidades (a segunda criada pela plataforma). */
+  async function twoStores() {
+    const s = await setup();
+    const extra = await http()
+      .post(`/api/platform/tenants/${s.t.tenantId}/stores`)
+      .set('X-Platform-Key', PLATFORM_KEY)
+      .send({ name: 'Shopping', slug: 'shopping' })
+      .expect(201);
+    return { ...s, shoppingId: extra.body.storeId as string };
+  }
+  const memberOf = async (pos: Awaited<ReturnType<typeof setup>>['pos'], email: string) =>
+    (await pos.get('/api/admin/staff').expect(200)).body.members.find((x: { email: string }) => x.email === email);
+
+  it('o gestor troca as unidades de um atendente, e o acesso muda na hora', async () => {
+    const { t, pos, shoppingId } = await twoStores();
+    const att = await attendantAgent(app, pos, [t.storeId]);
+    const m = await memberOf(pos, att.email);
+
+    const r = await pos.patch(`/api/admin/staff/${m.membershipId}`).send({ storeIds: [shoppingId] }).expect(200);
+    const updated = r.body.members.find((x: { email: string }) => x.email === att.email);
+    expect(updated.stores.map((st: { id: string }) => st.id)).toEqual([shoppingId]);
+
+    // Perdeu o Centro: a sessão que estava lá precisa escolher a unidade de novo.
+    const pos403 = await att.agent.get('/api/pos/recent').expect(403);
+    expect(pos403.body.code).toBe('NO_STORE_CONTEXT');
+    await att.agent.post('/api/staff/auth/context').send({ tenantId: t.tenantId, storeId: t.storeId }).expect(403);
+    await att.agent.post('/api/staff/auth/context').send({ tenantId: t.tenantId, storeId: shoppingId }).expect(200);
+  });
+
+  it('atendente não fica sem unidade, nem com unidade de outro estabelecimento', async () => {
+    const { t, pos } = await twoStores();
+    const other = await createTenant(app);
+    const att = await attendantAgent(app, pos, [t.storeId]);
+    const m = await memberOf(pos, att.email);
+    const none = await pos.patch(`/api/admin/staff/${m.membershipId}`).send({ storeIds: [] }).expect(400);
+    expect(none.body.code).toBe('STORES_REQUIRED');
+    const foreign = await pos.patch(`/api/admin/staff/${m.membershipId}`).send({ storeIds: [other.storeId] }).expect(400);
+    expect(foreign.body.code).toBe('INVALID_STORE');
+  });
+
+  it('tornar um gestor atendente exige escolher as unidades (com mais de uma)', async () => {
+    const { pos, shoppingId } = await twoStores();
+    const email = `gestor2-${Date.now()}@example.com`;
+    const inv = await pos.post('/api/admin/staff').send({ name: 'Gestor 2', email, role: 'MANAGER' }).expect(201);
+    await managerAgent(app, inv.body.inviteUrl);
+    const m = await memberOf(pos, email);
+    const r = await pos.patch(`/api/admin/staff/${m.membershipId}`).send({ role: 'ATTENDANT' }).expect(400);
+    expect(r.body.code).toBe('STORES_REQUIRED');
+    const ok = await pos.patch(`/api/admin/staff/${m.membershipId}`).send({ role: 'ATTENDANT', storeIds: [shoppingId] }).expect(200);
+    expect(ok.body.members.find((x: { email: string }) => x.email === email)).toMatchObject({ role: 'ATTENDANT', stores: [{ id: shoppingId, name: 'Shopping' }] });
+  });
+
+  it('com uma unidade só, o convite de atendente já sai com ela', async () => {
+    const { t, pos } = await setup();
+    await pos.post('/api/admin/staff').send({ email: `unica-${Date.now()}@example.com`, role: 'ATTENDANT' }).expect(201);
+    const staff = await pos.get('/api/admin/staff').expect(200);
+    expect(staff.body.pendingInvites[0].stores).toEqual([{ id: t.storeId, name: expect.any(String) }]);
   });
 });
 
