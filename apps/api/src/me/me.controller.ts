@@ -77,6 +77,12 @@ export class MeController {
     return this.me.membershipDetail(c, id);
   }
 
+  /** Liga ou desliga as promoções de todos os estabelecimentos atuais de uma vez. */
+  @Patch('consent')
+  consentAll(@CurrentCustomer() c: CustomerPrincipal, @Body(new ZodPipe(consentSchema)) body: z.infer<typeof consentSchema>) {
+    return this.me.setConsentAll(c, body.marketingConsent);
+  }
+
   @Patch('memberships/:id/consent')
   consent(
     @CurrentCustomer() c: CustomerPrincipal,

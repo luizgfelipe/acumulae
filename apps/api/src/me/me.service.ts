@@ -233,6 +233,19 @@ export class MeService {
     return { membershipId: id, marketingConsent: consent };
   }
 
+  /**
+   * Atalho "todos de uma vez": aplica a mesma escolha a todos os estabelecimentos onde o cliente já
+   * tem cartão. Não vale para os próximos: estabelecimento novo continua perguntando (consentimento
+   * é por estabelecimento, seção 10).
+   */
+  async setConsentAll(me: CustomerPrincipal, consent: boolean) {
+    const r = await this.prisma.membership.updateMany({
+      where: { customerId: me.id },
+      data: { marketingConsent: consent, marketingConsentAt: new Date() },
+    });
+    return { marketingConsent: consent, updated: r.count };
+  }
+
   /** Fluxo 6.8: anonimiza os dados pessoais; o ledger permanece sem identificar a pessoa. */
   async deleteAccount(me: CustomerPrincipal, input: z.infer<typeof deleteMeSchema>) {
     const c = await this.prisma.customer.findUniqueOrThrow({ where: { id: me.id } });

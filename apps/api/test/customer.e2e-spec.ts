@@ -162,6 +162,34 @@ describe('Consentimento de marketing (RN-35, seção 10)', () => {
     expect(mB.marketingConsent).toBeNull();
   });
 
+  it('dá para ligar ou desligar todos de uma vez, ajustar um a um, e estabelecimento novo pergunta', async () => {
+    const a = await store();
+    const b = await store();
+    const later = await store();
+    const c = await customerAgent(app);
+    await c.agent.post('/api/me/memberships').send({ slug: a.t.slug }).expect(201);
+    await c.agent.post('/api/me/memberships').send({ slug: b.t.slug }).expect(201);
+
+    const all = await c.agent.patch('/api/me/consent').send({ marketingConsent: true }).expect(200);
+    expect(all.body).toMatchObject({ marketingConsent: true, updated: 2 });
+    expect((await c.agent.get('/api/me').expect(200)).body.pendingConsents).toBe(0);
+
+    // Um a um: desligar o B não mexe no A.
+    const mB = await prisma.membership.findFirstOrThrow({ where: { tenantId: b.t.tenantId, customerId: c.id } });
+    await c.agent.patch(`/api/me/memberships/${mB.id}/consent`).send({ marketingConsent: false }).expect(200);
+    const mA = await prisma.membership.findFirstOrThrow({ where: { tenantId: a.t.tenantId, customerId: c.id } });
+    expect(mA.marketingConsent).toBe(true);
+
+    // Estabelecimento novo não herda o "todos": pergunta normalmente.
+    await c.agent.post('/api/me/memberships').send({ slug: later.t.slug }).expect(201);
+    const mLater = await prisma.membership.findFirstOrThrow({ where: { tenantId: later.t.tenantId, customerId: c.id } });
+    expect(mLater.marketingConsent).toBeNull();
+
+    // Desligar todos vale para os três.
+    await c.agent.patch('/api/me/consent').send({ marketingConsent: false }).expect(200);
+    expect(await prisma.membership.count({ where: { customerId: c.id, marketingConsent: false } })).toBe(3);
+  });
+
   it('cartão novo no mesmo estabelecimento herda a escolha já feita', async () => {
     const { t, pos } = await store({ plan: 'DUO' });
     const c = await customerAgent(app);
