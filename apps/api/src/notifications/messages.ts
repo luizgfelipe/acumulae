@@ -1,4 +1,5 @@
 import { NotificationKind } from '@prisma/client';
+import { formatBRL } from '../loyalty/value';
 import type { Tx } from '../prisma/prisma.service';
 
 /** Unidade do programa no singular e no plural ("rodízio"/"rodízios"). */
@@ -25,14 +26,34 @@ export function creditMessage(p: {
   reward: string;
   /** Recompensas já liberadas e ainda não resgatadas: o aviso lembra o cliente. */
   rewardsAvailable?: number;
+  /** Programa por valor: a compra, a sobra que ficou e quanto vale o selo. */
+  value?: { amountCents: number; leftoverCents: number; stampValueCents: number };
 }): NotificationText {
   const missing = Math.max(0, p.goal - p.balance);
   const pending = p.rewardsAvailable ?? 0;
   const reminder = pending === 0 ? '' : pending === 1 ? ' Você tem 1 recompensa para usar.' : ` Você tem ${pending} recompensas para usar.`;
+  const card = `Seu cartão está com ${p.balance} de ${p.goal}.`;
+  if (p.value) {
+    const purchase = formatBRL(p.value.amountCents);
+    // Compra que não fechou selo: só a sobra mudou.
+    if (p.quantity === 0) {
+      return {
+        kind: 'CREDITO',
+        title: `Compra de ${purchase} registrada no ${p.tenant}`,
+        body: `Faltam ${formatBRL(p.value.stampValueCents - p.value.leftoverCents)} para o próximo ${p.units.one}. ${card}${reminder}`,
+      };
+    }
+    const saved = p.value.leftoverCents > 0 ? ` ${formatBRL(p.value.leftoverCents)} já contam para o próximo ${p.units.one}.` : '';
+    return {
+      kind: 'CREDITO',
+      title: `+${qty(p.quantity, p.units)} no ${p.tenant}`,
+      body: `Compra de ${purchase}. ${card} ${missing === 1 ? 'Falta' : 'Faltam'} ${qty(missing, p.units)} para: ${p.reward}.${saved}${reminder}`,
+    };
+  }
   return {
     kind: 'CREDITO',
     title: `+${qty(p.quantity, p.units)} no ${p.tenant}`,
-    body: `Seu cartão está com ${p.balance} de ${p.goal}. ${missing === 1 ? 'Falta' : 'Faltam'} ${qty(missing, p.units)} para: ${p.reward}.${reminder}`,
+    body: `${card} ${missing === 1 ? 'Falta' : 'Faltam'} ${qty(missing, p.units)} para: ${p.reward}.${reminder}`,
   };
 }
 
@@ -55,6 +76,8 @@ export function redeemedMessage(p: { tenant: string; count: number; reward: stri
 export function creditReversedMessage(p: {
   tenant: string;
   quantity: number;
+  /** Programa por valor: valor da compra estornada (o texto fala da compra, não dos selos). */
+  amountCents?: number | null;
   cancelledRewards: number;
   balance: number;
   goal: number;
@@ -62,6 +85,7 @@ export function creditReversedMessage(p: {
   /** Recompensas que continuam disponíveis depois do estorno. */
   rewardsAvailable?: number;
 }): NotificationText {
+  const what = p.amountCents != null ? `a compra de ${formatBRL(p.amountCents)}` : qty(p.quantity, p.units);
   const cancelled =
     p.cancelledRewards === 0 ? '' : p.cancelledRewards === 1 ? ' 1 recompensa foi cancelada.' : ` ${p.cancelledRewards} recompensas foram canceladas.`;
   const pending = p.rewardsAvailable ?? 0;
@@ -74,7 +98,7 @@ export function creditReversedMessage(p: {
   return {
     kind: 'ESTORNO',
     title: `Lançamento estornado no ${p.tenant}`,
-    body: `O estabelecimento estornou ${qty(p.quantity, p.units)}.${cancelled}${status}`,
+    body: `O estabelecimento estornou ${what}.${cancelled}${status}`,
   };
 }
 

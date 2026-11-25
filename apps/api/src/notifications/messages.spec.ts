@@ -50,3 +50,12 @@ describe('textos das notificações', () => {
     expect(redeemReversedMessage({ tenant: 'Sushi X', reward: '1 rodízio grátis' }).body).toBe('A recompensa "1 rodízio grátis" voltou para o seu cartão.');
   });
 });
+
+describe('creditReversedMessage: programa por valor', () => {
+  it('fala da compra estornada, não dos selos', () => {
+    const units = { one: 'selo', many: 'selos' };
+    expect(
+      creditReversedMessage({ tenant: 'Café', quantity: 2, amountCents: 2500, cancelledRewards: 0, balance: 3, goal: 10, units }).body,
+    ).toBe('O estabelecimento estornou a compra de R$ 25,00. Seu cartão está com 3 de 10.');
+  });
+});

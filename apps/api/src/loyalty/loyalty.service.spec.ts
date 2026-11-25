@@ -7,6 +7,9 @@ function program(over: Partial<LoyaltyProgram> = {}): LoyaltyProgram {
     id: 'p1',
     tenantId: 't1',
     name: 'Rodízio',
+    kind: 'SELO',
+    stampValueCents: null,
+    maxAmountPerEntryCents: null,
     active: true,
     goal: 10,
     rewardDescription: '1 rodízio grátis',
@@ -81,7 +84,7 @@ describe('redeemRestriction (RN-64)', () => {
  * Banco falso em memória, só com o que creditInTx usa. Permite testar a regra
  * de meta/excedente (RN-37, RN-38) sem PostgreSQL.
  */
-function fakeTx(p: LoyaltyProgram, initial = { balance: 0, rewards: 0, firstVisitAt: null as Date | null }) {
+function fakeTx(p: LoyaltyProgram, initial: { balance: number; rewards: number; firstVisitAt: Date | null; leftover?: number } = { balance: 0, rewards: 0, firstVisitAt: null }) {
   const entries: Array<Record<string, any>> = [];
   const rewards: Array<Record<string, any>> = [];
   const notifications: Array<Record<string, any>> = [];
@@ -95,6 +98,7 @@ function fakeTx(p: LoyaltyProgram, initial = { balance: 0, rewards: 0, firstVisi
       customerId: 'c1',
       cachedBalance: initial.balance,
       cachedRewardsAvailable: initial.rewards,
+      cachedLeftoverCents: initial.leftover ?? 0,
       firstVisitAt: initial.firstVisitAt,
     };
     return m;
@@ -304,5 +308,98 @@ describe('LoyaltyService.creditInTx: notificação do cliente', () => {
     const f = fakeTx(program(), { balance: 0, rewards: 0, firstVisitAt: null });
     await svc.creditInTx(f.tx, input(20));
     expect(f.notifications[0].title).toBe('2 recompensas liberadas no Sushi X!');
+  });
+});
+
+describe('LoyaltyService.creditInTx: programa por valor', () => {
+  const svc = new LoyaltyService({} as never);
+  // R$ 10,00 = 1 selo, meta 10, compra máxima R$ 500.
+  const valueProgram = (over: Partial<LoyaltyProgram> = {}) =>
+    program({ kind: 'VALOR', stampValueCents: 1000, maxAmountPerEntryCents: 50_000, unitLabel: 'selo', ...over });
+  const input = (amountCents: number | null, over: Partial<CreditInput> = {}): CreditInput => ({
+    tenantId: 't1',
+    storeId: 's1',
+    customerId: 'c1',
+    amountCents,
+    source: 'QR_PESSOAL',
+    staffUserId: 'u1',
+    idempotencyKey: 'k1',
+    ...over,
+  });
+
+  it('converte a compra em selos e guarda a sobra', async () => {
+    const f = fakeTx(valueProgram());
+    const r = await svc.creditInTx(f.tx, input(1500));
+    expect(r).toMatchObject({ stamps: 1, amountCents: 1500, rewardsUnlocked: 0 });
+    expect(r.card).toMatchObject({ kind: 'VALOR', stampValueCents: 1000, balance: 1, leftoverCents: 500 });
+    expect(f.entries[0]).toMatchObject({ type: 'CREDITO', quantity: 1, amountCents: 1500, leftoverDeltaCents: 500 });
+    expect(f.state().cachedLeftoverCents).toBe(500);
+  });
+
+  it('a sobra anterior entra na compra seguinte', async () => {
+    const f = fakeTx(valueProgram(), { balance: 1, rewards: 0, firstVisitAt: new Date(), leftover: 500 });
+    const r = await svc.creditInTx(f.tx, input(2000));
+    expect(r.card).toMatchObject({ balance: 3, leftoverCents: 500 });
+    // A sobra não mudou: a variação registrada no ledger é zero.
+    expect(f.entries[0]).toMatchObject({ quantity: 2, leftoverDeltaCents: 0 });
+  });
+
+  it('compra que não fecha selo conta como visita e só aumenta a sobra', async () => {
+    const f = fakeTx(valueProgram());
+    const r = await svc.creditInTx(f.tx, input(700));
+    expect(r).toMatchObject({ stamps: 0, firstVisit: true });
+    expect(r.card).toMatchObject({ balance: 0, leftoverCents: 700 });
+    expect(f.notifications[0]).toMatchObject({
+      kind: 'CREDITO',
+      title: 'Compra de R$ 7,00 registrada no Sushi X',
+      body: 'Faltam R$ 3,00 para o próximo selo. Seu cartão está com 0 de 10.',
+    });
+  });
+
+  it('completa o cartão com a compra e segue guardando a sobra', async () => {
+    const f = fakeTx(valueProgram(), { balance: 9, rewards: 0, firstVisitAt: new Date(), leftover: 500 });
+    const r = await svc.creditInTx(f.tx, input(1800));
+    // R$ 5 + R$ 18 = R$ 23 → 2 selos (11 de 10) → 1 recompensa, 1 selo e R$ 3 guardados.
+    expect(r.rewardsUnlocked).toBe(1);
+    expect(r.card).toMatchObject({ balance: 1, rewardsAvailable: 1, leftoverCents: 300 });
+  });
+
+  it('sem guardar excedente, descarta selos mas nunca a sobra em reais', async () => {
+    const f = fakeTx(valueProgram({ carryOverExcess: false }), { balance: 9, rewards: 0, firstVisitAt: new Date() });
+    const r = await svc.creditInTx(f.tx, input(2500));
+    expect(r).toMatchObject({ rewardsUnlocked: 1, discarded: 1 });
+    expect(r.card).toMatchObject({ balance: 0, leftoverCents: 500 });
+  });
+
+  it('notificação de selos conta a compra e o que já está guardado', async () => {
+    const f = fakeTx(valueProgram(), { balance: 5, rewards: 0, firstVisitAt: new Date() });
+    await svc.creditInTx(f.tx, input(2550));
+    expect(f.notifications[0]).toMatchObject({
+      title: '+2 selos no Sushi X',
+      body: 'Compra de R$ 25,50. Seu cartão está com 7 de 10. Faltam 3 selos para: 1 rodízio grátis. R$ 5,50 já contam para o próximo selo.',
+    });
+  });
+
+  it.each([null, 0, -100, 10.5])('recusa valor inválido: %p', async (v) => {
+    const f = fakeTx(valueProgram());
+    await expect(svc.creditInTx(f.tx, input(v))).rejects.toMatchObject(code('INVALID_AMOUNT'));
+    expect(f.entries).toHaveLength(0);
+  });
+
+  it('recusa acima do valor máximo por lançamento', async () => {
+    const f = fakeTx(valueProgram());
+    await expect(svc.creditInTx(f.tx, input(50_001))).rejects.toMatchObject(code('AMOUNT_ABOVE_LIMIT'));
+    await expect(svc.creditInTx(f.tx, input(50_000))).resolves.toBeDefined();
+  });
+
+  it('a quantidade de selos enviada é ignorada: vale o valor', async () => {
+    const f = fakeTx(valueProgram());
+    const r = await svc.creditInTx(f.tx, input(3000, { quantity: 50 }));
+    expect(r.stamps).toBe(3);
+  });
+
+  it('programa por selo exige a quantidade', async () => {
+    const f = fakeTx(program());
+    await expect(svc.creditInTx(f.tx, input(3000))).rejects.toMatchObject(code('INVALID_QUANTITY'));
   });
 });

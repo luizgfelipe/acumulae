@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LedgerSource, LoyaltyProgram, Membership, Prisma } from '@prisma/client';
+import { LedgerSource, LoyaltyProgram, Membership, Prisma, ProgramKind } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { AppError, badRequest, conflict, notFound } from '../common/errors';
 import { describeWeekdays, isoWeekdaySaoPaulo } from '../common/time';
@@ -13,6 +13,7 @@ import {
   tenantName,
 } from '../notifications/messages';
 import { PrismaService, Tx } from '../prisma/prisma.service';
+import { convertAmount, formatBRL, reverseAmount } from './value';
 
 const unitsOf = (p: LoyaltyProgram) => ({ one: p.unitLabel, many: pluralize(p.unitLabel, p.unitLabelPlural) });
 
@@ -22,7 +23,10 @@ export interface CreditInput {
   customerId: string;
   /** Programa a creditar. Opcional quando o estabelecimento tem um único programa ativo. */
   programId?: string | null;
-  quantity: number;
+  /** Programa por selo: quantos selos. Ignorado no programa por valor. */
+  quantity?: number | null;
+  /** Programa por valor: valor da compra em centavos. Ignorado no programa por selo. */
+  amountCents?: number | null;
   source: LedgerSource;
   staffUserId: string | null;
   checkoutTokenId?: string | null;
@@ -49,8 +53,14 @@ export interface CardSummary {
   programId: string;
   programName: string;
   programActive: boolean;
+  /** SELO: o caixa lança selos. VALOR: o caixa informa o valor da compra. */
+  kind: ProgramKind;
+  /** VALOR: quanto vale 1 selo, em centavos. */
+  stampValueCents: number | null;
   carryOverExcess: boolean;
   balance: number;
+  /** VALOR: centavos guardados para o próximo selo. */
+  leftoverCents: number;
   goal: number;
   rewardsAvailable: number;
   unitLabel: string;
@@ -68,20 +78,46 @@ export function pluralize(label: string, plural?: string | null) {
   return `${label}s`;
 }
 
-export function summarize(m: Pick<Membership, 'id' | 'cachedBalance' | 'cachedRewardsAvailable'> | null, p: LoyaltyProgram): CardSummary {
+export function summarize(
+  m: (Pick<Membership, 'id' | 'cachedBalance' | 'cachedRewardsAvailable'> & { cachedLeftoverCents?: number }) | null,
+  p: LoyaltyProgram,
+): CardSummary {
   return {
     membershipId: m?.id ?? '',
     programId: p.id,
     programName: p.name,
     programActive: p.active,
+    kind: p.kind,
+    stampValueCents: p.kind === 'VALOR' ? p.stampValueCents : null,
     carryOverExcess: p.carryOverExcess,
     balance: m?.cachedBalance ?? 0,
+    leftoverCents: m?.cachedLeftoverCents ?? 0,
     goal: p.goal,
     rewardsAvailable: m?.cachedRewardsAvailable ?? 0,
     unitLabel: p.unitLabel,
     unitLabelPlural: pluralize(p.unitLabel, p.unitLabelPlural),
     rewardDescription: p.rewardDescription,
   };
+}
+
+/** Programa por selo: inteiro de 1 até o máximo por lançamento (RN-32, RN-23). */
+function assertQuantity(p: LoyaltyProgram, quantity: number | null | undefined): asserts quantity is number {
+  if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1) {
+    throw badRequest('INVALID_QUANTITY', 'A quantidade deve ser um inteiro maior ou igual a 1.');
+  }
+  if (quantity > p.maxPerEntry) {
+    throw badRequest('QUANTITY_ABOVE_LIMIT', `O máximo por lançamento é ${p.maxPerEntry}.`);
+  }
+}
+
+/** Programa por valor: valor da compra em centavos, de R$ 0,01 até o máximo por lançamento. */
+export function assertAmount(p: LoyaltyProgram, amountCents: number | null | undefined): asserts amountCents is number {
+  if (typeof amountCents !== 'number' || !Number.isInteger(amountCents) || amountCents < 1) {
+    throw badRequest('INVALID_AMOUNT', 'Informe o valor da compra.');
+  }
+  if (p.maxAmountPerEntryCents && amountCents > p.maxAmountPerEntryCents) {
+    throw badRequest('AMOUNT_ABOVE_LIMIT', `O valor máximo por lançamento é ${formatBRL(p.maxAmountPerEntryCents)}.`);
+  }
 }
 
 /** Situação do resgate hoje (RN-64). */
@@ -194,6 +230,8 @@ export class LoyaltyService {
       return {
         replay: true,
         entry: existing,
+        stamps: existing.quantity,
+        amountCents: existing.amountCents,
         rewardsUnlocked: children.filter((c) => c.type === 'RECOMPENSA_LIBERADA').length,
         discarded: -children.filter((c) => c.type === 'EXCEDENTE_DESCARTADO').reduce((s, c) => s + c.quantity, 0),
         card: summarize(m, m.program),
@@ -202,16 +240,22 @@ export class LoyaltyService {
     }
 
     const program = await this.programForCredit(tx, input.tenantId, input.programId);
-    if (!Number.isInteger(input.quantity) || input.quantity < 1) {
-      throw badRequest('INVALID_QUANTITY', 'A quantidade deve ser um inteiro maior ou igual a 1.');
-    }
-    if (input.quantity > program.maxPerEntry) {
-      throw badRequest('QUANTITY_ABOVE_LIMIT', `O máximo por lançamento é ${program.maxPerEntry}.`);
-    }
+    const byValue = program.kind === 'VALOR';
+    if (byValue) assertAmount(program, input.amountCents);
+    else assertQuantity(program, input.quantity);
 
     const ensured = await this.ensureMembership(tx, input.tenantId, input.customerId, program.id);
     const m = await this.lock(tx, ensured.id);
     const now = new Date();
+
+    // Por valor: a compra soma à sobra do cliente; o que fecha selo vira selo, o resto continua guardado.
+    let stamps = input.quantity ?? 0;
+    let leftover = m.cachedLeftoverCents;
+    if (byValue) {
+      const c = convertAmount(input.amountCents!, m.cachedLeftoverCents, program.stampValueCents!);
+      stamps = c.stamps;
+      leftover = c.leftover;
+    }
     const base = {
       tenantId: input.tenantId,
       storeId: input.storeId,
@@ -223,14 +267,16 @@ export class LoyaltyService {
       data: {
         ...base,
         type: 'CREDITO',
-        quantity: input.quantity,
+        quantity: stamps,
+        amountCents: byValue ? input.amountCents : null,
+        leftoverDeltaCents: leftover - m.cachedLeftoverCents,
         source: input.source,
         checkoutTokenId: input.checkoutTokenId ?? null,
         idempotencyKey: input.idempotencyKey,
       },
     });
 
-    let balance = m.cachedBalance + input.quantity;
+    let balance = m.cachedBalance + stamps;
     let available = m.cachedRewardsAvailable;
     let unlocked = 0;
     while (balance >= program.goal) {
@@ -286,6 +332,7 @@ export class LoyaltyService {
       data: {
         cachedBalance: balance,
         cachedRewardsAvailable: available,
+        cachedLeftoverCents: leftover,
         lastVisitAt: now,
         firstVisitAt: m.firstVisitAt ?? now,
       },
@@ -300,17 +347,20 @@ export class LoyaltyService {
         ? rewardUnlockedMessage({ tenant, count: unlocked, reward: program.rewardDescription })
         : creditMessage({
             tenant,
-            quantity: input.quantity,
+            quantity: stamps,
             balance,
             goal: program.goal,
             units: unitsOf(program),
             reward: program.rewardDescription,
             rewardsAvailable: available,
+            value: byValue ? { amountCents: input.amountCents!, leftoverCents: leftover, stampValueCents: program.stampValueCents! } : undefined,
           }),
     );
     return {
       replay: false,
       entry,
+      stamps,
+      amountCents: byValue ? input.amountCents! : null,
       rewardsUnlocked: unlocked,
       discarded,
       card: summarize(updated, program),
@@ -466,36 +516,69 @@ export class LoyaltyService {
       }
 
       // CREDITO
-      const rev = await tx.ledgerEntry.create({
-        data: { ...base, type: 'ESTORNO_CREDITO', quantity: -entry.quantity, reversesEntryId: entry.id, idempotencyKey: key },
-      });
-      let balance = m.cachedBalance - entry.quantity;
-
+      const program = await tx.loyaltyProgram.findUniqueOrThrow({ where: { id: m.programId } });
       const discards = await tx.ledgerEntry.findMany({
         where: { parentEntryId: entry.id, type: 'EXCEDENTE_DESCARTADO', reversedBy: { is: null } },
+      });
+      // O excedente descartado por este consumo volta antes de tirar o consumo.
+      const before = m.cachedBalance + discards.reduce((s, d) => s - d.quantity, 0);
+
+      // Se o saldo não cobre o estorno, cancela recompensas disponíveis: primeiro as que este consumo
+      // liberou, depois as mais recentes.
+      const available0 = await tx.reward.findMany({ where: { membershipId: m.id, status: 'DISPONIVEL' }, orderBy: { createdAt: 'desc' } });
+      const order = [...available0.filter((r) => r.sourceEntryId === entry.id), ...available0.filter((r) => r.sourceEntryId !== entry.id)];
+      const alreadyRedeemed = () =>
+        conflict(
+          'REWARD_ALREADY_REDEEMED',
+          'Este consumo liberou uma recompensa que já foi resgatada. Estorne o resgate antes de estornar o consumo.',
+        );
+
+      let balance: number;
+      let leftover = m.cachedLeftoverCents;
+      let toCancel: typeof order;
+      if (entry.amountCents != null && program.stampValueCents) {
+        // Por valor: tira o valor da compra do "pote" (selos × valor + sobra) e converte de novo.
+        const r = reverseAmount({
+          balance: before,
+          leftoverCents: m.cachedLeftoverCents,
+          amountCents: entry.amountCents,
+          stampValueCents: program.stampValueCents,
+          rewardCosts: order.map((w) => w.stampsCost),
+        });
+        if (!r) throw alreadyRedeemed();
+        toCancel = order.slice(0, r.cancel);
+        balance = r.balance;
+        leftover = r.leftover;
+      } else {
+        balance = before - entry.quantity;
+        toCancel = [];
+        while (balance < 0) {
+          const next = order[toCancel.length];
+          if (!next) throw alreadyRedeemed();
+          toCancel.push(next);
+          balance += next.stampsCost;
+        }
+      }
+      const cancelledCost = toCancel.reduce((s, w) => s + w.stampsCost, 0);
+
+      // Soma do ledger: saldo + excedente devolvido + estorno + recompensas canceladas = saldo novo.
+      const rev = await tx.ledgerEntry.create({
+        data: {
+          ...base,
+          type: 'ESTORNO_CREDITO',
+          quantity: balance - before - cancelledCost,
+          amountCents: entry.amountCents != null ? -entry.amountCents : null,
+          leftoverDeltaCents: leftover - m.cachedLeftoverCents,
+          reversesEntryId: entry.id,
+          idempotencyKey: key,
+        },
       });
       for (const d of discards) {
         await tx.ledgerEntry.create({
           data: { ...base, type: 'ESTORNO_EXCEDENTE', quantity: -d.quantity, reversesEntryId: d.id, idempotencyKey: `${key}:discard:${d.id}` },
         });
-        balance += -d.quantity;
       }
-
-      let available = m.cachedRewardsAvailable;
-      let cancelled = 0;
-      while (balance < 0) {
-        const candidates = await tx.reward.findMany({
-          where: { membershipId: m.id, status: 'DISPONIVEL' },
-          orderBy: { createdAt: 'desc' },
-        });
-        const reward = candidates.find((r) => r.sourceEntryId === entry.id) ?? candidates[0];
-        if (!reward) {
-          throw conflict(
-            'REWARD_ALREADY_REDEEMED',
-            'Este consumo liberou uma recompensa que já foi resgatada. Estorne o resgate antes de estornar o consumo.',
-          );
-        }
-        cancelled++;
+      for (const [i, reward] of toCancel.entries()) {
         await tx.ledgerEntry.create({
           data: {
             ...base,
@@ -504,29 +587,31 @@ export class LoyaltyService {
             rewardsDelta: -1,
             parentEntryId: rev.id,
             rewardId: reward.id,
-            idempotencyKey: `${key}:cancel:${cancelled}`,
+            idempotencyKey: `${key}:cancel:${i + 1}`,
           },
         });
         await tx.reward.update({ where: { id: reward.id }, data: { status: 'ESTORNADA' } });
-        balance += reward.stampsCost;
-        available--;
       }
-      await tx.membership.update({ where: { id: m.id }, data: { cachedBalance: balance, cachedRewardsAvailable: available } });
-      const program = await tx.loyaltyProgram.findUniqueOrThrow({ where: { id: m.programId } });
+      const available = m.cachedRewardsAvailable - toCancel.length;
+      await tx.membership.update({
+        where: { id: m.id },
+        data: { cachedBalance: balance, cachedRewardsAvailable: available, cachedLeftoverCents: leftover },
+      });
       await notify(
         tx,
         m,
         creditReversedMessage({
           tenant: await tenantName(tx, params.tenantId),
           quantity: entry.quantity,
-          cancelledRewards: cancelled,
+          amountCents: entry.amountCents,
+          cancelledRewards: toCancel.length,
           balance,
           goal: program.goal,
           units: unitsOf(program),
           rewardsAvailable: available,
         }),
       );
-      return { reversal: rev, cancelledRewards: cancelled };
+      return { reversal: rev, cancelledRewards: toCancel.length };
     });
   }
 
@@ -536,8 +621,11 @@ export class LoyaltyService {
   async reconcile(opts: { tenantId?: string; fix?: boolean } = {}) {
     const where = opts.tenantId ? { tenantId: opts.tenantId } : {};
     const [memberships, sums, rewardCounts] = await Promise.all([
-      this.prisma.membership.findMany({ where, select: { id: true, tenantId: true, cachedBalance: true, cachedRewardsAvailable: true } }),
-      this.prisma.ledgerEntry.groupBy({ by: ['membershipId'], where, _sum: { quantity: true, rewardsDelta: true } }),
+      this.prisma.membership.findMany({
+        where,
+        select: { id: true, tenantId: true, cachedBalance: true, cachedRewardsAvailable: true, cachedLeftoverCents: true },
+      }),
+      this.prisma.ledgerEntry.groupBy({ by: ['membershipId'], where, _sum: { quantity: true, rewardsDelta: true, leftoverDeltaCents: true } }),
       this.prisma.reward.groupBy({ by: ['membershipId'], where: { ...where, status: 'DISPONIVEL' }, _count: { _all: true } }),
     ]);
     const sumMap = new Map(sums.map((s) => [s.membershipId, s._sum]));
@@ -549,18 +637,35 @@ export class LoyaltyService {
       cachedRewards: number;
       ledgerRewards: number;
       rewardsTable: number;
+      cachedLeftoverCents: number;
+      ledgerLeftoverCents: number;
     }> = [];
     for (const m of memberships) {
       const s = sumMap.get(m.id);
       const ledgerBalance = s?.quantity ?? 0;
       const ledgerRewards = s?.rewardsDelta ?? 0;
+      const ledgerLeftoverCents = s?.leftoverDeltaCents ?? 0;
       const rewardsTable = rewardMap.get(m.id) ?? 0;
-      if (ledgerBalance !== m.cachedBalance || ledgerRewards !== m.cachedRewardsAvailable || rewardsTable !== ledgerRewards) {
-        mismatches.push({ membershipId: m.id, cachedBalance: m.cachedBalance, ledgerBalance, cachedRewards: m.cachedRewardsAvailable, ledgerRewards, rewardsTable });
+      if (
+        ledgerBalance !== m.cachedBalance ||
+        ledgerRewards !== m.cachedRewardsAvailable ||
+        rewardsTable !== ledgerRewards ||
+        ledgerLeftoverCents !== m.cachedLeftoverCents
+      ) {
+        mismatches.push({
+          membershipId: m.id,
+          cachedBalance: m.cachedBalance,
+          ledgerBalance,
+          cachedRewards: m.cachedRewardsAvailable,
+          ledgerRewards,
+          rewardsTable,
+          cachedLeftoverCents: m.cachedLeftoverCents,
+          ledgerLeftoverCents,
+        });
         if (opts.fix) {
           await this.prisma.membership.update({
             where: { id: m.id },
-            data: { cachedBalance: ledgerBalance, cachedRewardsAvailable: ledgerRewards },
+            data: { cachedBalance: ledgerBalance, cachedRewardsAvailable: ledgerRewards, cachedLeftoverCents: ledgerLeftoverCents },
           });
         }
       }
