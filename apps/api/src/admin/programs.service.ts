@@ -9,8 +9,14 @@ import { PrismaService, Tx } from '../prisma/prisma.service';
 import { effectivePlan, withinLimit } from '../plans/plans';
 import type { AdminCtx } from './admin.service';
 
-export const programInputSchema = z.object({
+const programBaseSchema = z.object({
   name: z.string().trim().min(2, 'informe o nome do programa').max(60),
+  /** SELO (padrão): o caixa lança selos. VALOR: o caixa informa o valor da compra. */
+  kind: z.enum(['SELO', 'VALOR']).default('SELO'),
+  /** VALOR: quanto vale 1 selo, em centavos (de R$ 0,01 a R$ 100.000). */
+  stampValueCents: z.number().int().min(1).max(10_000_000).nullish(),
+  /** VALOR: maior compra aceita num lançamento, em centavos. Vazio = sem limite. */
+  maxAmountPerEntryCents: z.number().int().min(1).max(100_000_000).nullish(),
   unitLabel: z.string().trim().min(1).max(30),
   unitLabelPlural: z.string().trim().max(30).nullish(),
   goal: z.number().int().min(2).max(50),
@@ -19,7 +25,19 @@ export const programInputSchema = z.object({
   redeemWeekdays: weekdaysSchema,
   carryOverExcess: z.boolean(),
 });
-export const programCreateSchema = programInputSchema.extend({ active: z.boolean().default(true) });
+
+/** Programa por valor precisa do valor do selo, e a compra máxima não pode ser menor que ele. */
+function valueRules(p: { kind: 'SELO' | 'VALOR'; stampValueCents?: number | null; maxAmountPerEntryCents?: number | null }, ctx: z.RefinementCtx) {
+  if (p.kind !== 'VALOR') return;
+  if (!p.stampValueCents) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['stampValueCents'], message: 'informe quanto vale 1 selo' });
+  } else if (p.maxAmountPerEntryCents && p.maxAmountPerEntryCents < p.stampValueCents) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxAmountPerEntryCents'], message: 'a compra máxima não pode ser menor que o valor do selo' });
+  }
+}
+
+export const programInputSchema = programBaseSchema.superRefine(valueRules);
+export const programCreateSchema = programBaseSchema.extend({ active: z.boolean().default(true) }).superRefine(valueRules);
 
 /** Limite de programas ativos vem do plano vigente do estabelecimento (`null` = ilimitado). */
 export async function programLimit(tx: Tx, tenantId: string) {
@@ -51,6 +69,11 @@ export class ProgramsService {
       id: p.id,
       name: p.name,
       active: p.active,
+      kind: p.kind,
+      stampValueCents: p.stampValueCents,
+      maxAmountPerEntryCents: p.maxAmountPerEntryCents,
+      /** Com clientes, o tipo e o valor do selo não mudam (as sobras e os estornos dependem deles). */
+      valueLocked: (stats?.members ?? 0) > 0,
       goal: p.goal,
       rewardDescription: p.rewardDescription,
       unitLabel: p.unitLabel,
@@ -82,12 +105,22 @@ export class ProgramsService {
   }
 
   async get(ctx: AdminCtx, id: string) {
-    return this.view(await this.loyalty.programOf(this.prisma, ctx.tenantId, id));
+    const p = await this.loyalty.programOf(this.prisma, ctx.tenantId, id);
+    const stats = await this.prisma.membership.aggregate({
+      where: { programId: id },
+      _count: { _all: true },
+      _sum: { cachedRewardsAvailable: true },
+    });
+    return this.view(p, { members: stats._count._all, rewardsAvailable: stats._sum.cachedRewardsAvailable ?? 0 });
   }
 
   private data(input: z.infer<typeof programInputSchema>) {
+    const byValue = input.kind === 'VALOR';
     return {
       name: input.name,
+      kind: input.kind,
+      stampValueCents: byValue ? input.stampValueCents! : null,
+      maxAmountPerEntryCents: byValue ? (input.maxAmountPerEntryCents ?? null) : null,
       unitLabel: input.unitLabel,
       unitLabelPlural: input.unitLabelPlural || null,
       goal: input.goal,
@@ -111,8 +144,19 @@ export class ProgramsService {
 
   /** RN-24: alterar a meta não afeta recompensas já liberadas (o custo fica gravado na recompensa). */
   async update(ctx: AdminCtx, id: string, input: z.infer<typeof programInputSchema>) {
-    await this.loyalty.programOf(this.prisma, ctx.tenantId, id);
-    await this.prisma.loyaltyProgram.update({ where: { id }, data: this.data(input) });
+    const current = await this.loyalty.programOf(this.prisma, ctx.tenantId, id);
+    const data = this.data(input);
+    // Com clientes, trocar o tipo ou o valor do selo deixaria sobras e estornos antigos inconsistentes.
+    if (data.kind !== current.kind || data.stampValueCents !== current.stampValueCents) {
+      const members = await this.prisma.membership.count({ where: { programId: id } });
+      if (members > 0) {
+        throw conflict(
+          'PROGRAM_VALUE_LOCKED',
+          'Este programa já tem clientes: o tipo e o valor do selo não podem mudar. Para outra regra, crie um programa novo.',
+        );
+      }
+    }
+    await this.prisma.loyaltyProgram.update({ where: { id }, data });
     return this.list(ctx);
   }
 

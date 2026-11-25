@@ -56,7 +56,7 @@ export class PosController {
     @CurrentStaff() s: StoreStaff,
     @Body(new ZodPipe(checkoutCreateSchema)) body: z.infer<typeof checkoutCreateSchema>,
   ) {
-    return this.pos.createCheckout(ctxOf(s), body.quantity, body.programId);
+    return this.pos.createCheckout(ctxOf(s), body);
   }
 
   @Get('checkout-tokens/:id')

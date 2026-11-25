@@ -540,6 +540,7 @@ export class AdminService {
         id: e.id,
         type: e.type,
         quantity: e.quantity,
+        amountCents: e.amountCents,
         rewardsDelta: e.rewardsDelta,
         source: e.source,
         createdAt: e.createdAt,

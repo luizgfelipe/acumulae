@@ -32,6 +32,8 @@ export class CheckoutClaimService {
     return {
       status,
       quantity: t.quantity,
+      /** Programa por valor: valor da compra; os selos dependem da sobra de quem usar o QR. */
+      amountCents: t.amountCents,
       expiresAt: t.expiresAt,
       tenant: {
         name: t.tenant.name,
@@ -47,6 +49,8 @@ export class CheckoutClaimService {
         goal: program.goal,
         name: program.name,
         rewardDescription: program.rewardDescription,
+        kind: program.kind,
+        stampValueCents: program.kind === 'VALOR' ? program.stampValueCents : null,
       },
     };
   }
@@ -80,6 +84,9 @@ export class CheckoutClaimService {
     return {
       tenantName: t.tenant.name,
       quantity: t.quantity,
+      amountCents: t.amountCents,
+      /** Selos que entraram de fato (no programa por valor, os que a compra fechou com a sobra). */
+      stamps: result.stamps,
       rewardsUnlocked: result.rewardsUnlocked,
       replay: result.replay,
       card: result.card,
@@ -87,7 +94,7 @@ export class CheckoutClaimService {
   }
 
   private creditInput(
-    t: { id: string; tenantId: string; storeId: string; programId: string; staffUserId: string; quantity: number },
+    t: { id: string; tenantId: string; storeId: string; programId: string; staffUserId: string; quantity: number; amountCents: number | null },
     customerId: string,
   ) {
     return {
@@ -96,6 +103,7 @@ export class CheckoutClaimService {
       customerId,
       programId: t.programId,
       quantity: t.quantity,
+      amountCents: t.amountCents,
       source: 'QR_TEMPORARIO' as const,
       staffUserId: t.staffUserId,
       checkoutTokenId: t.id,

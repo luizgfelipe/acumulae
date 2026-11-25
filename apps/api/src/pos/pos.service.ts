@@ -6,7 +6,7 @@ import { randomToken, sha256 } from '../common/crypto';
 import { AppError, badRequest, notFound } from '../common/errors';
 import { maskName, shortName } from '../common/names';
 import { normalizePhone } from '../common/phone';
-import { LoyaltyService, redeemRestriction, summarize } from '../loyalty/loyalty.service';
+import { LoyaltyService, assertAmount, redeemRestriction, summarize } from '../loyalty/loyalty.service';
 import { PersonalQrService } from '../loyalty/personal-qr.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -17,12 +17,22 @@ const REF_TTL_SECONDS = 10 * 60;
 const REDEEM_WINDOW_SECONDS = 5 * 60;
 
 export const resolveQrSchema = z.object({ qr: z.string().trim().min(10).max(300) });
-export const creditSchema = z.object({
-  customerRef: z.string().min(10).max(2000),
-  /** Obrigatório quando o estabelecimento tem mais de um programa ativo. */
-  programId: z.string().uuid().nullish(),
-  quantity: z.number().int().min(1).max(100),
-});
+/** Selos (programa por selo) ou valor da compra em centavos (programa por valor); o programa decide qual vale. */
+const creditAmountFields = {
+  quantity: z.number().int().min(1).max(100).nullish(),
+  amountCents: z.number().int().min(1).max(100_000_000).nullish(),
+};
+const hasAmount = (b: { quantity?: number | null; amountCents?: number | null }) => b.quantity != null || b.amountCents != null;
+const amountMissing = { message: 'informe a quantidade ou o valor da compra', path: ['quantity'] };
+
+export const creditSchema = z
+  .object({
+    customerRef: z.string().min(10).max(2000),
+    /** Obrigatório quando o estabelecimento tem mais de um programa ativo. */
+    programId: z.string().uuid().nullish(),
+    ...creditAmountFields,
+  })
+  .refine(hasAmount, amountMissing);
 export const redeemSchema = z.object({
   customerRef: z.string().min(10).max(2000),
   programId: z.string().uuid().nullish(),
@@ -30,10 +40,12 @@ export const redeemSchema = z.object({
   /** Quantas recompensas disponíveis usar agora (padrão 1). */
   quantity: z.number().int().min(1).max(50).default(1),
 });
-export const checkoutCreateSchema = z.object({
-  programId: z.string().uuid().nullish(),
-  quantity: z.number().int().min(1).max(100),
-});
+export const checkoutCreateSchema = z
+  .object({
+    programId: z.string().uuid().nullish(),
+    ...creditAmountFields,
+  })
+  .refine(hasAmount, amountMissing);
 export const idempotencyKeySchema = z
   .string({ required_error: 'header Idempotency-Key obrigatório' })
   .min(8, 'header Idempotency-Key obrigatório')
@@ -76,7 +88,7 @@ export class PosService {
   /** Programas ativos do estabelecimento (para escolher no caixa). */
   async programs(ctx: PosCtx) {
     const ps = await this.loyalty.activePrograms(this.prisma, ctx.tenantId);
-    return ps.map((p) => ({ ...summarize(null, p), maxPerEntry: p.maxPerEntry }));
+    return ps.map((p) => ({ ...summarize(null, p), maxPerEntry: p.maxPerEntry, maxAmountPerEntryCents: p.maxAmountPerEntryCents }));
   }
 
   /**
@@ -109,6 +121,7 @@ export class PosService {
         return {
           ...summarize(m, p),
           maxPerEntry: p.maxPerEntry,
+          maxAmountPerEntryCents: p.maxAmountPerEntryCents,
           rewards: (m?.rewards ?? []).map((r) => ({ id: r.id, description: r.description, unlockedAt: r.createdAt })),
           redeem: {
             // RN-61 (revisada): resgate com o cliente identificado pelo QR pessoal ou pelo telefone.
@@ -147,10 +160,20 @@ export class PosService {
       customerId: ref.cid,
       programId: body.programId,
       quantity: body.quantity,
+      amountCents: body.amountCents,
       source: ref.src,
       idempotencyKey: `pos:${idempotencyKey}`,
     });
-    return { entryId: r.entry.id, replay: r.replay, rewardsUnlocked: r.rewardsUnlocked, discarded: r.discarded, card: r.card };
+    return {
+      entryId: r.entry.id,
+      replay: r.replay,
+      /** Selos que entraram (no programa por valor, os que a compra fechou). */
+      stamps: r.stamps,
+      amountCents: r.amountCents,
+      rewardsUnlocked: r.rewardsUnlocked,
+      discarded: r.discarded,
+      card: r.card,
+    };
   }
 
   async redeem(ctx: PosCtx, body: z.infer<typeof redeemSchema>, idempotencyKey: string) {
@@ -180,10 +203,21 @@ export class PosService {
 
   // ───────────── QR temporário (RN-40 a RN-46) ─────────────
 
-  async createCheckout(ctx: PosCtx, quantity: number, programId?: string | null) {
-    const program = await this.loyalty.programForCredit(this.prisma, ctx.tenantId, programId);
-    if (quantity > program.maxPerEntry) {
-      throw badRequest('QUANTITY_ABOVE_LIMIT', `O máximo por lançamento é ${program.maxPerEntry}.`);
+  async createCheckout(ctx: PosCtx, body: z.infer<typeof checkoutCreateSchema>) {
+    const program = await this.loyalty.programForCredit(this.prisma, ctx.tenantId, body.programId);
+    // Por valor, o token guarda o valor; os selos saem na hora do uso, somados à sobra do cliente.
+    const byValue = program.kind === 'VALOR';
+    let quantity = 0;
+    let amountCents: number | null = null;
+    if (byValue) {
+      assertAmount(program, body.amountCents);
+      amountCents = body.amountCents;
+    } else {
+      if (body.quantity == null) throw badRequest('INVALID_QUANTITY', 'A quantidade deve ser um inteiro maior ou igual a 1.');
+      if (body.quantity > program.maxPerEntry) {
+        throw badRequest('QUANTITY_ABOVE_LIMIT', `O máximo por lançamento é ${program.maxPerEntry}.`);
+      }
+      quantity = body.quantity;
     }
     const token = randomToken(22);
     const t = await this.prisma.checkoutToken.create({
@@ -194,10 +228,11 @@ export class PosService {
         staffUserId: ctx.staffUserId,
         tokenHash: sha256(token),
         quantity,
+        amountCents,
         expiresAt: new Date(Date.now() + CHECKOUT_TTL_MINUTES * 60_000),
       },
     });
-    return { id: t.id, url: `${config.publicUrl}/c/${token}`, quantity, expiresAt: t.expiresAt, programName: program.name };
+    return { id: t.id, url: `${config.publicUrl}/c/${token}`, quantity, amountCents, expiresAt: t.expiresAt, programName: program.name };
   }
 
   async checkoutStatus(ctx: PosCtx, id: string) {
@@ -211,6 +246,7 @@ export class PosService {
       id: t.id,
       status,
       quantity: t.quantity,
+      amountCents: t.amountCents,
       expiresAt: t.expiresAt,
       usedAt: t.usedAt,
       customerName: t.usedBy ? shortName(t.usedBy.name) : null,
@@ -246,6 +282,7 @@ export class PosService {
       id: e.id,
       type: e.type,
       quantity: e.quantity,
+      amountCents: e.amountCents,
       source: e.source,
       createdAt: e.createdAt,
       customerName: shortName(e.membership.customer.name),
