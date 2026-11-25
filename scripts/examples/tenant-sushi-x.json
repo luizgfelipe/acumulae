@@ -4,6 +4,5 @@
   "plan": "PILOTO",
   "branding": { "primaryColor": "#D62828" },
   "store": { "name": "Sushi X - Centro", "slug": "centro", "address": "Rua Exemplo, 100 - Joinville/SC" },
-  "program": { "unitLabel": "rodízio", "unitLabelPlural": "rodízios", "goal": 10, "rewardDescription": "1 rodízio grátis" },
   "manager": { "name": "Gestor Sushi X", "email": "gestor@sushix.com.br" }
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Cadastra um estabelecimento completo (tenant + unidade + programa + convite do gestor)
-# com uma única chamada à API administrativa (RN-90 a RN-94).
+# Cadastra um estabelecimento (tenant + unidade + convite do gestor) com uma única chamada à
+# API administrativa (RN-90 a RN-94). O programa de fidelidade o gestor cria no painel, depois
+# de aceitar o convite.
 #
 # Uso:
 #   ACUMULAE_URL=https://acumulae.com.br PLATFORM_API_KEY=... ./scripts/create-tenant.sh scripts/examples/tenant-sushi-x.json

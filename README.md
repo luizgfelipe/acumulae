@@ -41,7 +41,7 @@ ACUMULAE_URL=http://localhost:3000 PLATFORM_API_KEY=troque-esta-chave-da-platafo
   ./scripts/create-tenant.sh scripts/examples/tenant-sushi-x.json
 ```
 
-Abra o `managerInviteUrl` da resposta (o convite também chega no Mailpit), defina a senha do gestor e pronto: o caixa e o painel já funcionam. O cliente entra pelo `storeSignupQrUrl` (`/e/sushi-x`) ou se cadastra na hora, pelo QR temporário gerado no caixa.
+Abra o `managerInviteUrl` da resposta (o convite também chega no Mailpit), defina a senha do gestor e crie o programa de fidelidade em **Painel → Programas** (por selo ou por valor gasto). A partir daí o caixa já funciona. O cliente entra pelo `storeSignupQrUrl` (`/e/sushi-x`) ou se cadastra na hora, pelo QR temporário gerado no caixa.
 
 > A câmera do caixa só funciona em `localhost` ou HTTPS. Para testar em um celular na rede local, use o campo "Digitar/colar o código manualmente" ou um túnel HTTPS.
 

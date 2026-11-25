@@ -211,7 +211,7 @@ Uma plataforma SaaS multi-tenant em que:
   - A chave vem de variável de ambiente (nunca no código nem no repositório) e é comparada em tempo constante.
   - Esses endpoints não aceitam sessão de cliente nem de funcionário.
   - Opcional: restringir por IP de origem e aplicar rate limit.
-- **RN-92 [RECOMENDADO]** Uma única chamada cria, numa transação: o **tenant**, a **primeira unidade**, o **programa de fidelidade** (com os padrões da RN-23, sobrescrevíveis no corpo) e o **primeiro gestor**.
+- **RN-92 [DECIDIDO]** Uma única chamada cria, numa transação: o **tenant**, a **primeira unidade** e o **primeiro gestor**. O **programa de fidelidade não é criado pela plataforma**: o gestor cria no painel depois do cadastro (por selo ou por valor gasto). Enviar `program` no corpo é recusado (400). Até existir um programa ativo, o caixa não lança e a página do estabelecimento não aceita participação.
 - **RN-93 [RECOMENDADO]** O gestor **não recebe senha definida pelo script**. A API gera um **link de convite** de uso único, válido por 72 horas, que é devolvido na resposta e pode ser enviado por e-mail. Pelo link, o gestor define a própria senha.
 - **RN-94 [RECOMENDADO]** A chamada é **idempotente pelo `slug`**: reenviar o mesmo cadastro não duplica o tenant e devolve `409 Conflict` com o ID existente.
 - **RN-95 [RECOMENDADO]** O admin também pode, via API: adicionar unidades, reenviar o convite do gestor, alterar o plano e **suspender/reativar** um tenant. Tenant suspenso: o caixa e o painel ficam bloqueados, e os clientes continuam vendo o progresso no app, mas não acumulam nem resgatam.
@@ -235,7 +235,6 @@ Content-Type: application/json
     "name": "Sushi X - Centro", "slug": "centro",
     "address": { "cep": "89201-000", "street": "Rua do Príncipe", "number": "330", "district": "Centro", "city": "Joinville", "state": "SC" }
   },
-  "program": { "unitLabel": "rodízio", "goal": 10, "rewardDescription": "1 rodízio grátis" },
   "manager": { "name": "Fulano", "email": "dono@sushix.com.br" }
 }
 ```
@@ -246,7 +245,6 @@ Resposta `201 Created`:
 {
   "tenantId": "…",
   "storeId": "…",
-  "programId": "…",
   "managerInviteUrl": "https://{{dominio}}/painel/convite/{token}",
   "managerInviteExpiresAt": "2026-11-21T17:00:00Z",
   "storeSignupQrUrl": "https://{{dominio}}/e/sushi-x"
