@@ -12,7 +12,7 @@ import { cardDisplay } from '@/lib/card-display';
 import { MoneyInput } from '@/components/money-input';
 import { formatBRL, formatTime, maskPhoneInput, plural } from '@/lib/format';
 import { staffLogout, useStaff } from '@/lib/staff';
-import { convertAmount } from '@/lib/value';
+import { amountLimit, convertAmount } from '@/lib/value';
 
 interface ProgramView {
   programId: string;
@@ -350,7 +350,7 @@ function ValuePreview({
   if (overMax) {
     return (
       <div className="mt-3">
-        <Alert>O valor máximo por lançamento é {formatBRL(c.maxAmountPerEntryCents!)}. Confira o valor digitado.</Alert>
+        <Alert>O valor máximo por lançamento é {formatBRL(amountLimit(c.maxAmountPerEntryCents))}. Confira o valor digitado.</Alert>
       </div>
     );
   }
@@ -405,7 +405,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   // Por valor: prévia de quantos selos a compra fecha, somada à sobra do cliente.
   const conv = byValue && amount ? convertAmount(amount, c.leftoverCents, c.stampValueCents!) : null;
   const stampsToAdd = byValue ? (conv?.stamps ?? 0) : qty;
-  const overMax = byValue && !!amount && !!c.maxAmountPerEntryCents && amount > c.maxAmountPerEntryCents;
+  const overMax = byValue && !!amount && amount > amountLimit(c.maxAmountPerEntryCents);
   const canLaunch = !byValue || (!!amount && !overMax);
   const launchLabel = byValue ? `Lançar ${formatBRL(amount ?? 0)}` : `Lançar ${plural(qty, c.unitLabel, c.unitLabelPlural)}`;
   const discard = discardPreview(c, stampsToAdd);
@@ -701,7 +701,7 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
 
   const selected = programs?.find((p) => p.programId === programId) ?? null;
   const byValue = selected?.kind === 'VALOR';
-  const overMax = byValue && !!amount && !!selected?.maxAmountPerEntryCents && amount > selected.maxAmountPerEntryCents;
+  const overMax = byValue && !!amount && amount > amountLimit(selected?.maxAmountPerEntryCents);
 
   async function generate() {
     setBusy(true);
@@ -813,7 +813,7 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
             <MoneyInput id="checkout-amount" cents={amount} onCents={setAmount} className="h-16 text-3xl font-extrabold" />
             {overMax ? (
               <div className="mt-3">
-                <Alert>O valor máximo por lançamento é {formatBRL(selected!.maxAmountPerEntryCents!)}.</Alert>
+                <Alert>O valor máximo por lançamento é {formatBRL(amountLimit(selected?.maxAmountPerEntryCents))}.</Alert>
               </div>
             ) : (
               <p className="mt-3 text-center text-sm text-stone-500">

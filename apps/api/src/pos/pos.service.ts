@@ -20,6 +20,7 @@ export const resolveQrSchema = z.object({ qr: z.string().trim().min(10).max(300)
 /** Selos (programa por selo) ou valor da compra em centavos (programa por valor); o programa decide qual vale. */
 const creditAmountFields = {
   quantity: z.number().int().min(1).max(100).nullish(),
+  /** Teto só técnico: o limite de proteção (com mensagem clara) é conferido no crédito. */
   amountCents: z.number().int().min(1).max(100_000_000).nullish(),
 };
 const hasAmount = (b: { quantity?: number | null; amountCents?: number | null }) => b.quantity != null || b.amountCents != null;

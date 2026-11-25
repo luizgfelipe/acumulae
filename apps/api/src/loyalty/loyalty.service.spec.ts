@@ -1,6 +1,6 @@
 import { LoyaltyProgram } from '@prisma/client';
 import { Tx } from '../prisma/prisma.service';
-import { CreditInput, LoyaltyService, pluralize, redeemRestriction, summarize } from './loyalty.service';
+import { CreditInput, LoyaltyService, assertAmount, pluralize, redeemRestriction, summarize } from './loyalty.service';
 
 function program(over: Partial<LoyaltyProgram> = {}): LoyaltyProgram {
   return {
@@ -401,5 +401,22 @@ describe('LoyaltyService.creditInTx: programa por valor', () => {
   it('programa por selo exige a quantidade', async () => {
     const f = fakeTx(program());
     await expect(svc.creditInTx(f.tx, input(3000))).rejects.toMatchObject(code('INVALID_QUANTITY'));
+  });
+});
+
+describe('assertAmount: teto de proteção', () => {
+  const p = (max: number | null) => ({ maxAmountPerEntryCents: max }) as LoyaltyProgram;
+
+  it('programa sem limite preenchido ainda para em R$ 10.000', () => {
+    expect(() => assertAmount(p(null), 1_000_000)).not.toThrow();
+    expect(() => assertAmount(p(null), 1_000_001)).toThrow(expect.objectContaining(code('AMOUNT_ABOVE_LIMIT')));
+  });
+
+  it('limite do programa acima do teto vale o teto', () => {
+    expect(() => assertAmount(p(5_000_000), 1_000_001)).toThrow(expect.objectContaining(code('AMOUNT_ABOVE_LIMIT')));
+  });
+
+  it('limite do programa abaixo do teto vale o do programa', () => {
+    expect(() => assertAmount(p(50_000), 50_001)).toThrow(expect.objectContaining(code('AMOUNT_ABOVE_LIMIT')));
   });
 });

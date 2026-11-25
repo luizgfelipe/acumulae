@@ -13,7 +13,7 @@ import {
   tenantName,
 } from '../notifications/messages';
 import { PrismaService, Tx } from '../prisma/prisma.service';
-import { convertAmount, formatBRL, reverseAmount } from './value';
+import { MAX_AMOUNT_PER_ENTRY_CENTS, convertAmount, formatBRL, reverseAmount } from './value';
 
 const unitsOf = (p: LoyaltyProgram) => ({ one: p.unitLabel, many: pluralize(p.unitLabel, p.unitLabelPlural) });
 
@@ -110,13 +110,15 @@ function assertQuantity(p: LoyaltyProgram, quantity: number | null | undefined):
   }
 }
 
-/** Programa por valor: valor da compra em centavos, de R$ 0,01 até o máximo por lançamento. */
+/** Programa por valor: valor da compra em centavos, de R$ 0,01 até o máximo por lançamento (e o teto de R$ 10.000). */
 export function assertAmount(p: LoyaltyProgram, amountCents: number | null | undefined): asserts amountCents is number {
   if (typeof amountCents !== 'number' || !Number.isInteger(amountCents) || amountCents < 1) {
     throw badRequest('INVALID_AMOUNT', 'Informe o valor da compra.');
   }
-  if (p.maxAmountPerEntryCents && amountCents > p.maxAmountPerEntryCents) {
-    throw badRequest('AMOUNT_ABOVE_LIMIT', `O valor máximo por lançamento é ${formatBRL(p.maxAmountPerEntryCents)}.`);
+  // O limite do programa nunca passa do teto de proteção (inclusive programa sem limite preenchido).
+  const limit = Math.min(p.maxAmountPerEntryCents ?? MAX_AMOUNT_PER_ENTRY_CENTS, MAX_AMOUNT_PER_ENTRY_CENTS);
+  if (amountCents > limit) {
+    throw badRequest('AMOUNT_ABOVE_LIMIT', `O valor máximo por lançamento é ${formatBRL(limit)}.`);
   }
 }
 

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Card, FullPageSpinner, LinkButton, Modal } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { formatBRL, valueRule } from '@/lib/format';
+import { amountLimit } from '@/lib/value';
 import { ProgramItem, ProgramsList } from '@/lib/programs';
 import { useLoad } from '@/lib/use-load';
 
@@ -82,9 +83,7 @@ export default function ProgramsPage() {
               <li>
                 Resgate: {p.redeemWeekdaysText ?? 'qualquer dia'} ·{' '}
                 {p.kind === 'VALOR'
-                  ? p.maxAmountPerEntryCents
-                    ? `compra máxima de ${formatBRL(p.maxAmountPerEntryCents)} por lançamento`
-                    : 'sem limite de valor por lançamento'
+                  ? `compra máxima de ${formatBRL(amountLimit(p.maxAmountPerEntryCents))} por lançamento`
                   : `máximo ${p.maxPerEntry} por lançamento`}
               </li>
               <li>

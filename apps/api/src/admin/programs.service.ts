@@ -5,6 +5,7 @@ import { AppError, conflict } from '../common/errors';
 import { weekdaysSchema } from '../common/schemas';
 import { describeWeekdays } from '../common/time';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
+import { MAX_AMOUNT_PER_ENTRY_CENTS, formatBRL } from '../loyalty/value';
 import { PrismaService, Tx } from '../prisma/prisma.service';
 import { effectivePlan, withinLimit } from '../plans/plans';
 import type { AdminCtx } from './admin.service';
@@ -15,8 +16,13 @@ const programBaseSchema = z.object({
   kind: z.enum(['SELO', 'VALOR']).default('SELO'),
   /** VALOR: quanto vale 1 selo, em centavos (de R$ 0,01 a R$ 100.000). */
   stampValueCents: z.number().int().min(1).max(10_000_000).nullish(),
-  /** VALOR: maior compra aceita num lançamento, em centavos. Vazio = sem limite. */
-  maxAmountPerEntryCents: z.number().int().min(1).max(100_000_000).nullish(),
+  /** VALOR: maior compra aceita num lançamento, em centavos (obrigatório; até o teto de proteção). */
+  maxAmountPerEntryCents: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_AMOUNT_PER_ENTRY_CENTS, `a compra máxima por lançamento vai até ${formatBRL(MAX_AMOUNT_PER_ENTRY_CENTS)}`)
+    .nullish(),
   unitLabel: z.string().trim().min(1).max(30),
   unitLabelPlural: z.string().trim().max(30).nullish(),
   goal: z.number().int().min(2).max(50),
@@ -26,12 +32,15 @@ const programBaseSchema = z.object({
   carryOverExcess: z.boolean(),
 });
 
-/** Programa por valor precisa do valor do selo, e a compra máxima não pode ser menor que ele. */
+/** Programa por valor precisa do valor do selo e da compra máxima, que não pode ser menor que o selo. */
 function valueRules(p: { kind: 'SELO' | 'VALOR'; stampValueCents?: number | null; maxAmountPerEntryCents?: number | null }, ctx: z.RefinementCtx) {
   if (p.kind !== 'VALOR') return;
   if (!p.stampValueCents) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['stampValueCents'], message: 'informe quanto vale 1 selo' });
-  } else if (p.maxAmountPerEntryCents && p.maxAmountPerEntryCents < p.stampValueCents) {
+  }
+  if (!p.maxAmountPerEntryCents) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxAmountPerEntryCents'], message: 'informe a compra máxima por lançamento' });
+  } else if (p.stampValueCents && p.maxAmountPerEntryCents < p.stampValueCents) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxAmountPerEntryCents'], message: 'a compra máxima não pode ser menor que o valor do selo' });
   }
 }
@@ -120,7 +129,7 @@ export class ProgramsService {
       name: input.name,
       kind: input.kind,
       stampValueCents: byValue ? input.stampValueCents! : null,
-      maxAmountPerEntryCents: byValue ? (input.maxAmountPerEntryCents ?? null) : null,
+      maxAmountPerEntryCents: byValue ? input.maxAmountPerEntryCents! : null,
       unitLabel: input.unitLabel,
       unitLabelPlural: input.unitLabelPlural || null,
       goal: input.goal,

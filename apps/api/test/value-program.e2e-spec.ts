@@ -175,6 +175,17 @@ describe('Programa por valor: cadastro', () => {
     await pos.put(`/api/admin/programs/${t.programId}`).send({ ...valueProgram, stampValueCents: null }).expect(400);
   });
 
+  it('exige a compra máxima por lançamento, até o teto de R$ 10.000', async () => {
+    const t = await createTenant(app);
+    const pos = await managerAgent(app, t.managerInviteUrl);
+    const put = (maxAmountPerEntryCents: number | null) =>
+      pos.put(`/api/admin/programs/${t.programId}`).send({ ...valueProgram, maxAmountPerEntryCents });
+    await put(null).expect(400);
+    await put(1_000_001).expect(400);
+    await put(500).expect(400); // menor que o valor do selo (R$ 10)
+    await put(1_000_000).expect(200);
+  });
+
   it('com clientes, o tipo e o valor do selo ficam travados; o resto pode mudar', async () => {
     const { t, pos, ref, buy } = await setup();
     await buy(await ref(), 1500).expect(201);

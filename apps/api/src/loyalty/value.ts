@@ -3,6 +3,9 @@
  * próxima compra. Tudo em centavos (inteiros), para não haver erro de arredondamento.
  */
 
+/** Teto de proteção de uma compra num lançamento: R$ 10.000,00. Vale mesmo que o programa tenha um limite maior. */
+export const MAX_AMOUNT_PER_ENTRY_CENTS = 1_000_000;
+
 /** Soma a compra à sobra do cliente e separa os selos inteiros do que continua sobrando. */
 export function convertAmount(amountCents: number, leftoverCents: number, stampValueCents: number) {
   const pool = leftoverCents + amountCents;

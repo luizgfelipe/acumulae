@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { Alert, Button, Field, Input, cx } from './ui';
 import { MoneyInput } from './money-input';
 import { WEEKDAYS, formatBRL } from '@/lib/format';
+import { MAX_AMOUNT_PER_ENTRY_CENTS } from '@/lib/value';
 
 export type ProgramKind = 'SELO' | 'VALOR';
 
@@ -13,7 +14,7 @@ export interface ProgramFields {
   kind: ProgramKind;
   /** VALOR: quanto vale 1 selo, em centavos. */
   stampValueCents: number | null;
-  /** VALOR: maior compra aceita num lançamento, em centavos (null = sem limite). */
+  /** VALOR: maior compra aceita num lançamento, em centavos (obrigatória, até R$ 10.000). */
   maxAmountPerEntryCents: number | null;
   unitLabel: string;
   unitLabelPlural: string | null;
@@ -78,6 +79,14 @@ export function ProgramForm({
       setError('Informe quanto a compra precisa somar para valer 1 selo.');
       return;
     }
+    if (byValue && !p.maxAmountPerEntryCents) {
+      setError('Informe a compra máxima por lançamento.');
+      return;
+    }
+    if (byValue && p.maxAmountPerEntryCents! > MAX_AMOUNT_PER_ENTRY_CENTS) {
+      setError(`A compra máxima por lançamento vai até ${formatBRL(MAX_AMOUNT_PER_ENTRY_CENTS)}.`);
+      return;
+    }
     if (byValue && p.maxAmountPerEntryCents && p.stampValueCents && p.maxAmountPerEntryCents < p.stampValueCents) {
       setError('A compra máxima por lançamento não pode ser menor que o valor do selo.');
       return;
@@ -137,8 +146,8 @@ export function ProgramForm({
             <Field label="Cada compra de" hint={`vale 1 ${p.unitLabel || 'selo'}.`}>
               <MoneyInput cents={p.stampValueCents} onCents={(v) => setP({ ...p, stampValueCents: v })} disabled={valueLocked} required />
             </Field>
-            <Field label="Compra máxima por lançamento" hint="Evita erro de digitação. Vazio = sem limite.">
-              <MoneyInput cents={p.maxAmountPerEntryCents} onCents={(v) => setP({ ...p, maxAmountPerEntryCents: v })} />
+            <Field label="Compra máxima por lançamento" hint={`Evita erro de digitação (ex.: 15000 no lugar de 150,00). Até ${formatBRL(MAX_AMOUNT_PER_ENTRY_CENTS)}.`}>
+              <MoneyInput cents={p.maxAmountPerEntryCents} onCents={(v) => setP({ ...p, maxAmountPerEntryCents: v })} required />
             </Field>
           </div>
           {p.stampValueCents ? <p className="text-xs text-stone-600">{valueExample(p.stampValueCents, p.unitLabel || 'selo', p.unitLabelPlural || '')}</p> : null}
