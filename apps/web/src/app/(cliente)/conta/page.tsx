@@ -66,6 +66,16 @@ export default function AccountPage() {
     await api(`/api/me/memberships/${c.membershipId}/consent`, { method: 'PATCH', body: { marketingConsent: value } }).catch(() => undefined);
   }
 
+  // Atalho: a mesma escolha para todos os estabelecimentos atuais (os próximos continuam perguntando).
+  async function toggleAll(value: boolean) {
+    setCards((cs) => cs.map((x) => ({ ...x, marketingConsent: value })));
+    await api('/api/me/consent', { method: 'PATCH', body: { marketingConsent: value } }).catch(() => undefined);
+  }
+
+  const tenants = uniqueTenants(cards);
+  const allOn = tenants.length > 0 && tenants.every((c) => c.marketingConsent === true);
+  const someOn = tenants.some((c) => c.marketingConsent === true);
+
   async function doLogout() {
     setLoggingOut(true);
     await logout();
@@ -123,13 +133,25 @@ export default function AccountPage() {
 
         <PushSection />
 
-        <Section title="Promoções" hint="Escolha quem pode usar seu telefone para mandar ofertas. Aceitar um não autoriza os outros.">
+        <Section
+          title="Promoções"
+          hint="Quem você autorizar pode ver seu telefone, e-mail e aniversário e mandar ofertas. Estabelecimentos novos perguntam quando você ganhar o primeiro cartão."
+        >
           <Card className="p-0">
             {cards.length === 0 ? (
               <p className="p-5 text-sm text-stone-500">Você ainda não participa de nenhum programa.</p>
             ) : (
               <ul className="divide-y divide-stone-100">
-                {uniqueTenants(cards).map((c) => (
+                <li className="flex items-center gap-3 rounded-t-2xl bg-stone-50 px-5 py-3.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">Todos os estabelecimentos</p>
+                    <p className="text-xs text-stone-500">
+                      {allOn ? 'Recebendo de todos' : someOn ? 'Recebendo de alguns: ajuste abaixo' : 'Não recebendo de nenhum'}
+                    </p>
+                  </div>
+                  <Switch checked={allOn} onChange={toggleAll} label="Receber promoções de todos os estabelecimentos" />
+                </li>
+                {tenants.map((c) => (
                   <li key={c.tenant.slug} className="flex items-center gap-3 px-5 py-3">
                     <TenantAvatar name={c.tenant.name} logoUrl={c.tenant.logoUrl} color={c.tenant.primaryColor} size={36} />
                     <span className="min-w-0 flex-1 truncate font-medium">{c.tenant.name}</span>
