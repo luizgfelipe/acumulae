@@ -405,6 +405,12 @@ enum LedgerType {
   ESTORNO_EXCEDENTE
 }
 
+/// SELO: o atendente informa quantos selos. VALOR: informa o valor da compra e o app converte (R$ X = 1 selo).
+enum ProgramKind {
+  SELO
+  VALOR
+}
+
 enum LedgerSource {
   QR_PESSOAL
   TELEFONE
@@ -421,24 +427,29 @@ enum RewardStatus {
 }
 
 model LoyaltyProgram {
-  id                String       @id @default(uuid()) @db.Uuid
-  tenantId          String       @map("tenant_id") @db.Uuid
-  name              String       @default("Programa de fidelidade")
+  id                     String       @id @default(uuid()) @db.Uuid
+  tenantId               String       @map("tenant_id") @db.Uuid
+  name                   String       @default("Programa de fidelidade")
+  kind                   ProgramKind  @default(SELO)
+  /// VALOR: quanto a compra precisa somar para valer 1 selo, em centavos. Travado depois que o programa tem clientes.
+  stampValueCents        Int?         @map("stamp_value_cents")
+  /// VALOR: maior compra aceita num lançamento, em centavos (evita erro de digitação). Faz o papel do maxPerEntry.
+  maxAmountPerEntryCents Int?         @map("max_amount_per_entry_cents")
   /// true: o que passa da meta vai para o próximo cartão (RN-37). false: o excedente é descartado.
-  carryOverExcess   Boolean      @default(true) @map("carry_over_excess")
-  unitLabel         String       @default("selo") @map("unit_label")
-  unitLabelPlural   String?      @map("unit_label_plural")
-  goal              Int          @default(10)
-  rewardDescription String       @map("reward_description")
+  carryOverExcess        Boolean      @default(true) @map("carry_over_excess")
+  unitLabel              String       @default("selo") @map("unit_label")
+  unitLabelPlural        String?      @map("unit_label_plural")
+  goal                   Int          @default(10)
+  rewardDescription      String       @map("reward_description")
   /// Q-05: campo existe, mas a expiração não é aplicada no MVP.
-  stampValidityDays Int?         @map("stamp_validity_days")
+  stampValidityDays      Int?         @map("stamp_validity_days")
   /// Dias da semana ISO (1 = segunda … 7 = domingo) em que o resgate é permitido. Vazio = todos.
-  redeemWeekdays    Int[]        @default([]) @map("redeem_weekdays")
-  maxPerEntry       Int          @default(20) @map("max_per_entry")
-  scope             ProgramScope @default(TENANT)
-  active            Boolean      @default(true)
-  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  redeemWeekdays         Int[]        @default([]) @map("redeem_weekdays")
+  maxPerEntry            Int          @default(20) @map("max_per_entry")
+  scope                  ProgramScope @default(TENANT)
+  active                 Boolean      @default(true)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   tenant         Tenant          @relation(fields: [tenantId], references: [id])
   memberships    Membership[]
@@ -463,6 +474,8 @@ model Membership {
   /// Caches derivados do ledger (reconstruíveis).
   cachedBalance          Int       @default(0) @map("cached_balance")
   cachedRewardsAvailable Int       @default(0) @map("cached_rewards_available")
+  /// Programa por valor: centavos que ainda não fecharam um selo e ficam para a próxima compra.
+  cachedLeftoverCents    Int       @default(0) @map("cached_leftover_cents")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -478,25 +491,30 @@ model Membership {
   @@map("memberships")
 }
 
-/// IMUTÁVEL. `quantity` = variação de selos; `rewardsDelta` = variação de recompensas disponíveis.
+/// IMUTÁVEL. `quantity` = variação de selos; `rewardsDelta` = variação de recompensas disponíveis;
+/// `leftoverDeltaCents` = variação da sobra em centavos (programa por valor).
 model LedgerEntry {
-  id              String       @id @default(uuid()) @db.Uuid
-  tenantId        String       @map("tenant_id") @db.Uuid
-  storeId         String?      @map("store_id") @db.Uuid
-  membershipId    String       @map("membership_id") @db.Uuid
-  type            LedgerType
-  quantity        Int
-  rewardsDelta    Int          @default(0) @map("rewards_delta")
-  source          LedgerSource
-  staffUserId     String?      @map("staff_user_id") @db.Uuid
-  checkoutTokenId String?      @map("checkout_token_id") @db.Uuid
-  reversesEntryId String?      @unique @map("reverses_entry_id") @db.Uuid
+  id                 String       @id @default(uuid()) @db.Uuid
+  tenantId           String       @map("tenant_id") @db.Uuid
+  storeId            String?      @map("store_id") @db.Uuid
+  membershipId       String       @map("membership_id") @db.Uuid
+  type               LedgerType
+  quantity           Int
+  rewardsDelta       Int          @default(0) @map("rewards_delta")
+  /// Programa por valor: valor da compra em centavos (negativo no estorno). null nos programas por selo.
+  amountCents        Int?         @map("amount_cents")
+  /// Programa por valor: variação da sobra (centavos que ainda não viraram selo).
+  leftoverDeltaCents Int          @default(0) @map("leftover_delta_cents")
+  source             LedgerSource
+  staffUserId        String?      @map("staff_user_id") @db.Uuid
+  checkoutTokenId    String?      @map("checkout_token_id") @db.Uuid
+  reversesEntryId    String?      @unique @map("reverses_entry_id") @db.Uuid
   /// Lançamento que originou este (ex.: CREDITO que liberou a RECOMPENSA_LIBERADA).
-  parentEntryId   String?      @map("parent_entry_id") @db.Uuid
-  rewardId        String?      @map("reward_id") @db.Uuid
-  reason          String?
-  idempotencyKey  String       @map("idempotency_key")
-  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  parentEntryId      String?      @map("parent_entry_id") @db.Uuid
+  rewardId           String?      @map("reward_id") @db.Uuid
+  reason             String?
+  idempotencyKey     String       @map("idempotency_key")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   store         Store?         @relation(fields: [storeId], references: [id])
@@ -548,7 +566,10 @@ model CheckoutToken {
   programId        String    @map("program_id") @db.Uuid
   staffUserId      String    @map("staff_user_id") @db.Uuid
   tokenHash        String    @unique @map("token_hash")
+  /// Selos (programa por selo). 0 no programa por valor: os selos saem do valor na hora do uso, somado à sobra do cliente.
   quantity         Int
+  /// Programa por valor: valor da compra em centavos.
+  amountCents      Int?      @map("amount_cents")
   expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
   usedAt           DateTime? @map("used_at") @db.Timestamptz(3)
   usedByCustomerId String?   @map("used_by_customer_id") @db.Uuid
