@@ -467,9 +467,9 @@ describe('Cada tipo de credencial só abre a própria área', () => {
 describe('Limites por IP nas rotas públicas', () => {
   const from = (ip: string) => ({ 'X-Forwarded-For': ip });
 
-  it('cadastro: 20 recusas do mesmo IP em 1 hora bloqueiam o IP', async () => {
+  it('cadastro: 50 recusas do mesmo IP em 1 hora bloqueiam o IP', async () => {
     const taken = await customerAgent(app);
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 50; i++) {
       await http().post('/api/auth/register').set(from('198.51.100.200')).send(registerBody({ email: taken.email })).expect(409);
     }
     const r = await http().post('/api/auth/register').set(from('198.51.100.200')).send(registerBody()).expect(429);
@@ -478,7 +478,7 @@ describe('Limites por IP nas rotas públicas', () => {
   });
 
   it('cadastro: cadastros aceitos não contam como recusa', async () => {
-    for (let i = 0; i < 21; i++) {
+    for (let i = 0; i < 51; i++) {
       await http().post('/api/auth/register').set(from('198.51.100.210')).send(registerBody()).expect(201);
     }
   });

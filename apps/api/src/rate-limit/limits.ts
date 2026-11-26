@@ -10,9 +10,9 @@ const HOUR = 60 * MIN;
 export const LIMITS = {
   /** Cadastro: 130 por IP em 1 h (criação de contas em massa). Cabe o lançamento de um estabelecimento, com todos no mesmo Wi-Fi. */
   registerAll: { rule: { name: 'register:all', windowMs: HOUR, max: 130, blockMs: HOUR, maxBlockMs: 24 * HOUR }, countOn: 'all' },
-  /** Cadastro recusado (conta já existe, senha fraca…): 20 por IP em 1 h. Freia quem testa telefones e e-mails. */
+  /** Cadastro recusado (conta já existe, senha fraca…): 50 por IP em 1 h. Freia quem testa telefones e e-mails, com folga para os erros de digitação de um lançamento. */
   registerFailure: {
-    rule: { name: 'register:fail', windowMs: HOUR, max: 20, blockMs: HOUR, maxBlockMs: 24 * HOUR },
+    rule: { name: 'register:fail', windowMs: HOUR, max: 50, blockMs: HOUR, maxBlockMs: 24 * HOUR },
     countOn: 'failure',
   },
   /**

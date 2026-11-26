@@ -133,7 +133,7 @@ Uma plataforma SaaS multi-tenant em que:
   - **Bloqueio progressivo:** um novo bloqueio da mesma chave até 24 horas depois do fim do anterior dura o dobro (15 min, 30 min, 1 h...), até 24 horas.
   - O telefone conta normalizado (E.164) e o e-mail em minúsculas, então escrever o mesmo identificador de outro jeito não zera a contagem. Um login certo zera só o contador daquele identificador naquele IP.
   - A senha é conferida no mesmo tempo exista a conta ou não, e "Esqueci minha senha" responde sem esperar o envio do e-mail: o tempo de resposta não revela quais contas existem.
-  - **Outras rotas públicas, por IP:** "Esqueci minha senha" aceita 3 pedidos por conta e 10 por IP em 1 hora; o cadastro aceita 130 por IP e 20 recusas por IP em 1 hora; links e QRs com token (convite, redefinição de senha, QR temporário do caixa) aceitam 20 recusas por IP em 15 minutos.
+  - **Outras rotas públicas, por IP:** "Esqueci minha senha" aceita 3 pedidos por conta e 10 por IP em 1 hora; o cadastro aceita 130 por IP e 50 recusas por IP em 1 hora; links e QRs com token (convite, redefinição de senha, QR temporário do caixa) aceitam 20 recusas por IP em 15 minutos.
   - A resposta de bloqueio é HTTP 429 `TOO_MANY_ATTEMPTS`, com o tempo de espera na mensagem e em `details.retryAfterSeconds`.
 - **RN-14 [RECOMENDADO]** Se alguém tentar cadastrar um telefone ou e-mail **já existente**, o sistema não cria conta nova: informa que a conta já existe e oferece "Entrar" ou "Esqueci minha senha".
 - **RN-15 [RECOMENDADO]** Vinculação de login social a uma conta existente com o mesmo e-mail é automática **somente** se o provedor garantir o e-mail verificado (`email_verified = true`). Caso contrário, o cliente precisa logar com a senha antes de vincular.
