@@ -164,6 +164,27 @@ describe('Login do cliente (RN-09, RN-13)', () => {
     expect(r.body.details.retryAfterSeconds).toBe(3600);
     await http().post('/api/auth/login').set(from('203.0.113.8')).send({ identifier: c.email, password: c.password }).expect(200);
   });
+
+  it('20 erros numa conta vindos de IPs diferentes pausam o login dela em IPs novos e avisam o dono (RN-13)', async () => {
+    const c = await customerAgent(app);
+    const login = (ip: string, password: string) =>
+      http().post('/api/auth/login').set('X-Forwarded-For', ip).send({ identifier: c.email, password });
+    await login('192.0.2.50', c.password).expect(200); // rede de casa
+    for (let i = 0; i < 20; i++) await login(`198.51.100.${i}`, 'Errada#123').expect(401);
+
+    const paused = await login('203.0.113.50', c.password).expect(429);
+    expect(paused.body.message).toMatch(/pausado em novos aparelhos/);
+    await login('192.0.2.50', c.password).expect(200);
+    const alert = lastMail(app, c.email);
+    expect(alert.subject).toMatch(/Tentativas de entrar/);
+    expect(alert.text).toMatch(/60 minuto/);
+
+    // Redefinir a senha prova o acesso ao e-mail e acaba com a pausa.
+    await http().post('/api/auth/password/forgot').send({ identifier: c.email }).expect(200);
+    const token = /token=([A-Za-z0-9]+)/.exec(lastMail(app, c.email).text)![1];
+    await http().post('/api/auth/password/reset').send({ token, password: 'NovaSenha#9' }).expect(200);
+    await login('203.0.113.50', 'NovaSenha#9').expect(200);
+  });
 });
 
 describe('Sessão (RN-10, RN-11)', () => {

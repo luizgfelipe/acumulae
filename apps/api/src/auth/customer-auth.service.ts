@@ -11,6 +11,7 @@ import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginRateLimiter } from './rate-limiter.service';
 import { SessionsService } from './sessions.service';
+import { formatWait } from '../rate-limit/rate-limit.store';
 import { TERMS_VERSION, acceptedCurrentTerms } from '../common/terms';
 
 const RESET_TTL_MINUTES = 30;
@@ -145,12 +146,29 @@ export class CustomerAuthService {
     // O bcrypt roda mesmo sem conta: o tempo de resposta não revela se ela existe.
     const ok = await verifyPassword(input.password, c?.status === 'ACTIVE' ? c.passwordHash : null);
     if (!ok || !c) {
-      this.limiter.fail('customer', key, ip);
+      const { accountPausedMs } = this.limiter.fail('customer', key, ip);
+      if (accountPausedMs && c?.email && c.status === 'ACTIVE') this.alertAttack(c, accountPausedMs);
       throw unauthorized('Telefone/e-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
     }
     this.limiter.succeed('customer', key, ip);
     const session = await this.sessions.create('customer', c.id, device);
     return { customer: c, session };
+  }
+
+  /** RN-13: muitas senhas erradas de vários IPs pausaram o login da conta em IPs novos. Não atrasa a resposta. */
+  private alertAttack(c: Customer, pausedMs: number) {
+    void this.mail.send({
+      to: c.email!,
+      subject: 'Tentativas de entrar na sua conta — Acumulaê',
+      text:
+        `Olá, ${c.name.split(' ')[0]}!\n\n` +
+        `Notamos muitas tentativas de entrar na sua conta Acumulaê com a senha errada.\n` +
+        `Por segurança, pausamos por ${formatWait(pausedMs)} o login em aparelhos e redes que você ainda não usou. ` +
+        `Onde você já entrou, tudo continua funcionando.\n\n` +
+        `Se não foi você, recomendamos trocar a senha agora (o login volta ao normal na hora):\n` +
+        `${config.publicUrl}/esqueci-senha\n\n` +
+        `Dica: use uma senha que você não usa em outros sites.`,
+    });
   }
 
   /** Fluxo 6.7: não revela se a conta existe. */
@@ -195,6 +213,7 @@ export class CustomerAuthService {
       // Fluxo 6.7: todas as sessões antigas são encerradas.
       await tx.customerSession.updateMany({ where: { customerId: rt.customerId, revokedAt: null }, data: { revokedAt: now } });
     });
+    this.limiter.clearAccount('customer', [rt.customer.email, rt.customer.phoneE164].map((i) => i && identifierKey(i)));
   }
 
   /**

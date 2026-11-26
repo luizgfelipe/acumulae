@@ -129,6 +129,63 @@ describe('LoginRateLimiter (RN-13)', () => {
   });
 });
 
+describe('LoginRateLimiter: conta sob ataque distribuído (RN-13)', () => {
+  let limiter: LoginRateLimiter;
+  const ID = 'maria@example.com';
+  const HOME = '10.0.0.1';
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date('2026-11-18T12:00:00Z') });
+    limiter = new LoginRateLimiter(new RateLimitStore());
+  });
+
+  afterEach(() => jest.useRealTimers());
+
+  /** n erros na conta, cada um de um IP diferente (nenhum IP chega ao próprio limite). */
+  const distributed = (n: number) => {
+    let last = { accountPausedMs: 0 };
+    for (let i = 0; i < n; i++) last = limiter.fail('customer', ID, `198.51.100.${i}`);
+    return last;
+  };
+  const allowed = (ip: string, id = ID) => () => limiter.assertAllowed('customer', id, ip);
+
+  it('o 20º erro em 1 hora pausa a conta e avisa (accountPausedMs)', () => {
+    expect(distributed(19).accountPausedMs).toBe(0);
+    expect(limiter.fail('customer', ID, '198.51.100.99').accountPausedMs).toBe(60 * MIN);
+  });
+
+  it('pausada, a conta não entra de IPs novos, mas entra de onde já entrou', () => {
+    limiter.succeed('customer', ID, HOME);
+    distributed(20);
+    expect(allowed('203.0.113.1')).toThrow(/pausado em novos aparelhos/);
+    expect(allowed(HOME)).not.toThrow();
+  });
+
+  it('a pausa não afeta outras contas', () => {
+    distributed(20);
+    expect(allowed('203.0.113.1', 'joao@example.com')).not.toThrow();
+  });
+
+  it('a pausa acaba depois de 1 hora', () => {
+    distributed(20);
+    jest.advanceTimersByTime(60 * MIN + 1);
+    expect(allowed('203.0.113.1')).not.toThrow();
+  });
+
+  it('redefinir a senha encerra a pausa', () => {
+    distributed(20);
+    limiter.clearAccount('customer', [ID, null]);
+    expect(allowed('203.0.113.1')).not.toThrow();
+  });
+
+  it('guarda só os 10 últimos IPs de cada conta', () => {
+    for (let i = 0; i < 11; i++) limiter.succeed('customer', ID, `192.0.2.${i}`);
+    distributed(20);
+    expect(allowed('192.0.2.0')).toThrow();
+    expect(allowed('192.0.2.1')).not.toThrow();
+  });
+});
+
 describe('identifierKey', () => {
   it('e-mail sem diferença de maiúsculas e espaços', () => {
     expect(identifierKey('  Maria@Example.com ')).toBe('maria@example.com');

@@ -10,6 +10,7 @@ import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginRateLimiter } from './rate-limiter.service';
 import { SessionsService } from './sessions.service';
+import { formatWait } from '../rate-limit/rate-limit.store';
 
 export const staffLoginSchema = z.object({ email: emailSchema, password: z.string().min(1).max(128) });
 export const staffContextSchema = z.object({ tenantId: z.string().uuid(), storeId: z.string().uuid().nullish() });
@@ -69,12 +70,28 @@ export class StaffAuthService {
     // O bcrypt roda mesmo sem conta: o tempo de resposta não revela se ela existe.
     const ok = await verifyPassword(input.password, u?.status === 'ACTIVE' ? u.passwordHash : null);
     if (!ok || !u) {
-      this.limiter.fail('staff', input.email, ip);
+      const { accountPausedMs } = this.limiter.fail('staff', input.email, ip);
+      if (accountPausedMs && u?.status === 'ACTIVE') this.alertAttack(u, accountPausedMs);
       throw unauthorized('E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
     }
     this.limiter.succeed('staff', input.email, ip);
     const session = await this.sessions.create('staff', u.id, device, await this.autoContext(u.id));
     return { user: u, session };
+  }
+
+  /** RN-13: muitas senhas erradas de vários IPs pausaram o login da conta em IPs novos. Não atrasa a resposta. */
+  private alertAttack(u: { email: string; name: string }, pausedMs: number) {
+    void this.mail.send({
+      to: u.email,
+      subject: 'Tentativas de entrar no seu acesso ao painel — Acumulaê',
+      text:
+        `Olá, ${u.name.split(' ')[0]}!\n\n` +
+        `Notamos muitas tentativas de entrar no seu acesso ao painel/caixa do Acumulaê com a senha errada.\n` +
+        `Por segurança, pausamos por ${formatWait(pausedMs)} o login em aparelhos e redes que você ainda não usou. ` +
+        `Onde você já entrou, tudo continua funcionando.\n\n` +
+        `Se não foi você, recomendamos trocar a senha agora (o login volta ao normal na hora):\n` +
+        `${config.publicUrl}/painel/esqueci-senha`,
+    });
   }
 
   async setContext(staffUserId: string, sessionId: string, tenantId: string, storeId: string | null | undefined) {
@@ -131,7 +148,10 @@ export class StaffAuthService {
 
   async reset(token: string, password: string) {
     const now = new Date();
-    const rt = await this.prisma.staffPasswordResetToken.findUnique({ where: { tokenHash: sha256(token) } });
+    const rt = await this.prisma.staffPasswordResetToken.findUnique({
+      where: { tokenHash: sha256(token) },
+      include: { staffUser: { select: { email: true } } },
+    });
     if (!rt || rt.usedAt || rt.expiresAt < now) throw badRequest('INVALID_TOKEN', 'Link inválido ou expirado.');
     const problem = passwordProblem(password);
     if (problem) throw badRequest('WEAK_PASSWORD', problem);
@@ -142,6 +162,7 @@ export class StaffAuthService {
       await tx.staffUser.update({ where: { id: rt.staffUserId }, data: { passwordHash: hash } });
       await tx.staffSession.updateMany({ where: { staffUserId: rt.staffUserId, revokedAt: null }, data: { revokedAt: now } });
     });
+    this.limiter.clearAccount('staff', [rt.staffUser.email]);
   }
 
   // ───────────── Convites (RN-93) ─────────────
