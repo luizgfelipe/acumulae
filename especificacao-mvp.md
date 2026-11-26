@@ -126,7 +126,15 @@ Uma plataforma SaaS multi-tenant em que:
 - **RN-10 [RECOMENDADO]** Sessão de longa duração no aparelho: refresh token rotativo, válido por 180 dias e renovado a cada uso. No mesmo aparelho o cliente não precisa logar de novo.
 - **RN-11 [RECOMENDADO]** A senha só é pedida em aparelho novo, depois de limpar o navegador, com a sessão expirada ou após logout.
 - **RN-12 [RECOMENDADO]** Recuperação de senha **por e-mail** (link de uso único, válido por 30 minutos).
-- **RN-13 [RECOMENDADO]** Limite de tentativas: 5 erros de login em 15 minutos bloqueiam o login por 15 minutos para aquele identificador e IP.
+- **RN-13 [RECOMENDADO]** Limite de tentativas. No login, três contadores:
+  - **Identificador + IP:** 5 erros em 15 minutos bloqueiam aquele identificador naquele IP por 15 minutos.
+  - **IP:** 30 erros em 1 hora vindos de um IP, somando todas as contas, bloqueiam o IP por 1 hora (testar uma senha em muitas contas).
+  - **Conta, somando todos os IPs:** 20 erros em 1 hora **não bloqueiam** a conta (senão qualquer um travaria a conta dos outros). Pausam por 1 hora o login dela só em IPs onde ela nunca entrou; onde já entrou continua funcionando. O dono recebe um e-mail com o link para trocar a senha, e redefinir a senha encerra a pausa.
+  - **Bloqueio progressivo:** um novo bloqueio da mesma chave até 24 horas depois do fim do anterior dura o dobro (15 min, 30 min, 1 h...), até 24 horas.
+  - O telefone conta normalizado (E.164) e o e-mail em minúsculas, então escrever o mesmo identificador de outro jeito não zera a contagem. Um login certo zera só o contador daquele identificador naquele IP.
+  - A senha é conferida no mesmo tempo exista a conta ou não, e "Esqueci minha senha" responde sem esperar o envio do e-mail: o tempo de resposta não revela quais contas existem.
+  - **Outras rotas públicas, por IP:** "Esqueci minha senha" aceita 3 pedidos por conta e 10 por IP em 1 hora; o cadastro aceita 60 por IP e 20 recusas por IP em 1 hora; links e QRs com token (convite, redefinição de senha, QR temporário do caixa) aceitam 20 recusas por IP em 15 minutos.
+  - A resposta de bloqueio é HTTP 429 `TOO_MANY_ATTEMPTS`, com o tempo de espera na mensagem e em `details.retryAfterSeconds`.
 - **RN-14 [RECOMENDADO]** Se alguém tentar cadastrar um telefone ou e-mail **já existente**, o sistema não cria conta nova: informa que a conta já existe e oferece "Entrar" ou "Esqueci minha senha".
 - **RN-15 [RECOMENDADO]** Vinculação de login social a uma conta existente com o mesmo e-mail é automática **somente** se o provedor garantir o e-mail verificado (`email_verified = true`). Caso contrário, o cliente precisa logar com a senha antes de vincular.
 
@@ -518,7 +526,7 @@ checkout_tokens             -- QR temporário
 | Funcionário lança selos indevidos | Registro do funcionário em cada lançamento, limite por lançamento, relatório por funcionário, estorno pelo gestor. |
 | Lançamento duplicado (clique duplo, rede instável) | Chave de idempotência no lançamento. |
 | Acesso à conta por quem sabe telefone e nascimento | Login exige senha ou login social. Nascimento e telefone nunca servem de credencial. |
-| Força bruta na senha | Limite de tentativas (RN-13), hash forte (BCrypt/Argon2). |
+| Força bruta na senha | Limite de tentativas por identificador, por IP e por conta, com bloqueio progressivo (RN-13); hash forte (BCrypt/Argon2). |
 | Estabelecimento vê dados de concorrentes | Isolamento por tenant no backend (RN-82). |
 | Telefone de outra pessoa cadastrado | O dono real usa a recuperação de senha por e-mail; o suporte da plataforma pode corrigir o telefone. [RECOMENDADO] Fase futura: verificação por código no WhatsApp. |
 

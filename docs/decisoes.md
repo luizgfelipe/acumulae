@@ -57,7 +57,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
   - **Recompensa liberada com prazo próprio** (opcional, ex.: 30 dias), também com aviso.
   - **Sem efeito retroativo:** ao ligar, o prazo começa a contar a partir daquele dia para todos.
   - A decidir: por inatividade (recomendado) ou por selo; se a recompensa liberada também expira.
-- Rate limit em Redis, caso a API rode em mais de uma instância.
+- Limites de tentativas (RN-13) em Redis, caso a API rode em mais de uma instância.
 - Correção de telefone e mesclagem de contas pelo admin da plataforma (suporte).
 - Revisão jurídica dos Termos de Uso e da Política de Privacidade.
 - **Origem do cadastro (por qual unidade e canal o cliente entrou)** — avaliado em 20/11/2026, fica para quando houver o primeiro cliente no plano Rede ou com mais de uma unidade:
@@ -176,3 +176,11 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **A exportação em CSV só inclui quem aceitou a versão com o compartilhamento** (`TERMS_DATA_SHARING_SINCE`). Ao mudar o texto dos termos, troque `TERMS_VERSION`.
 - A lista de clientes e os relatórios do painel continuam mostrando o telefone completo só de quem aceitou promoções.
 - **Pendente:** revisar o texto dos Termos e da Política com assessoria jurídica (LGPD) antes do lançamento.
+
+## Limites contra força bruta (25/11/2026)
+
+- **Em memória** (`RateLimitStore`, em `apps/api/src/rate-limit/`), como o limite de login que já existia: vale para uma instância da API. Reiniciar a API zera os contadores e a lista de IPs onde cada conta já entrou. Com mais de uma instância, mover para o Redis.
+- **Bloqueio em vez de atrasar a resposta.** Segurar a resposta a cada erro deixaria conexões abertas no servidor, e o atacante só dispararia mais requisições em paralelo. O 429 imediato com bloqueio progressivo custa menos e freia mais.
+- **A conta não é bloqueada por erros de vários IPs**, para ninguém conseguir travar a conta dos outros: o login fica pausado só em IPs onde ela nunca entrou (até 10 por conta), e o dono recebe um e-mail.
+- **Limites folgados nas rotas públicas**, porque vários clientes podem dividir o IP do Wi-Fi do estabelecimento. Valores em `apps/api/src/auth/rate-limiter.service.ts` (login e "Esqueci minha senha") e `apps/api/src/rate-limit/limits.ts` (demais rotas).
+- Regras completas na RN-13 da especificação.

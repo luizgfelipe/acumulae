@@ -104,5 +104,5 @@ Guarde os backups fora da VPS (S3, Backblaze B2 etc.).
 
 - Segurança: a API manda os cabeçalhos do `helmet` (CSP fechada, sem frames) e as páginas recebem CSP, HSTS de 2 anos e `X-Frame-Options: DENY` pelo `next.config.ts`. O IP do cliente vem da última entrada do `X-Forwarded-For` (`TRUST_PROXY_HOPS=1`, o Traefik). Se colocar o Cloudflare com proxy ligado na frente, use `TRUST_PROXY_HOPS=2`.
 
-- O limite de tentativas de login fica em memória: vale para **uma** instância da API. Para escalar horizontalmente, mova esse limite para o Redis.
+- Os limites de tentativas (login, "Esqueci minha senha", cadastro, links com token; RN-13) ficam em memória: valem para **uma** instância da API e zeram quando ela reinicia. Para escalar horizontalmente, mova esses limites para o Redis.
 - A câmera do caixa e a instalação da PWA exigem HTTPS, que o Traefik do Dokploy já fornece.
