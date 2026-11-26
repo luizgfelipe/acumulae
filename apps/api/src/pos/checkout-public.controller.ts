@@ -6,6 +6,8 @@ import { sha256 } from '../common/crypto';
 import { AppError, forbidden, gone, notFound } from '../common/errors';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { LIMITS } from '../rate-limit/limits';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 @Injectable()
 export class CheckoutClaimService {
@@ -117,11 +119,13 @@ export class CheckoutPublicController {
   constructor(private readonly svc: CheckoutClaimService) {}
 
   @Get(':token')
+  @RateLimit(LIMITS.tokenFailure)
   info(@Param('token') token: string) {
     return this.svc.info(token);
   }
 
   @Post(':token/claim')
+  @RateLimit(LIMITS.tokenFailure)
   @HttpCode(200)
   @UseGuards(CustomerAuthGuard)
   claim(@Param('token') token: string, @CurrentCustomer() customer: CustomerPrincipal) {

@@ -463,3 +463,34 @@ describe('Cada tipo de credencial só abre a própria área', () => {
     await c.agent.get('/api/platform/tenants').expect(401);
   });
 });
+
+describe('Limites por IP nas rotas públicas', () => {
+  const from = (ip: string) => ({ 'X-Forwarded-For': ip });
+
+  it('cadastro: 20 recusas do mesmo IP em 1 hora bloqueiam o IP', async () => {
+    const taken = await customerAgent(app);
+    for (let i = 0; i < 20; i++) {
+      await http().post('/api/auth/register').set(from('198.51.100.200')).send(registerBody({ email: taken.email })).expect(409);
+    }
+    const r = await http().post('/api/auth/register').set(from('198.51.100.200')).send(registerBody()).expect(429);
+    expect(r.body.code).toBe('TOO_MANY_ATTEMPTS');
+    await http().post('/api/auth/register').set(from('198.51.100.201')).send(registerBody()).expect(201);
+  });
+
+  it('cadastro: cadastros aceitos não contam como recusa', async () => {
+    for (let i = 0; i < 21; i++) {
+      await http().post('/api/auth/register').set(from('198.51.100.210')).send(registerBody()).expect(201);
+    }
+  });
+
+  it('links com token: 20 recusas do mesmo IP em 15 min bloqueiam convite, redefinição e QR do caixa', async () => {
+    const ip = from('198.51.100.220');
+    for (let i = 0; i < 20; i++) {
+      await http().get(`/api/staff/invites/inexistente${i}abcdefgh`).set(ip).expect(404);
+    }
+    await http().get('/api/c/inexistente0abcdefgh').set(ip).expect(429);
+    await http().post('/api/auth/password/reset').set(ip).send({ token: 'qualquer-token-1', password: 'NovaSenha#9' }).expect(429);
+    await http().post('/api/staff/auth/password/reset').set(ip).send({ token: 'qualquer-token-1', password: 'NovaSenha#9' }).expect(429);
+    await http().get('/api/c/inexistente0abcdefgh').set(from('198.51.100.221')).expect(404);
+  });
+});

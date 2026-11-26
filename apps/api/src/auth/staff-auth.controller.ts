@@ -3,6 +3,8 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { clientIp, deviceLabel } from '../common/request';
 import { ZodPipe } from '../common/zod.pipe';
+import { LIMITS } from '../rate-limit/limits';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { COOKIE_NAMES, clearAuthCookies, setAuthCookies } from './cookies';
 import { SessionsService } from './sessions.service';
 import { CurrentStaff, Staff, StaffPrincipal } from './staff-auth.guard';
@@ -82,6 +84,7 @@ export class StaffAuthController {
   }
 
   @Post('auth/password/reset')
+  @RateLimit(LIMITS.tokenFailure)
   @HttpCode(200)
   async reset(@Body(new ZodPipe(staffResetSchema)) body: z.infer<typeof staffResetSchema>) {
     await this.staffAuth.reset(body.token, body.password);
@@ -89,11 +92,13 @@ export class StaffAuthController {
   }
 
   @Get('invites/:token')
+  @RateLimit(LIMITS.tokenFailure)
   inviteInfo(@Param('token') token: string) {
     return this.staffAuth.inviteInfo(token);
   }
 
   @Post('invites/:token/accept')
+  @RateLimit(LIMITS.tokenFailure)
   @HttpCode(200)
   async accept(
     @Param('token') token: string,

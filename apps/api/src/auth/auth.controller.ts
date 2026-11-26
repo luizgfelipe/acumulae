@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { config } from '../common/config';
 import { clientIp, deviceLabel } from '../common/request';
 import { ZodPipe } from '../common/zod.pipe';
+import { LIMITS } from '../rate-limit/limits';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { COOKIE_NAMES, clearAuthCookies, oauthCookieOptions, setAuthCookies } from './cookies';
 import {
@@ -59,6 +61,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @RateLimit(LIMITS.registerAll, LIMITS.registerFailure)
   async register(
     @Body(new ZodPipe(registerSchema)) body: z.infer<typeof registerSchema>,
     @Req() req: Request,
@@ -115,6 +118,7 @@ export class AuthController {
   }
 
   @Post('password/reset')
+  @RateLimit(LIMITS.tokenFailure)
   @HttpCode(200)
   async reset(@Body(new ZodPipe(resetSchema)) body: z.infer<typeof resetSchema>, @Res({ passthrough: true }) res: Response) {
     await this.auth.reset(body.token, body.password);
