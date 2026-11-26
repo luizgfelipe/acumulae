@@ -16,6 +16,15 @@ export const LOGIN_IP: LimitRule = { name: 'login:ip', windowMs: HOUR, max: 30, 
  */
 export const LOGIN_ACCOUNT: LimitRule = { name: 'login:account', windowMs: HOUR, max: 20, blockMs: HOUR, maxBlockMs: 24 * HOUR };
 
+/** "Esqueci minha senha": 3 pedidos por identificador em 1 h (evita encher a caixa de e-mail de alguém). */
+export const FORGOT_ID: LimitRule = { name: 'forgot:id', windowMs: HOUR, max: 3, blockMs: HOUR };
+
+/** "Esqueci minha senha": 10 pedidos por IP em 1 h, somando todas as contas (protege o envio de e-mails). */
+export const FORGOT_IP: LimitRule = { name: 'forgot:ip', windowMs: HOUR, max: 10, blockMs: HOUR, maxBlockMs: 24 * HOUR };
+
+const FORGOT_MESSAGE = (wait: string) =>
+  `Muitos pedidos de redefinição de senha. Confira seu e-mail (inclusive o spam) ou tente de novo em ${wait}.`;
+
 /** IPs onde cada conta já entrou, guardados para a pausa do LOGIN_ACCOUNT. */
 const KNOWN_IPS_PER_ACCOUNT = 10;
 const MAX_KNOWN_ACCOUNTS = 100_000;
@@ -77,6 +86,18 @@ export class LoginRateLimiter {
     this.knownIps.delete(acc); // reinsere no fim: o Map fica em ordem de uso
     this.knownIps.set(acc, ips.slice(-KNOWN_IPS_PER_ACCOUNT));
     if (this.knownIps.size > MAX_KNOWN_ACCOUNTS) this.knownIps.delete(this.knownIps.keys().next().value!);
+  }
+
+  /**
+   * Pedido de "esqueci minha senha". Conta todos os pedidos, existindo a conta ou não:
+   * o limite não revela quais contas existem.
+   */
+  forgot(scope: LoginScope, identifier: string, ip: string) {
+    const key = this.account(scope, identifier);
+    this.store.assert(FORGOT_IP, ip, FORGOT_MESSAGE);
+    this.store.assert(FORGOT_ID, key, FORGOT_MESSAGE);
+    this.store.hit(FORGOT_IP, ip);
+    this.store.hit(FORGOT_ID, key);
   }
 
   /** Senha redefinida: o dono provou o acesso ao e-mail, então a pausa da conta acaba. */

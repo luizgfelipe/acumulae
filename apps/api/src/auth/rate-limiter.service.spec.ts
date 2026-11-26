@@ -186,6 +186,37 @@ describe('LoginRateLimiter: conta sob ataque distribuído (RN-13)', () => {
   });
 });
 
+describe('LoginRateLimiter: esqueci minha senha', () => {
+  let limiter: LoginRateLimiter;
+  const IP = '10.0.0.1';
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date('2026-11-18T12:00:00Z') });
+    limiter = new LoginRateLimiter(new RateLimitStore());
+  });
+
+  afterEach(() => jest.useRealTimers());
+
+  it('3 pedidos por identificador em 1 hora; o 4º é recusado', () => {
+    for (let i = 0; i < 3; i++) limiter.forgot('customer', 'maria@example.com', `10.0.1.${i}`);
+    expect(() => limiter.forgot('customer', 'maria@example.com', '10.0.2.1')).toThrow(/Confira seu e-mail/);
+    expect(() => limiter.forgot('customer', 'joao@example.com', '10.0.2.1')).not.toThrow();
+    expect(() => limiter.forgot('staff', 'maria@example.com', '10.0.2.1')).not.toThrow();
+  });
+
+  it('libera de novo depois de 1 hora', () => {
+    for (let i = 0; i < 3; i++) limiter.forgot('customer', 'maria@example.com', IP);
+    jest.advanceTimersByTime(60 * MIN + 1);
+    expect(() => limiter.forgot('customer', 'maria@example.com', IP)).not.toThrow();
+  });
+
+  it('10 pedidos por IP em 1 hora, somando todas as contas', () => {
+    for (let i = 0; i < 10; i++) limiter.forgot('customer', `conta${i}@example.com`, IP);
+    expect(() => limiter.forgot('staff', 'outra@example.com', IP)).toThrow(/60 minuto/);
+    expect(() => limiter.forgot('customer', 'outra@example.com', '10.0.0.2')).not.toThrow();
+  });
+});
+
 describe('identifierKey', () => {
   it('e-mail sem diferença de maiúsculas e espaços', () => {
     expect(identifierKey('  Maria@Example.com ')).toBe('maria@example.com');

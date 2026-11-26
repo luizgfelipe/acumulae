@@ -171,8 +171,9 @@ export class CustomerAuthService {
     });
   }
 
-  /** Fluxo 6.7: não revela se a conta existe. */
-  async forgot(identifier: string) {
+  /** Fluxo 6.7: não revela se a conta existe (nem pelo tempo: o e-mail sai sem atrasar a resposta). */
+  async forgot(identifier: string, ip: string) {
+    this.limiter.forgot('customer', identifierKey(identifier), ip);
     const c = await this.findByIdentifier(identifier);
     if (!c || c.status !== 'ACTIVE' || !c.email) return;
     const token = randomToken(32);
@@ -180,7 +181,7 @@ export class CustomerAuthService {
       data: { customerId: c.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_TTL_MINUTES * 60_000) },
     });
     const url = `${config.publicUrl}/redefinir-senha?token=${token}`;
-    await this.mail.send({
+    void this.mail.send({
       to: c.email,
       subject: 'Redefinição de senha — Acumulaê',
       text:

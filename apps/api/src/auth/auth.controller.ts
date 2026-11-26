@@ -109,8 +109,8 @@ export class AuthController {
 
   @Post('password/forgot')
   @HttpCode(200)
-  async forgot(@Body(new ZodPipe(forgotSchema)) body: z.infer<typeof forgotSchema>) {
-    await this.auth.forgot(body.identifier);
+  async forgot(@Body(new ZodPipe(forgotSchema)) body: z.infer<typeof forgotSchema>, @Req() req: Request) {
+    await this.auth.forgot(body.identifier, clientIp(req));
     return { message: 'Se houver uma conta, enviamos um link para o e-mail cadastrado.' };
   }
 

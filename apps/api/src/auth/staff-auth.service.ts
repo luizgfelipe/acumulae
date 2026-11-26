@@ -129,14 +129,16 @@ export class StaffAuthService {
     };
   }
 
-  async forgot(email: string) {
+  /** Não revela se a conta existe (nem pelo tempo: o e-mail sai sem atrasar a resposta). */
+  async forgot(email: string, ip: string) {
+    this.limiter.forgot('staff', email, ip);
     const u = await this.prisma.staffUser.findUnique({ where: { email } });
     if (!u || u.status !== 'ACTIVE' || !u.passwordHash) return;
     const token = randomToken(32);
     await this.prisma.staffPasswordResetToken.create({
       data: { staffUserId: u.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 30 * 60_000) },
     });
-    await this.mail.send({
+    void this.mail.send({
       to: u.email,
       subject: 'Redefinição de senha do painel — Acumulaê',
       text:

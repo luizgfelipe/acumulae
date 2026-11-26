@@ -6,6 +6,7 @@ import request from 'supertest';
 import { CustomerAuthService } from '../src/auth/customer-auth.service';
 import { SessionsService } from '../src/auth/sessions.service';
 import { TokensService } from '../src/auth/tokens.service';
+import { MailService } from '../src/mail/mail.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
   PLATFORM_KEY,
@@ -246,6 +247,18 @@ describe('Recuperação e troca de senha (RN-12)', () => {
     const r = await http().post('/api/auth/password/forgot').send({ identifier: 'ninguem@example.com' }).expect(200);
     expect(r.body.message).toMatch(/Se houver uma conta/);
     expect(await app.get(PrismaService).passwordResetToken.count()).toBe(await before);
+  });
+
+  it('no máximo 3 pedidos por conta em 1 hora, com a mesma resposta exista a conta ou não', async () => {
+    const c = await customerAgent(app);
+    for (const identifier of [c.email, `ninguem-${uniq()}@example.com`]) {
+      for (let i = 0; i < 3; i++) {
+        await http().post('/api/auth/password/forgot').set('X-Forwarded-For', `192.0.2.${i}`).send({ identifier }).expect(200);
+      }
+      const r = await http().post('/api/auth/password/forgot').set('X-Forwarded-For', '192.0.2.9').send({ identifier }).expect(429);
+      expect(r.body.message).toMatch(/Confira seu e-mail/);
+    }
+    expect(app.get(MailService).sent.filter((m) => m.to === c.email && /Redefinição/.test(m.subject))).toHaveLength(3);
   });
 
   it('o link vale 30 minutos', async () => {

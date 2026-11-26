@@ -76,8 +76,8 @@ export class StaffAuthController {
 
   @Post('auth/password/forgot')
   @HttpCode(200)
-  async forgot(@Body(new ZodPipe(staffForgotSchema)) body: z.infer<typeof staffForgotSchema>) {
-    await this.staffAuth.forgot(body.email);
+  async forgot(@Body(new ZodPipe(staffForgotSchema)) body: z.infer<typeof staffForgotSchema>, @Req() req: Request) {
+    await this.staffAuth.forgot(body.email, clientIp(req));
     return { message: 'Se houver uma conta, enviamos um link para o e-mail.' };
   }
 
