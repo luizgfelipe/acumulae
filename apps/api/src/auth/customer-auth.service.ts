@@ -133,7 +133,8 @@ export class CustomerAuthService {
     const key = input.identifier.toLowerCase();
     this.limiter.assertAllowed('customer', key, ip);
     const c = await this.findByIdentifier(input.identifier);
-    const ok = c && c.status === 'ACTIVE' && (await verifyPassword(input.password, c.passwordHash));
+    // O bcrypt roda mesmo sem conta: o tempo de resposta não revela se ela existe.
+    const ok = await verifyPassword(input.password, c?.status === 'ACTIVE' ? c.passwordHash : null);
     if (!ok || !c) {
       this.limiter.fail('customer', key, ip);
       throw unauthorized('Telefone/e-mail ou senha incorretos.', 'INVALID_CREDENTIALS');

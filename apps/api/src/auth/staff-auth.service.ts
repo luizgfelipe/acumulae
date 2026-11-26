@@ -66,7 +66,8 @@ export class StaffAuthService {
   async login(input: z.infer<typeof staffLoginSchema>, ip: string, device: string | null) {
     this.limiter.assertAllowed('staff', input.email, ip);
     const u = await this.prisma.staffUser.findUnique({ where: { email: input.email } });
-    const ok = u && u.status === 'ACTIVE' && (await verifyPassword(input.password, u.passwordHash));
+    // O bcrypt roda mesmo sem conta: o tempo de resposta não revela se ela existe.
+    const ok = await verifyPassword(input.password, u?.status === 'ACTIVE' ? u.passwordHash : null);
     if (!ok || !u) {
       this.limiter.fail('staff', input.email, ip);
       throw unauthorized('E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');

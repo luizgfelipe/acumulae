@@ -3,8 +3,18 @@ import bcrypt from 'bcryptjs';
 const BCRYPT_COST = 11;
 
 export const hashPassword = (pw: string) => bcrypt.hash(pw, BCRYPT_COST);
-export const verifyPassword = (pw: string, hash: string | null | undefined) =>
-  hash ? bcrypt.compare(pw, hash) : Promise.resolve(false);
+/** Hash descartável, comparado quando não há hash de verdade (ver verifyPassword). */
+let dummyHash: Promise<string> | undefined;
+const dummy = () => (dummyHash ??= bcrypt.hash('acumulae-senha-inexistente', BCRYPT_COST));
+
+/**
+ * Confere a senha. Sem hash (conta inexistente, inativa ou só com login social) compara mesmo assim com
+ * um hash descartável e devolve false: a resposta leva o mesmo tempo e o tempo não revela se a conta existe.
+ */
+export async function verifyPassword(pw: string, hash: string | null | undefined): Promise<boolean> {
+  const ok = await bcrypt.compare(pw, hash || (await dummy()));
+  return !!hash && ok;
+}
 
 function isSequence(pw: string): boolean {
   const s = pw.toLowerCase();

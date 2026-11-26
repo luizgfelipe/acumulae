@@ -73,3 +73,18 @@ describe('hashPassword / verifyPassword', () => {
     await expect(verifyPassword('qualquer', undefined)).resolves.toBe(false);
   });
 });
+
+describe('verifyPassword sem hash (tempo constante)', () => {
+  it('compara com um hash descartável, gastando o mesmo trabalho do bcrypt', async () => {
+    const hash = await hashPassword('Senha#Forte1');
+    await verifyPassword('aquece', null); // o hash descartável é gerado uma vez só
+    const time = async (h: string | null) => {
+      const t = process.hrtime.bigint();
+      await verifyPassword('Errada#123', h);
+      return Number(process.hrtime.bigint() - t) / 1e6;
+    };
+    const [withHash, without] = [await time(hash), await time(null)];
+    // Sem o hash descartável a diferença seria de ~100x (1 ms contra ~100 ms).
+    expect(without).toBeGreaterThan(withHash / 3);
+  });
+});
