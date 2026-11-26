@@ -8,8 +8,8 @@ const HOUR = 60 * MIN;
  * LoginRateLimiter). Folgados de propósito: vários clientes podem dividir o IP do Wi-Fi do estabelecimento.
  */
 export const LIMITS = {
-  /** Cadastro: 60 por IP em 1 h (criação de contas em massa). */
-  registerAll: { rule: { name: 'register:all', windowMs: HOUR, max: 60, blockMs: HOUR, maxBlockMs: 24 * HOUR }, countOn: 'all' },
+  /** Cadastro: 130 por IP em 1 h (criação de contas em massa). Cabe o lançamento de um estabelecimento, com todos no mesmo Wi-Fi. */
+  registerAll: { rule: { name: 'register:all', windowMs: HOUR, max: 130, blockMs: HOUR, maxBlockMs: 24 * HOUR }, countOn: 'all' },
   /** Cadastro recusado (conta já existe, senha fraca…): 20 por IP em 1 h. Freia quem testa telefones e e-mails. */
   registerFailure: {
     rule: { name: 'register:fail', windowMs: HOUR, max: 20, blockMs: HOUR, maxBlockMs: 24 * HOUR },
