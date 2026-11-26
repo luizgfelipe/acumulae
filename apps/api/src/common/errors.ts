@@ -16,4 +16,5 @@ export const notFound = (message = 'Não encontrado.', code = 'NOT_FOUND') => ne
 export const conflict = (code: string, message: string, details?: unknown) =>
   new AppError(409, code, message, details);
 export const gone = (code: string, message: string) => new AppError(410, code, message);
-export const tooMany = (message: string) => new AppError(429, 'TOO_MANY_ATTEMPTS', message);
+export const tooMany = (message: string, retryAfterSeconds?: number) =>
+  new AppError(429, 'TOO_MANY_ATTEMPTS', message, retryAfterSeconds ? { retryAfterSeconds } : undefined);

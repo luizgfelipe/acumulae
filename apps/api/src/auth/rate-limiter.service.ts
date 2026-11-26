@@ -1,63 +1,48 @@
 import { Injectable } from '@nestjs/common';
-import { tooMany } from '../common/errors';
+import { LimitRule, RateLimitStore } from '../rate-limit/rate-limit.store';
 
-const WINDOW_MS = 15 * 60_000;
-const MAX_FAILURES = 5;
-const BLOCK_MS = 15 * 60_000;
+const MIN = 60_000;
+const HOUR = 60 * MIN;
 
-interface Entry {
-  failures: number[];
-  blockedUntil?: number;
-}
+/** RN-13: 5 erros em 15 min bloqueiam aquele identificador naquele IP. O bloqueio dobra a cada reincidência. */
+export const LOGIN_PAIR: LimitRule = { name: 'login:pair', windowMs: 15 * MIN, max: 5, blockMs: 15 * MIN, maxBlockMs: 24 * HOUR };
+
+/** RN-13: 30 erros em 1 h vindos de um IP, somando todas as contas (tentar uma senha em muitas contas). */
+export const LOGIN_IP: LimitRule = { name: 'login:ip', windowMs: HOUR, max: 30, blockMs: HOUR, maxBlockMs: 24 * HOUR };
+
+export type LoginScope = 'customer' | 'staff';
 
 /**
- * RN-13: 5 erros de login em 15 minutos bloqueiam por 15 minutos (por identificador + IP).
- * Em memória: suficiente para uma instância única. Com várias instâncias, mover para Redis.
+ * Limite de tentativas de login (RN-13). O `identifier` já deve vir normalizado (e-mail em minúsculas,
+ * telefone em E.164), senão variações de escrita do mesmo identificador ganhariam contadores novos.
  */
 @Injectable()
 export class LoginRateLimiter {
-  private readonly entries = new Map<string, Entry>();
+  constructor(private readonly store: RateLimitStore) {}
 
-  private key(scope: string, identifier: string, ip: string) {
-    return `${scope}|${identifier.toLowerCase()}|${ip}`;
+  private pair(scope: LoginScope, identifier: string, ip: string) {
+    return `${scope}|${identifier}|${ip}`;
   }
 
-  assertAllowed(scope: string, identifier: string, ip: string) {
-    const e = this.entries.get(this.key(scope, identifier, ip));
-    if (e?.blockedUntil && e.blockedUntil > Date.now()) {
-      const minutes = Math.ceil((e.blockedUntil - Date.now()) / 60_000);
-      throw tooMany(`Muitas tentativas. Tente novamente em ${minutes} minuto(s).`);
-    }
+  assertAllowed(scope: LoginScope, identifier: string, ip: string) {
+    this.store.assert(LOGIN_IP, ip);
+    this.store.assert(LOGIN_PAIR, this.pair(scope, identifier, ip));
   }
 
-  fail(scope: string, identifier: string, ip: string) {
-    const k = this.key(scope, identifier, ip);
-    const now = Date.now();
-    const e = this.entries.get(k) ?? { failures: [] };
-    e.failures = e.failures.filter((t) => now - t < WINDOW_MS);
-    e.failures.push(now);
-    if (e.failures.length >= MAX_FAILURES) {
-      e.blockedUntil = now + BLOCK_MS;
-      e.failures = [];
-    }
-    this.entries.set(k, e);
-    if (this.entries.size > 50_000) this.gc();
+  fail(scope: LoginScope, identifier: string, ip: string) {
+    this.store.hit(LOGIN_IP, ip);
+    this.store.hit(LOGIN_PAIR, this.pair(scope, identifier, ip));
   }
 
-  succeed(scope: string, identifier: string, ip: string) {
-    this.entries.delete(this.key(scope, identifier, ip));
+  /**
+   * Login certo zera os erros daquele identificador naquele IP. O contador do IP continua:
+   * senão quem tem uma conta válida a usaria para zerá-lo entre as tentativas nas outras.
+   */
+  succeed(scope: LoginScope, identifier: string, ip: string) {
+    this.store.clear(LOGIN_PAIR, this.pair(scope, identifier, ip));
   }
 
   reset() {
-    this.entries.clear();
-  }
-
-  private gc() {
-    const now = Date.now();
-    for (const [k, e] of this.entries) {
-      if ((!e.blockedUntil || e.blockedUntil < now) && e.failures.every((t) => now - t > WINDOW_MS)) {
-        this.entries.delete(k);
-      }
-    }
+    this.store.reset();
   }
 }

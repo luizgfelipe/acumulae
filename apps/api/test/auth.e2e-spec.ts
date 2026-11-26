@@ -141,6 +141,29 @@ describe('Login do cliente (RN-09, RN-13)', () => {
     await http().post('/api/auth/login').send({ identifier: victim.email, password: victim.password }).expect(429);
     await http().post('/api/auth/login').send({ identifier: other.email, password: other.password }).expect(200);
   });
+
+  it('o mesmo telefone escrito de jeitos diferentes conta como um identificador só', async () => {
+    const c = await customerAgent(app, { phone: '(47) 98111-4455' });
+    for (const identifier of ['(47) 98111-4455', '47981114455', '+5547981114455', '+55 47 98111-4455', '47 98111 4455']) {
+      await http().post('/api/auth/login').send({ identifier, password: 'errada' }).expect(401);
+    }
+    await http().post('/api/auth/login').send({ identifier: '47981114455', password: c.password }).expect(429);
+  });
+
+  it('30 erros do mesmo IP em contas diferentes bloqueiam o IP (RN-13)', async () => {
+    const c = await customerAgent(app);
+    const from = (ip: string) => ({ 'X-Forwarded-For': ip });
+    for (let i = 0; i < 30; i++) {
+      await http()
+        .post('/api/auth/login')
+        .set(from('203.0.113.7'))
+        .send({ identifier: `alvo${i}-${uniq()}@example.com`, password: 'Senha123' })
+        .expect(401);
+    }
+    const r = await http().post('/api/auth/login').set(from('203.0.113.7')).send({ identifier: c.email, password: c.password }).expect(429);
+    expect(r.body.details.retryAfterSeconds).toBe(3600);
+    await http().post('/api/auth/login').set(from('203.0.113.8')).send({ identifier: c.email, password: c.password }).expect(200);
+  });
 });
 
 describe('Sessão (RN-10, RN-11)', () => {

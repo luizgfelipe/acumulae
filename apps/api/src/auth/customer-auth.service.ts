@@ -40,6 +40,15 @@ export const loginSchema = z.object({
 export const forgotSchema = z.object({ identifier: z.string().trim().min(3).max(200) });
 export const resetSchema = z.object({ token: z.string().min(10).max(200), password: z.string().min(1).max(128) });
 
+/**
+ * Chave do identificador para os limites (RN-13): o mesmo telefone escrito de jeitos diferentes
+ * ("(47) 99999-1234", "+5547999991234") ou o e-mail com maiúsculas contam como um só.
+ */
+export function identifierKey(identifier: string): string {
+  const id = identifier.trim().toLowerCase();
+  return id.includes('@') ? id : (normalizePhone(id) ?? id);
+}
+
 export function toDate(birth: string | null | undefined): Date | null {
   return birth ? new Date(`${birth}T00:00:00Z`) : null;
 }
@@ -130,7 +139,7 @@ export class CustomerAuthService {
 
   /** RN-09: telefone ou e-mail + senha. RN-13: limite de tentativas. */
   async login(input: z.infer<typeof loginSchema>, ip: string, device: string | null) {
-    const key = input.identifier.toLowerCase();
+    const key = identifierKey(input.identifier);
     this.limiter.assertAllowed('customer', key, ip);
     const c = await this.findByIdentifier(input.identifier);
     // O bcrypt roda mesmo sem conta: o tempo de resposta não revela se ela existe.

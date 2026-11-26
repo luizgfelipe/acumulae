@@ -9,12 +9,14 @@ import { MeModule } from './me/me.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlatformModule } from './platform/platform.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    RateLimitModule,
     MailModule,
     StaffModule,
     AuthModule,
