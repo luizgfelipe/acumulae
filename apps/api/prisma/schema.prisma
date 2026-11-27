@@ -136,6 +136,8 @@ model Store {
   staffAccess    StaffStoreAccess[]
   ledgerEntries  LedgerEntry[]
   checkoutTokens CheckoutToken[]
+  signups        Membership[]       @relation("MembershipSignupStore")
+  announcements  Announcement[]
 
   @@unique([tenantId, slug])
   @@index([state, city])
@@ -471,6 +473,9 @@ model Membership {
   marketingConsentAt     DateTime? @map("marketing_consent_at") @db.Timestamptz(3)
   firstVisitAt           DateTime? @map("first_visit_at") @db.Timestamptz(3)
   lastVisitAt            DateTime? @map("last_visit_at") @db.Timestamptz(3)
+  /// Unidade em que o cliente entrou no programa: a do QR do balcão (`?u=`) ou a do primeiro lançamento.
+  /// Com ela o cliente já é "da unidade" para as notificações por unidade, antes do primeiro selo.
+  signupStoreId          String?   @map("signup_store_id") @db.Uuid
   /// Caches derivados do ledger (reconstruíveis).
   cachedBalance          Int       @default(0) @map("cached_balance")
   cachedRewardsAvailable Int       @default(0) @map("cached_rewards_available")
@@ -482,12 +487,14 @@ model Membership {
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   customer      Customer       @relation(fields: [customerId], references: [id])
   program       LoyaltyProgram @relation(fields: [programId], references: [id])
+  signupStore   Store?         @relation("MembershipSignupStore", fields: [signupStoreId], references: [id])
   ledgerEntries LedgerEntry[]
   rewards       Reward[]
 
   @@unique([programId, customerId])
   @@index([tenantId, customerId])
   @@index([customerId])
+  @@index([signupStoreId])
   @@map("memberships")
 }
 
@@ -528,6 +535,7 @@ model LedgerEntry {
   @@index([tenantId, createdAt])
   @@index([membershipId, createdAt])
   @@index([parentEntryId])
+  @@index([storeId, membershipId])
   @@map("ledger_entries")
 }
 
@@ -653,12 +661,15 @@ model Announcement {
   body        String
   /// Para quem foi: "all" (todos que aceitaram promoções), "birthdays:MM" ou "inactive:DIAS" (filtros dos relatórios).
   segment     String   @default("all")
+  /// Só os clientes desta unidade (cadastro nela ou algum lançamento nela); null = todas.
+  storeId     String?  @map("store_id") @db.Uuid
   /// Quantos clientes receberam (fotografia no momento do envio).
   recipients  Int
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   staffUser     StaffUser      @relation(fields: [staffUserId], references: [id])
+  store         Store?         @relation(fields: [storeId], references: [id])
   notifications Notification[]
 
   @@index([tenantId, createdAt])

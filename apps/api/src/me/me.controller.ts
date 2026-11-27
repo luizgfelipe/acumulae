@@ -69,7 +69,7 @@ export class MeController {
 
   @Post('memberships')
   join(@CurrentCustomer() c: CustomerPrincipal, @Body(new ZodPipe(joinSchema)) body: z.infer<typeof joinSchema>) {
-    return this.me.join(c, body.slug);
+    return this.me.join(c, body.slug, body.store);
   }
 
   @Get('memberships/:id')

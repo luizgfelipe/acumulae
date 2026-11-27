@@ -60,10 +60,10 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - Limites de tentativas (RN-13) em Redis, caso a API rode em mais de uma instância.
 - Correção de telefone e mesclagem de contas pelo admin da plataforma (suporte).
 - Revisão jurídica dos Termos de Uso e da Política de Privacidade.
-- **Origem do cadastro (por qual unidade e canal o cliente entrou)** — avaliado em 20/11/2026, fica para quando houver o primeiro cliente no plano Rede ou com mais de uma unidade:
-  - Hoje o painel da Rede já atribui o cliente novo à unidade do **primeiro selo**. O `?u=` do QR de cada unidade só muda o nome no cartaz; não é gravado.
-  - Proposta: guardar no cartão a unidade de entrada (do `?u=`) e, se fizer sentido, o canal (cartaz impresso × link/imagem nas redes, ex.: `?origem=link`), na entrada pelo `/e/{slug}` (`POST /api/me/memberships`).
-  - Uso: "cadastros pelo QR" por unidade no painel da Rede (qual cartaz funciona) e o filtro **"Cadastrados que nunca voltaram"** (cartão sem nenhum selo) em Relatórios, com envio de notificação como os demais filtros.
+- **Origem do cadastro: canal e usos no painel** — a unidade de entrada já é gravada (ver "Unidade de cadastro" abaixo). Falta:
+  - o canal (cartaz impresso × link/imagem nas redes, ex.: `?origem=link`);
+  - "cadastros pelo QR" por unidade no painel da Rede (qual cartaz funciona), que hoje ainda atribui o cliente novo à unidade do **primeiro selo**;
+  - o filtro **"Cadastrados que nunca voltaram"** (cartão sem nenhum selo) em Relatórios, com envio de notificação como os demais filtros.
   - O filtro "nunca voltaram" serve para todos os planos com relatórios, mesmo com uma unidade, e pode ser feito antes do resto.
 
 ## Revisões após o primeiro uso (19/11/2026)
@@ -125,7 +125,12 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 - **Painel da rede (Rede):** compara as unidades no mês (visitas, selos, clientes novos pelo primeiro selo na unidade, resgates) e os clientes ativos de cada uma; o total de clientes ativos conta uma vez quem frequenta mais de uma unidade.
 - **Como a plataforma administra:** `PUT /api/platform/plans/{CODE}` altera preços, limites (`null` = ilimitado) e recursos; `PATCH /api/platform/tenants/{id}` com `plan`, `planExpiresAt` (data, vale até o fim do dia, ou `null`) e `extraStores`.
 - **Suporte (24/11/2026):** o contato do suporte é o mesmo e-mail do comercial (`apps/web/src/lib/contact.ts`). Aparece no menu do painel, em Meu plano, na comparação de planos e no aviso de estabelecimento suspenso.
-- **Pendente:** a origem do cadastro (unidade e canal pelo `?u=` do QR) ainda não é registrada (ver "Pendências conhecidas").
+- **Unidade de cadastro (27/11/2026):** o cartão guarda a unidade em que o cliente entrou (`memberships.signup_store_id`):
+  - pelo QR do balcão, a unidade do `?u=` (`store` em `POST /api/me/memberships`), mantida no cadastro e no login; sem `?u=` (ou com unidade desconhecida ou inativa), a única unidade ativa, se houver só uma;
+  - pelo caixa (cartão criado no primeiro lançamento), a unidade do lançamento;
+  - o cartão de um programa novo herda a unidade dos outros cartões do cliente no mesmo estabelecimento; um cartão sem unidade é preenchido na próxima entrada pelo QR de uma unidade, e a primeira unidade gravada não muda depois;
+  - a migration preencheu os cartões existentes com a unidade do primeiro lançamento e, sem lançamento, com a única unidade do estabelecimento.
+- **Pendente:** o canal de entrada (cartaz × redes sociais) e os usos da unidade de cadastro no painel da Rede (ver "Pendências conhecidas").
 
 ## Endereço pelo CEP e segmento (22/11/2026)
 

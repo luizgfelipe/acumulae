@@ -36,6 +36,8 @@ function StoreLanding() {
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const autoJoined = useRef(false);
+  /** Unidade do QR do balcão (`?u=`): fica gravada no cartão como unidade de cadastro. */
+  const store = params.get('u');
 
   useEffect(() => {
     api<PublicTenant>(`/api/public/tenants/${slug}`).then(setTenant).catch((e) => setError(errorMessage(e)));
@@ -44,13 +46,13 @@ function StoreLanding() {
   const join = useCallback(async () => {
     setJoining(true);
     try {
-      const r = await api<{ membershipId: string }>('/api/me/memberships', { method: 'POST', body: { slug } });
+      const r = await api<{ membershipId: string }>('/api/me/memberships', { method: 'POST', body: { slug, store } });
       router.replace(`/cartao/${r.membershipId}?novo=1`);
     } catch (e) {
       setError(errorMessage(e));
       setJoining(false);
     }
-  }, [slug, router]);
+  }, [slug, store, router]);
 
   // Voltando do cadastro/login com ?join=1, já cria o vínculo (Q-04).
   useEffect(() => {
@@ -71,7 +73,7 @@ function StoreLanding() {
 
   const programs = tenant.programs;
   const th = cardTheme(tenant);
-  const back = encodeURIComponent(`/e/${slug}?join=1`);
+  const back = encodeURIComponent(`/e/${slug}?join=1${store ? `&u=${encodeURIComponent(store)}` : ''}`);
 
   return (
     <PublicShell>

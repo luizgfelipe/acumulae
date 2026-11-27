@@ -33,7 +33,11 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().max(128).optional(),
   newPassword: z.string().min(1).max(128),
 });
-export const joinSchema = z.object({ slug: z.string().trim().min(2).max(60) });
+export const joinSchema = z.object({
+  slug: z.string().trim().min(2).max(60),
+  /** Unidade do QR do balcão (`?u=` do link). Desconhecida ou inativa é ignorada. */
+  store: z.string().trim().max(60).nullish(),
+});
 export const consentSchema = z.object({ marketingConsent: z.boolean() });
 export const deleteMeSchema = z.object({
   password: z.string().max(128).optional(),
@@ -149,16 +153,19 @@ export class MeService {
   }
 
   /** Q-04: vínculo criado já no cadastro pelo QR do balcão (0/meta). */
-  async join(me: CustomerPrincipal, slug: string) {
+  async join(me: CustomerPrincipal, slug: string, storeSlug?: string | null) {
     if (!me.phoneE164) throw new AppError(409, 'PROFILE_INCOMPLETE', 'Complete seu cadastro para continuar.');
     const tenant = await this.prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) throw notFound('Estabelecimento não encontrado.');
     if (tenant.status !== 'ACTIVE') throw forbidden('Este estabelecimento não está aceitando novos participantes.', 'TENANT_SUSPENDED');
     const programs = await this.loyalty.activePrograms(this.prisma, tenant.id);
     if (!programs.length) throw new AppError(409, 'NO_ACTIVE_PROGRAM', 'Este estabelecimento não tem programa ativo no momento.');
+    // Unidade de entrada: a do QR; sem ela (ou inválida), a única unidade ativa, se só houver uma.
+    const stores = await this.prisma.store.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE' }, select: { id: true, slug: true } });
+    const signupStoreId = stores.find((s) => s.slug === storeSlug)?.id ?? (stores.length === 1 ? stores[0].id : null);
     // Um cartão para cada programa ativo do estabelecimento.
     const ids: string[] = [];
-    for (const p of programs) ids.push((await this.loyalty.ensureMembership(this.prisma, tenant.id, me.id, p.id)).id);
+    for (const p of programs) ids.push((await this.loyalty.ensureMembership(this.prisma, tenant.id, me.id, p.id, signupStoreId)).id);
     return { membershipId: ids[0], membershipIds: ids };
   }
 

@@ -167,13 +167,21 @@ export class LoyaltyService {
     return active[0];
   }
 
-  /** RN-34 / Q-04: cria o cartão do cliente no programa, se não existir. */
-  async ensureMembership(tx: Tx, tenantId: string, customerId: string, programId: string) {
+  /**
+   * RN-34 / Q-04: cria o cartão do cliente no programa, se não existir. `signupStoreId` = unidade de entrada
+   * (QR do balcão ou unidade do lançamento); vale para o cartão novo e preenche o de um cartão que ainda não tem.
+   */
+  async ensureMembership(tx: Tx, tenantId: string, customerId: string, programId: string, signupStoreId: string | null = null) {
     // O consentimento de marketing é por estabelecimento: herda o de outro cartão do mesmo lugar.
     const sibling = await tx.membership.findFirst({
       where: { tenantId, customerId, marketingConsent: { not: null } },
       select: { marketingConsent: true, marketingConsentAt: true },
     });
+    // Sem unidade informada, o cartão de um programa novo herda a de outro cartão do mesmo lugar.
+    const store =
+      signupStoreId ??
+      (await tx.membership.findFirst({ where: { tenantId, customerId, signupStoreId: { not: null } }, select: { signupStoreId: true } }))?.signupStoreId ??
+      null;
     // INSERT ... ON CONFLICT DO NOTHING: dois lançamentos simultâneos na primeira visita
     // não podem falhar na chave única (programa, cliente); o segundo espera e reaproveita o cartão.
     await tx.membership.createMany({
@@ -184,10 +192,12 @@ export class LoyaltyService {
           programId,
           marketingConsent: sibling?.marketingConsent ?? null,
           marketingConsentAt: sibling?.marketingConsentAt ?? null,
+          signupStoreId: store,
         },
       ],
       skipDuplicates: true,
     });
+    if (store) await tx.membership.updateMany({ where: { programId, customerId, signupStoreId: null }, data: { signupStoreId: store } });
     return tx.membership.findUniqueOrThrow({ where: { programId_customerId: { programId, customerId } } });
   }
 
@@ -246,7 +256,7 @@ export class LoyaltyService {
     if (byValue) assertAmount(program, input.amountCents);
     else assertQuantity(program, input.quantity);
 
-    const ensured = await this.ensureMembership(tx, input.tenantId, input.customerId, program.id);
+    const ensured = await this.ensureMembership(tx, input.tenantId, input.customerId, program.id, input.storeId);
     const m = await this.lock(tx, ensured.id);
     const now = new Date();
 
