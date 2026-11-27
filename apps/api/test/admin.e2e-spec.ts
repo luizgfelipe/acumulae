@@ -437,16 +437,15 @@ describe('Limites do plano vigente', () => {
     patch: (url: string) => http().patch(url).set('X-Platform-Key', PLATFORM_KEY),
   });
 
-  it('Essencial: até 3 funcionários contando o gestor e os convites pendentes', async () => {
+  it('Essencial: até 2 funcionários contando o gestor e os convites pendentes', async () => {
     const { pos } = await setup({ plan: 'ESSENCIAL' });
     const invite = (n: number) => pos.post('/api/admin/staff').send({ name: `Atendente ${n}`, email: `a${n}-${Date.now()}@example.com`, role: 'MANAGER' });
     await invite(1).expect(201);
-    await invite(2).expect(201);
-    const r = await invite(3).expect(409);
+    const r = await invite(2).expect(409);
     expect(r.body.code).toBe('STAFF_LIMIT_REACHED');
 
     const plan = await pos.get('/api/admin/plan').expect(200);
-    expect(plan.body.limits.staff).toEqual({ used: 3, max: 3 });
+    expect(plan.body.limits.staff).toEqual({ used: 2, max: 2 });
   });
 
   it('Profissional: até 5 funcionários', async () => {
@@ -491,7 +490,7 @@ describe('Limites do plano vigente', () => {
     await credit(pos, ref, 1).expect(201);
     const plan = await pos.get('/api/admin/plan').expect(200);
     expect(plan.body).toMatchObject({
-      plan: { code: 'ESSENCIAL', priceCents: 6990, supportChannel: 'EMAIL' },
+      plan: { code: 'ESSENCIAL', priceCents: 5990, supportChannel: 'EMAIL' },
       expired: false,
       limits: { activePrograms: { used: 1, max: 1 } },
       features: { reports: false, customerExport: false, networkDashboard: false, cardCustomization: false },

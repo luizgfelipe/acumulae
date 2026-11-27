@@ -234,7 +234,7 @@ describe('Planos: grade, validade e unidades extras', () => {
   it('a grade padrão vem semeada com preços, limites e recursos', async () => {
     const r = await platform().get('/api/platform/plans').expect(200);
     const byCode = Object.fromEntries(r.body.map((p: { code: string }) => [p.code, p]));
-    expect(byCode.ESSENCIAL).toMatchObject({ priceCents: 6990, maxActivePrograms: 1, maxStaff: 3, reports: false });
+    expect(byCode.ESSENCIAL).toMatchObject({ priceCents: 5990, maxActivePrograms: 1, maxStaff: 2, reports: false });
     expect(byCode.PROFISSIONAL).toMatchObject({ priceCents: 7990, maxStaff: 5, extraStorePriceCents: 3990, reports: true });
     expect(byCode.REDE).toMatchObject({ maxActivePrograms: null, includedStores: 3, networkDashboard: true });
     // O PILOTO libera o mesmo que o Profissional, com valor personalizado (sem preço de tabela).
@@ -247,7 +247,7 @@ describe('Planos: grade, validade e unidades extras', () => {
 
   it('plano criado só com o nome herda o Essencial; null deixa o limite ilimitado', async () => {
     const created = await platform().put('/api/platform/plans/NOVO').send({ name: 'Novo' }).expect(200);
-    expect(created.body).toMatchObject({ maxStaff: 3, maxActivePrograms: 1, priceCents: 6990 });
+    expect(created.body).toMatchObject({ maxStaff: 2, maxActivePrograms: 1, priceCents: 5990 });
     const edited = await platform().put('/api/platform/plans/NOVO').send({ name: 'Novo', maxStaff: null }).expect(200);
     expect(edited.body).toMatchObject({ maxStaff: null });
   });

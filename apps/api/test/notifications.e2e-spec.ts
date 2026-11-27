@@ -135,7 +135,7 @@ describe('avisos do estabelecimento', () => {
     const unasked = await consenting(pos, null);
 
     let o = await pos.get('/api/admin/announcements').expect(200);
-    expect(o.body).toMatchObject({ audience: 1, usage: { used: 0, max: 2 }, items: [] });
+    expect(o.body).toMatchObject({ audience: 1, usage: { used: 0, max: 1 }, items: [] });
 
     const sent = await pos.post('/api/admin/announcements').send({ title: 'Rodízio em dobro', body: 'Só nesta terça!' }).expect(201);
     expect(sent.body.recipients).toBe(1);
@@ -149,7 +149,7 @@ describe('avisos do estabelecimento', () => {
     o = await pos.get('/api/admin/announcements').expect(200);
     expect(o.body.usage.used).toBe(1);
     expect(o.body.items[0]).toMatchObject({ title: 'Rodízio em dobro', recipients: 1, sentBy: 'Gestor Teste' });
-    expect((await pos.get('/api/admin/plan').expect(200)).body.limits.announcementsPerMonth).toEqual({ used: 1, max: 2 });
+    expect((await pos.get('/api/admin/plan').expect(200)).body.limits.announcementsPerMonth).toEqual({ used: 1, max: 1 });
   });
 
   it('cliente com 2 cartões no mesmo estabelecimento recebe uma vez só', async () => {
@@ -179,9 +179,9 @@ describe('avisos do estabelecimento', () => {
   });
 
   it('respeita o limite do plano no mês', async () => {
-    const { pos } = await store(); // Essencial: 2 por mês
+    const { pos } = await store(); // Essencial: 1 por mês
     await consenting(pos, true);
-    for (let i = 0; i < 2; i++) await pos.post('/api/admin/announcements').send({ title: `Aviso ${i}`, body: 'Texto do aviso' }).expect(201);
+    await pos.post('/api/admin/announcements').send({ title: 'Aviso', body: 'Texto do aviso' }).expect(201);
     const r = await pos.post('/api/admin/announcements').send({ title: 'Mais um', body: 'Texto do aviso' }).expect(409);
     expect(r.body.code).toBe('ANNOUNCEMENT_LIMIT_REACHED');
   });
