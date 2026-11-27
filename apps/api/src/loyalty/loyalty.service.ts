@@ -197,8 +197,10 @@ export class LoyaltyService {
       ],
       skipDuplicates: true,
     });
-    if (store) await tx.membership.updateMany({ where: { programId, customerId, signupStoreId: null }, data: { signupStoreId: store } });
-    return tx.membership.findUniqueOrThrow({ where: { programId_customerId: { programId, customerId } } });
+    const m = await tx.membership.findUniqueOrThrow({ where: { programId_customerId: { programId, customerId } } });
+    // Cartão antigo sem unidade (entrou sem o ?u=): fica com a primeira unidade informada.
+    if (store && !m.signupStoreId) return tx.membership.update({ where: { id: m.id }, data: { signupStoreId: store } });
+    return m;
   }
 
   private async lock(tx: Tx, membershipId: string): Promise<Membership> {
