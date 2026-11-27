@@ -98,13 +98,13 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
 
 ## Planos e limites (20/11/2026)
 
-- **Grade:** semeada pelas migrations `20261120090000_plans_grid` e `20261121090000_pilot_professional`, com os ajustes de `20261129100000_professional_staff_limit` e `20261130090000_essential_plan_limits` (os mesmos valores estão em `apps/api/src/plans/plans.ts`, usados pelos testes). Preços só informativos: a cobrança, o plano anual (2 meses grátis) e o kit de balcão ficam fora do sistema.
+- **Grade:** semeada pelas migrations `20261120090000_plans_grid` e `20261121090000_pilot_professional`, com os ajustes de `20261129100000_professional_staff_limit`, `20261130090000_essential_plan_limits` e `20261130100000_extra_store_prices` (os mesmos valores estão em `apps/api/src/plans/plans.ts`, usados pelos testes). Preços só informativos: a cobrança, o plano anual (2 meses grátis) e o kit de balcão ficam fora do sistema.
 
   | | PILOTO | ESSENCIAL | PROFISSIONAL | REDE |
   |---|---|---|---|---|
   | Preço/mês | personalizado (1 mês) | R$ 59,90 | R$ 79,90 | R$ 199,90 |
   | Programas ativos | 3 | 1 | 3 | ilimitado |
-  | Unidades inclusas / extra | 1 / R$ 39,90 | 1 / — | 1 / R$ 39,90 | 3 / R$ 49,90 |
+  | Unidades inclusas / extra | 1 / R$ 59,90 | 1 / — | 1 / R$ 59,90 | 3 / R$ 49,90 |
   | Funcionários | 5 | 2 (gestor + 1) | 5 | ilimitado |
   | Ícones de selo / imagem própria | 15 / sim | 5 / não | 15 / sim | 15 / sim |
   | Cor secundária e modelos | sim | não | sim | sim |
@@ -116,7 +116,7 @@ Complementa a [especificação](../especificacao-mvp.md). Registra o que foi def
   O Essencial fica de propósito R$ 20 abaixo do Profissional, mas com bem menos (1 programa, gestor + 1 funcionário, 1 notificação por mês), para o Profissional parecer o melhor negócio (estratégia do "chamariz"; até 27/11/2026 era R$ 69,90 com 3 funcionários e 2 notificações).
 - **Comparar planos em Meu plano** (`GET /api/admin/plans`): cards com preço, limites e recursos de cada plano, do mais barato ao mais caro, o atual em destaque e, nos outros, em verde o que têm a mais. Aparecem os planos com `plans.listed = true` e sempre o contratado; o Piloto vem com `listed = false` (só quem está nele o vê). A plataforma muda com `listed` em `PUT /api/platform/plans/{CODE}`. Trocar de plano continua pelo suporte.
 - **Validade:** `tenants.plan_expires_at` (opcional). Depois dela vale o ESSENCIAL até a plataforma trocar o plano ou desativar o estabelecimento; o painel avisa 7 dias antes e mostra o plano vencido. Os pilotos ficam no `PILOTO` (mesmos recursos do Profissional) por 1 mês, com valor personalizado cobrado à parte (o painel mostra "Valor personalizado"; até 24/11/2026 eram 3 meses grátis, e quem já estava no piloto manteve a validade): criar o estabelecimento no PILOTO ou trocar para ele sem informar `planExpiresAt` define a validade para o fim do dia, daqui a 1 mês (`null` explícito deixa sem validade); sair do PILOTO sem informar a validade a descarta. Ao vencer, o piloto cai para o Essencial e vê no painel o que perdeu, o que ajuda a converter. A migration deu aos pilotos já cadastrados 3 meses a partir da data de cadastro.
-- **Unidades extras:** `tenants.extra_stores` soma às inclusas no plano (não valem com o plano vencido).
+- **Unidades extras:** `tenants.extra_stores` soma às inclusas no plano (não valem com o plano vencido). O Profissional (e o Piloto) vende unidades uma a uma, a R$ 59,90 cada; a Rede inclui 3 e cobra R$ 49,90 por adicional (até 27/11/2026 a adicional era R$ 39,90 no Profissional). A unidade adicional do Profissional é de propósito mais cara que a da Rede: com 3 unidades o Profissional sai R$ 199,70, praticamente o preço da Rede (R$ 199,90), que tem bem mais recursos.
 - **Clientes ativos (24/11/2026):** os planos não limitam mais a quantidade de clientes (a coluna `plans.max_active_customers` foi removida). "Clientes ativos" (visita nos últimos 90 dias) continua só como indicador no painel da rede.
 - **Funcionários:** contam gestores e atendentes ativos e os convites pendentes (um por e-mail).
 - **Downgrade ou vencimento:** limites de quantidade (programas, unidades, funcionários) só bloqueiam criar, ativar, convidar ou reativar além do limite; nada é desativado. Recursos visuais fora do plano (cor secundária, modelo, ícones além dos liberados, imagem do selo) deixam de aparecer para o cliente, mas ficam guardados e voltam num upgrade.

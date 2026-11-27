@@ -463,7 +463,7 @@ describe('Limites do plano vigente', () => {
     const { t, pos } = await setup({ plan: 'PROFISSIONAL' });
     const extra = await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(409);
     expect(extra.body.code).toBe('STORE_LIMIT_REACHED');
-    expect(extra.body.message).toContain('R$ 39,90');
+    expect(extra.body.message).toContain('R$ 59,90');
 
     await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ extraStores: 1 }).expect(200);
     await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(201);

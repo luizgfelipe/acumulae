@@ -35,7 +35,7 @@ export const DEFAULT_PLANS: PlanFields[] = [
     priceCents: 0,
     maxActivePrograms: 3,
     includedStores: 1,
-    extraStorePriceCents: 3990,
+    extraStorePriceCents: 5990,
     maxStaff: 5,
     maxStampIcons: 15,
     customStampImage: true,
@@ -71,7 +71,7 @@ export const DEFAULT_PLANS: PlanFields[] = [
     priceCents: 7990,
     maxActivePrograms: 3,
     includedStores: 1,
-    extraStorePriceCents: 3990,
+    extraStorePriceCents: 5990,
     maxStaff: 5,
     maxStampIcons: 15,
     customStampImage: true,
@@ -197,7 +197,7 @@ export async function lockTenant(tx: Tx, tenantId: string) {
   await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId}::uuid FOR UPDATE`;
 }
 
-/** R$ 39,90 (sem depender do ICU do Node, que põe espaço não separável). */
+/** R$ 59,90 (sem depender do ICU do Node, que põe espaço não separável). */
 const brl = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
