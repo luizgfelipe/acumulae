@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import type { AdminCtx } from '../admin/admin.service';
 import { logoUrlOf } from '../common/branding';
-import { AppError } from '../common/errors';
+import { AppError, badRequest } from '../common/errors';
 import { pageSchema } from '../common/schemas';
 import { startOfMonthSaoPaulo } from '../common/time';
 import { effectivePlan, lockTenant, planFeatureError, withinLimit } from '../plans/plans';
@@ -26,11 +26,19 @@ export const segmentSchema = z.discriminatedUnion('type', [
 ]);
 export type Segment = z.infer<typeof segmentSchema>;
 
+/** Unidade opcional: só os clientes dela (cadastro nela ou algum lançamento nela). Combina com qualquer filtro. */
+const storeIdSchema = z.string().uuid().nullish();
+
 export const announcementSchema = z.object({
   title: z.string().trim().min(3).max(80),
   body: z.string().trim().min(3).max(500),
   segment: segmentSchema.default({ type: 'all' }),
+  storeId: storeIdSchema,
 });
+
+/** Prévia: o filtro (?type=...) e, opcionalmente, a unidade (?storeId=...). */
+export const previewQuerySchema = segmentSchema.and(z.object({ storeId: storeIdSchema }));
+export type PreviewQuery = z.infer<typeof previewQuerySchema>;
 
 export function segmentKey(s: Segment) {
   return s.type === 'all' ? 'all' : s.type === 'birthdays' ? `birthdays:${s.month}` : `inactive:${s.days}`;
@@ -41,6 +49,19 @@ function segmentWhere(s: Segment, now = new Date()): Prisma.Sql {
   if (s.type === 'birthdays') return Prisma.sql`AND c.birth_date IS NOT NULL AND EXTRACT(MONTH FROM c.birth_date) = ${s.month}`;
   if (s.type === 'inactive') return Prisma.sql`AND m.last_visit_at < ${new Date(now.getTime() - s.days * 86_400_000)}`;
   return Prisma.empty;
+}
+
+/**
+ * Clientes da unidade: os que têm, em algum cartão do estabelecimento, a unidade de cadastro ou um lançamento
+ * nela. Quem frequenta duas unidades é das duas.
+ */
+function storeWhere(tenantId: string, storeId: string | null | undefined): Prisma.Sql {
+  if (!storeId) return Prisma.empty;
+  return Prisma.sql`AND m.customer_id IN (
+    SELECT m2.customer_id FROM memberships m2
+    WHERE m2.tenant_id = ${tenantId}::uuid
+      AND (m2.signup_store_id = ${storeId}::uuid
+        OR EXISTS (SELECT 1 FROM ledger_entries l WHERE l.store_id = ${storeId}::uuid AND l.membership_id = m2.id)))`;
 }
 
 /** Notificações do cliente (sino do app). */
@@ -106,14 +127,22 @@ export class AnnouncementsService {
    * Clientes ativos do filtro (total) e quantos deles aceitaram promoções (audience, quem recebe).
    * Um cliente com 2 cartões conta 1.
    */
-  private async count(tenantId: string, segment: Segment) {
+  private async count(tenantId: string, segment: Segment, storeId?: string | null) {
     const [r] = await this.prisma.$queryRaw<{ total: bigint; audience: bigint }[]>`
       SELECT COUNT(DISTINCT m.customer_id) AS total,
         COUNT(DISTINCT m.customer_id) FILTER (WHERE m.marketing_consent = true) AS audience
       FROM memberships m
       JOIN customers c ON c.id = m.customer_id AND c.status = 'ACTIVE'
-      WHERE m.tenant_id = ${tenantId}::uuid ${segmentWhere(segment)}`;
+      WHERE m.tenant_id = ${tenantId}::uuid ${segmentWhere(segment)} ${storeWhere(tenantId, storeId)}`;
     return { total: Number(r.total), audience: Number(r.audience) };
+  }
+
+  /** A unidade precisa ser do estabelecimento. */
+  private async requireStore(db: Pick<PrismaService, 'store'>, tenantId: string, storeId: string | null | undefined) {
+    if (!storeId) return null;
+    const store = await db.store.findFirst({ where: { id: storeId, tenantId }, select: { id: true, name: true } });
+    if (!store) throw badRequest('INVALID_STORE', 'Unidade inválida.');
+    return store;
   }
 
   private async requireSegment(db: Parameters<typeof effectivePlan>[0], tenantId: string, segment: Segment) {
@@ -123,12 +152,14 @@ export class AnnouncementsService {
   }
 
   /** Prévia do envio pelos relatórios: quantos estão no filtro, quantos recebem e o uso do mês. */
-  async preview(ctx: AdminCtx, segment: Segment) {
+  async preview(ctx: AdminCtx, q: PreviewQuery) {
+    const { storeId, ...segment } = q;
     await this.requireSegment(this.prisma, ctx.tenantId, segment);
+    await this.requireStore(this.prisma, ctx.tenantId, storeId);
     const [eff, used, counts] = await Promise.all([
       effectivePlan(this.prisma, ctx.tenantId),
       this.usedThisMonth(this.prisma, ctx.tenantId),
-      this.count(ctx.tenantId, segment),
+      this.count(ctx.tenantId, segment, storeId),
     ]);
     return { ...counts, usage: { used, max: eff.plan.maxAnnouncementsPerMonth } };
   }
@@ -139,7 +170,7 @@ export class AnnouncementsService {
 
   /** Uso do mês, público e o histórico paginado (mais recentes primeiro). */
   async overview(ctx: AdminCtx, q: z.infer<typeof pageSchema> = { page: 1, pageSize: 20 }) {
-    const [eff, used, audience, total, items] = await Promise.all([
+    const [eff, used, audience, total, items, stores] = await Promise.all([
       effectivePlan(this.prisma, ctx.tenantId),
       this.usedThisMonth(this.prisma, ctx.tenantId),
       this.count(ctx.tenantId, { type: 'all' }).then((c) => c.audience),
@@ -149,12 +180,15 @@ export class AnnouncementsService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize,
-        include: { staffUser: { select: { name: true } } },
+        include: { staffUser: { select: { name: true } }, store: { select: { id: true, name: true } } },
       }),
+      this.prisma.store.findMany({ where: { tenantId: ctx.tenantId, status: 'ACTIVE' }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     ]);
     return {
       usage: { used, max: eff.plan.maxAnnouncementsPerMonth },
       audience,
+      /** Unidades ativas, para escolher para qual mandar (o painel mostra a escolha com 2 ou mais). */
+      stores,
       total,
       page: q.page,
       pageSize: q.pageSize,
@@ -164,6 +198,7 @@ export class AnnouncementsService {
         body: a.body,
         recipients: a.recipients,
         segment: a.segment,
+        store: a.store,
         createdAt: a.createdAt,
         sentBy: a.staffUser.name,
       })),
@@ -176,6 +211,7 @@ export class AnnouncementsService {
         // Trava o estabelecimento: dois envios simultâneos não furam o limite do mês.
         await lockTenant(tx, ctx.tenantId);
         await this.requireSegment(tx, ctx.tenantId, input.segment);
+        const store = await this.requireStore(tx, ctx.tenantId, input.storeId);
         const { plan } = await effectivePlan(tx, ctx.tenantId);
         const max = plan.maxAnnouncementsPerMonth;
         if (!withinLimit(await this.usedThisMonth(tx, ctx.tenantId), max)) {
@@ -193,6 +229,7 @@ export class AnnouncementsService {
             title: input.title,
             body: input.body,
             segment: segmentKey(input.segment),
+            storeId: store?.id ?? null,
             recipients: 0,
           },
         });
@@ -204,13 +241,15 @@ export class AnnouncementsService {
             SELECT DISTINCT ON (m.customer_id) m.id, m.customer_id, m.tenant_id
             FROM memberships m
             JOIN customers c ON c.id = m.customer_id AND c.status = 'ACTIVE'
-            WHERE m.tenant_id = ${ctx.tenantId}::uuid AND m.marketing_consent = true ${segmentWhere(input.segment)}
+            WHERE m.tenant_id = ${ctx.tenantId}::uuid AND m.marketing_consent = true ${segmentWhere(input.segment)} ${storeWhere(ctx.tenantId, store?.id)}
             ORDER BY m.customer_id, m.last_visit_at DESC NULLS LAST, m.created_at DESC
           ) m`;
         if (!recipients) {
-          throw new AppError(409, 'NO_RECIPIENTS', input.segment.type === 'all'
-              ? 'Nenhum cliente aceitou receber promoções ainda. A notificação não foi enviada.'
-              : 'Ninguém neste filtro aceitou receber promoções. A notificação não foi enviada.');
+          throw new AppError(409, 'NO_RECIPIENTS', store
+              ? `Ninguém ${input.segment.type === 'all' ? '' : 'neste filtro '}da unidade ${store.name} aceitou receber promoções. A notificação não foi enviada.`
+              : input.segment.type === 'all'
+                ? 'Nenhum cliente aceitou receber promoções ainda. A notificação não foi enviada.'
+                : 'Ninguém neste filtro aceitou receber promoções. A notificação não foi enviada.');
         }
         await tx.announcement.update({ where: { id: a.id }, data: { recipients } });
         return { id: a.id, recipients };

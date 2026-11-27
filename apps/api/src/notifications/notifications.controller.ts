@@ -4,7 +4,7 @@ import { CurrentCustomer, CustomerAuthGuard, CustomerPrincipal } from '../auth/c
 import { CurrentStaff, Staff, TenantStaff } from '../auth/staff-auth.guard';
 import { pageSchema } from '../common/schemas';
 import { ZodPipe } from '../common/zod.pipe';
-import { AnnouncementsService, NotificationsService, Segment, announcementSchema, notificationsQuerySchema, segmentSchema } from './notifications.service';
+import { AnnouncementsService, NotificationsService, PreviewQuery, announcementSchema, notificationsQuerySchema, previewQuerySchema } from './notifications.service';
 import { PushService, pushSubscriptionSchema, pushUnsubscribeSchema } from './push.service';
 
 /** Notificações do cliente (sino do app). */
@@ -76,9 +76,9 @@ export class AnnouncementsController {
     return this.announcements.overview({ tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId }, q);
   }
 
-  /** Prévia do envio para um filtro dos relatórios (?type=birthdays&month=11 ou ?type=inactive&days=30). */
+  /** Prévia do envio (?type=all|birthdays&month=11|inactive&days=30, e opcionalmente &storeId=...). */
   @Get('preview')
-  preview(@CurrentStaff() s: TenantStaff, @Query(new ZodPipe(segmentSchema)) q: Segment) {
+  preview(@CurrentStaff() s: TenantStaff, @Query(new ZodPipe(previewQuerySchema)) q: PreviewQuery) {
     return this.announcements.preview({ tenantId: s.context.tenantId, staffUserId: s.userId, membershipId: s.context.membershipId }, q);
   }
 

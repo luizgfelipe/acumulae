@@ -1,21 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { usePanel } from '@/components/panel-context';
-import { NotificationPreview } from '@/components/send-notification';
+import { NotificationPreview, StorePicker } from '@/components/send-notification';
 import { Alert, Button, Card, Field, FullPageSpinner, Input, Modal, Textarea } from '@/components/ui';
-import { BODY_MAX, TITLE_MAX, clients, notifications, segmentLabel } from '@/lib/announcements';
+import { BODY_MAX, StoreOption, TITLE_MAX, audienceLabel, clients, notifications } from '@/lib/announcements';
 import { errorMessage, staffApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 import { useLoad } from '@/lib/use-load';
 
-type Sent = { id: string; title: string; body: string; recipients: number; segment: string; createdAt: string; sentBy: string };
+type Sent = { id: string; title: string; body: string; recipients: number; segment: string; store: StoreOption | null; createdAt: string; sentBy: string };
 
 interface Overview {
   usage: { used: number; max: number | null };
   /** Clientes que aceitaram receber promoções. */
   audience: number;
+  /** Unidades ativas (a escolha da unidade aparece com 2 ou mais). */
+  stores: StoreOption[];
   /** Histórico paginado no servidor (mais recentes primeiro). */
   total: number;
   page: number;
@@ -37,6 +39,17 @@ export default function AnnouncementsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  /** Unidade escolhida ("" = todas) e quantos clientes dela aceitaram promoções. */
+  const [storeId, setStoreId] = useState('');
+  const [storeAudience, setStoreAudience] = useState<number | null>(null);
+
+  useEffect(() => {
+    setStoreAudience(null);
+    if (!storeId) return;
+    staffApi<{ audience: number }>('/api/admin/announcements/preview', { query: { type: 'all', storeId } })
+      .then((r) => setStoreAudience(r.audience))
+      .catch((err) => setMsg({ kind: 'error', text: errorMessage(err) }));
+  }, [storeId]);
 
   if (error) return <Alert>{error}</Alert>;
   if (!data) return <FullPageSpinner />;
@@ -46,6 +59,9 @@ export default function AnnouncementsPage() {
   const left = max === null ? null : Math.max(0, max - used);
   const blocked = left === 0;
   const valid = title.trim().length >= 3 && body.trim().length >= 3;
+  const store = data.stores.find((s) => s.id === storeId) ?? null;
+  /** Quem recebe: todos que aceitaram promoções ou, com unidade, só os dela (null enquanto conta). */
+  const audience = store ? storeAudience : data.audience;
 
   const history = [...data.items, ...older.items];
   const hasMore = history.length < data.total;
@@ -65,7 +81,7 @@ export default function AnnouncementsPage() {
 
   function ask(e: FormEvent) {
     e.preventDefault();
-    if (!valid || blocked || data!.audience === 0) return;
+    if (!valid || blocked || !audience) return;
     setMsg(null);
     setConfirmOpen(true);
   }
@@ -73,7 +89,10 @@ export default function AnnouncementsPage() {
   async function send() {
     setSending(true);
     try {
-      const r = await staffApi<{ recipients: number }>('/api/admin/announcements', { method: 'POST', body: { title: title.trim(), body: body.trim() } });
+      const r = await staffApi<{ recipients: number }>('/api/admin/announcements', {
+        method: 'POST',
+        body: { title: title.trim(), body: body.trim(), storeId: store?.id ?? null },
+      });
       setTitle('');
       setBody('');
       setMsg({ kind: 'success', text: `Notificação enviada para ${clients(r.recipients)}.` });
@@ -110,8 +129,10 @@ export default function AnnouncementsPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <p className="text-sm text-stone-500">Quem vai receber</p>
-          <p className="text-2xl font-extrabold">{clients(data.audience)}</p>
-          <p className="text-sm text-stone-500">{data.audience === 1 ? 'aceitou' : 'aceitaram'} receber promoções</p>
+          <p className="text-2xl font-extrabold">{audience === null ? '…' : clients(audience)}</p>
+          <p className="text-sm text-stone-500">
+            {audience === 1 ? 'aceitou' : 'aceitaram'} receber promoções{store && ` na unidade ${store.name}`}
+          </p>
         </Card>
         <Card>
           <p className="text-sm text-stone-500">Notificações neste mês</p>
@@ -127,6 +148,7 @@ export default function AnnouncementsPage() {
         <Card>
           <h2 className="mb-4 font-semibold">Nova notificação</h2>
           <form onSubmit={ask} className="space-y-4">
+            <StorePicker stores={data.stores} value={storeId} onChange={setStoreId} disabled={sending} />
             <Field label="Título" hint={`${title.length}/${TITLE_MAX}`}>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={TITLE_MAX} placeholder="Ex.: Rodízio em dobro nesta terça" required />
             </Field>
@@ -141,13 +163,15 @@ export default function AnnouncementsPage() {
                 </Link>
               </Alert>
             )}
-            {!blocked && data.audience === 0 && (
+            {!blocked && audience === 0 && (
               <Alert kind="info">
-                Ainda nenhum cliente aceitou receber promoções. O app pergunta isso a cada cliente no cartão do {ctx.tenantName}.
+                {store
+                  ? `Nenhum cliente da unidade ${store.name} aceitou receber promoções ainda.`
+                  : `Ainda nenhum cliente aceitou receber promoções. O app pergunta isso a cada cliente no cartão do ${ctx.tenantName}.`}
               </Alert>
             )}
             {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
-            <Button type="submit" className="w-full" disabled={!valid || blocked || data.audience === 0}>
+            <Button type="submit" className="w-full" disabled={!valid || blocked || !audience}>
               Enviar notificação
             </Button>
           </form>
@@ -176,7 +200,7 @@ export default function AnnouncementsPage() {
                   </p>
                 </div>
                 <p className="mt-0.5 text-sm whitespace-pre-line text-stone-600">{a.body}</p>
-                <p className="mt-1 text-xs text-stone-500">Para: {segmentLabel(a.segment)}</p>
+                <p className="mt-1 text-xs text-stone-500">Para: {audienceLabel(a.segment, a.store)}</p>
               </li>
             ))}
           </ul>
@@ -193,7 +217,8 @@ export default function AnnouncementsPage() {
       <Modal open={confirmOpen} onClose={() => !sending && setConfirmOpen(false)} title="Enviar notificação?">
         <div className="space-y-4">
           <p className="text-stone-700">
-            A notificação &quot;{title.trim()}&quot; vai para {clients(data.audience)}. Depois de enviada, não dá para desfazer.
+            A notificação &quot;{title.trim()}&quot; vai para {clients(audience ?? 0)}
+            {store && ` da unidade ${store.name}`}. Depois de enviada, não dá para desfazer.
             {left !== null && ` ${left - 1 === 1 ? 'Fica' : 'Ficam'} ${notifications(left - 1)} neste mês.`}
           </p>
           <div className="flex gap-2">

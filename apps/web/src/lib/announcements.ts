@@ -18,6 +18,20 @@ export function segmentLabel(key: string): string {
   return 'Todos que aceitaram promoções';
 }
 
-export function segmentQuery(s: Segment): Record<string, string | number> {
-  return s.type === 'birthdays' ? { type: s.type, month: s.month } : s.type === 'inactive' ? { type: s.type, days: s.days } : { type: 'all' };
+/** Query da prévia (GET /api/admin/announcements/preview); `storeId` = só os clientes daquela unidade. */
+export function segmentQuery(s: Segment, storeId?: string | null): Record<string, string | number> {
+  const q: Record<string, string | number> =
+    s.type === 'birthdays' ? { type: s.type, month: s.month } : s.type === 'inactive' ? { type: s.type, days: s.days } : { type: 'all' };
+  if (storeId) q.storeId = storeId;
+  return q;
 }
+
+export const segmentKeyOf = (s: Segment) => (s.type === 'all' ? 'all' : s.type === 'birthdays' ? `birthdays:${s.month}` : `inactive:${s.days}`);
+
+/** Unidade ativa que pode ser escolhida no envio. */
+export type StoreOption = { id: string; name: string };
+
+/** Público com a unidade: "Inativos há mais de 30 dias · Joinville". */
+export const audienceLabel = (key: string, store?: StoreOption | null) => `${segmentLabel(key)}${store ? ` · ${store.name}` : ''}`;
+
+export const STORE_HINT = 'Clientes que se cadastraram pelo QR da unidade ou já tiveram algum lançamento nela.';

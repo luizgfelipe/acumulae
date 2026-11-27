@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
-import { BODY_MAX, Segment, TITLE_MAX, clients, notifications, segmentLabel, segmentQuery } from '@/lib/announcements';
+import { BODY_MAX, STORE_HINT, Segment, StoreOption, TITLE_MAX, audienceLabel, clients, notifications, segmentKeyOf, segmentQuery } from '@/lib/announcements';
 import { errorMessage, staffApi } from '@/lib/api';
 import { usePanel } from './panel-context';
-import { Alert, Button, Card, Field, Input, Modal, TenantAvatar, Textarea } from './ui';
+import { Alert, Button, Card, Field, Input, Modal, Select, TenantAvatar, Textarea } from './ui';
 
 /** Como a notificação aparece no sino do cliente. */
 export function NotificationPreview({ title, body }: { title: string; body: string }) {
@@ -24,6 +24,23 @@ export function NotificationPreview({ title, body }: { title: string; body: stri
         </div>
       </div>
     </Card>
+  );
+}
+
+/** Escolha da unidade do envio; só aparece com 2 ou mais unidades ativas. "" = todas. */
+export function StorePicker({ stores, value, onChange, disabled }: { stores: StoreOption[]; value: string; onChange: (id: string) => void; disabled?: boolean }) {
+  if (stores.length < 2) return null;
+  return (
+    <Field label="Unidade" hint={STORE_HINT}>
+      <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+        <option value="">Todas as unidades</option>
+        {stores.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </Select>
+    </Field>
   );
 }
 
@@ -56,13 +73,23 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<number | null>(null);
+  const [stores, setStores] = useState<StoreOption[]>([]);
+  /** Unidade escolhida ("" = todas). */
+  const [storeId, setStoreId] = useState('');
   const key = JSON.stringify(segment);
 
   useEffect(() => {
-    staffApi<Preview>('/api/admin/announcements/preview', { query: segmentQuery(JSON.parse(key)) })
+    staffApi<Array<StoreOption & { status: string }>>('/api/admin/stores')
+      .then((r) => setStores(r.filter((s) => s.status === 'ACTIVE').map(({ id, name }) => ({ id, name }))))
+      .catch(() => setStores([]));
+  }, []);
+
+  useEffect(() => {
+    setPreview(null);
+    staffApi<Preview>('/api/admin/announcements/preview', { query: segmentQuery(JSON.parse(key), storeId) })
       .then(setPreview)
       .catch((e) => setError(errorMessage(e)));
-  }, [key]);
+  }, [key, storeId]);
 
   const max = preview?.usage.max ?? null;
   const left = preview && max !== null ? Math.max(0, max - preview.usage.used) : null;
@@ -78,7 +105,7 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
     try {
       const r = await staffApi<{ recipients: number }>('/api/admin/announcements', {
         method: 'POST',
-        body: { title: title.trim(), body: body.trim(), segment },
+        body: { title: title.trim(), body: body.trim(), segment, storeId: storeId || null },
       });
       setDone(r.recipients);
       reloadPanel();
@@ -89,7 +116,7 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
     }
   }
 
-  const label = segmentLabel(segment.type === 'all' ? 'all' : segment.type === 'birthdays' ? `birthdays:${segment.month}` : `inactive:${segment.days}`);
+  const label = audienceLabel(segmentKeyOf(segment), stores.find((s) => s.id === storeId));
 
   return (
     <Modal open onClose={() => !sending && onClose()} title="Enviar notificação">
@@ -109,6 +136,7 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
         </div>
       ) : (
         <form onSubmit={send} className="space-y-4">
+          <StorePicker stores={stores} value={storeId} onChange={setStoreId} disabled={sending} />
           <div className="rounded-xl bg-stone-50 p-3 text-sm">
             <p className="font-medium text-stone-800">Para: {label}</p>
             {preview ? (
