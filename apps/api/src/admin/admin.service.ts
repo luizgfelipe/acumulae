@@ -8,12 +8,15 @@ import { maskPhone } from '../common/phone';
 import { BRANDING_SELECT, brandStyle, cardStyleSchema, logoDataUrlSchema, logoUrlOf, parseLogo, stampImageDataUrlSchema } from '../common/branding';
 import {
   activeStores,
+  EffectivePlan,
   effectivePlan,
   lockTenant,
   planFeatureError,
   staffInUse,
   staffLimitError,
+  networkPlanRecommendation,
   storeLimitError,
+  storesNeeded,
   visualAllowance,
   withinLimit,
 } from '../plans/plans';
@@ -195,6 +198,7 @@ export class AdminService {
       staffInUse(this.prisma, ctx.tenantId),
       this.prisma.announcement.count({ where: { tenantId: ctx.tenantId, createdAt: { gte: startOfMonthSaoPaulo() } } }),
     ]);
+    const rec = await networkPlanRecommendation(this.prisma, eff, storesNeeded(stores, eff.maxStores));
     return {
       plan: { code: p.code, name: p.name, priceCents: p.priceCents, supportChannel: p.supportChannel },
       contracted: eff.contracted,
@@ -214,6 +218,10 @@ export class AdminService {
         customerExport: p.customerExport,
         networkDashboard: p.networkDashboard,
       },
+      /** A partir de 3 unidades sem o painel da rede (ex.: Profissional), o painel recomenda a Rede. */
+      recommendation: rec
+        ? { code: rec.code, name: rec.name, priceCents: rec.priceCents, includedStores: rec.includedStores, extraStorePriceCents: rec.extraStorePriceCents }
+        : null,
     };
   }
 
@@ -319,13 +327,20 @@ export class AdminService {
     }));
   }
 
+  /** Bloqueia criar ou reativar além das unidades do plano; a mensagem recomenda o plano de rede quando for a 3ª unidade em diante. */
+  private async ensureStoreSlot(tx: Tx, tenantId: string, eff: EffectivePlan) {
+    const used = await activeStores(tx, tenantId);
+    if (withinLimit(used, eff.maxStores)) return;
+    throw storeLimitError(eff, await networkPlanRecommendation(tx, eff, used + 1));
+  }
+
   async createStore(ctx: AdminCtx, input: z.infer<typeof storeCreateSchema>) {
     const dup = await this.prisma.store.findUnique({ where: { tenantId_slug: { tenantId: ctx.tenantId, slug: input.slug } } });
     if (dup) throw conflict('STORE_SLUG_EXISTS', 'Já existe uma unidade com este identificador.');
     await this.prisma.$transaction(async (tx) => {
       await lockTenant(tx, ctx.tenantId);
       const eff = await effectivePlan(tx, ctx.tenantId);
-      if (!withinLimit(await activeStores(tx, ctx.tenantId), eff.maxStores)) throw storeLimitError(eff);
+      await this.ensureStoreSlot(tx, ctx.tenantId, eff);
       await tx.store.create({ data: { tenantId: ctx.tenantId, name: input.name, slug: input.slug, ...addressData(input.address) } });
     });
     return this.stores(ctx);
@@ -342,7 +357,7 @@ export class AdminService {
       if (input.status === 'ACTIVE' && s.status !== 'ACTIVE') {
         await lockTenant(tx, ctx.tenantId);
         const eff = await effectivePlan(tx, ctx.tenantId);
-        if (!withinLimit(await activeStores(tx, ctx.tenantId), eff.maxStores)) throw storeLimitError(eff);
+        await this.ensureStoreSlot(tx, ctx.tenantId, eff);
       }
       await tx.store.update({ where: { id }, data: { name: input.name, ...addressData(input.address), status: input.status } });
     });

@@ -474,6 +474,34 @@ describe('Limites do plano vigente', () => {
     await pos.patch(`/api/admin/stores/${shopping.id}`).send({ status: 'ACTIVE' }).expect(409);
   });
 
+  it('a partir da 3ª unidade sem o painel da rede, recomenda a Rede', async () => {
+    const { t, pos } = await setup({ plan: 'PROFISSIONAL' });
+    // 1 de 1 unidade: a próxima seria a 2ª, ainda sem recomendação.
+    let plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body.recommendation).toBeNull();
+    let r = await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(409);
+    expect(r.body.details).toMatchObject({ recommendedPlan: null });
+
+    // 2 de 2: a próxima seria a 3ª.
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ extraStores: 1 }).expect(200);
+    await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(201);
+    plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body.recommendation).toEqual({ code: 'REDE', name: 'Rede', priceCents: 19990, includedStores: 3, extraStorePriceCents: 4990 });
+    r = await pos.post('/api/admin/stores').send({ name: 'Bairro', slug: 'bairro' }).expect(409);
+    expect(r.body.details).toMatchObject({ recommendedPlan: 'REDE' });
+    expect(r.body.message).toContain('recomendamos o plano Rede: 3 unidades inclusas por R$ 199,90 por mês');
+
+    // 3 unidades contratadas no Profissional: recomenda mesmo com vaga livre.
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ extraStores: 2 }).expect(200);
+    plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body.recommendation).toMatchObject({ code: 'REDE' });
+
+    // Na Rede, não recomenda.
+    await platform().patch(`/api/platform/tenants/${t.tenantId}`).send({ plan: 'REDE', extraStores: 0 }).expect(200);
+    plan = await pos.get('/api/admin/plan').expect(200);
+    expect(plan.body.recommendation).toBeNull();
+  });
+
   it('downgrade não desativa o que já existe; só bloqueia criar além do limite', async () => {
     const { t, pos } = await setup({ plan: 'REDE' });
     await pos.post('/api/admin/stores').send({ name: 'Shopping', slug: 'shopping' }).expect(201);

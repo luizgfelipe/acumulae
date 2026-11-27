@@ -8,7 +8,7 @@ import { usePanel } from '@/components/panel-context';
 import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Modal } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { AddressFields, EMPTY_ADDRESS, addressPayload, draftOf } from '@/lib/address';
-import { brl, isFull } from '@/lib/plan';
+import { brl, isFull, recommendationText } from '@/lib/plan';
 import { useLoad } from '@/lib/use-load';
 
 interface Store {
@@ -130,6 +130,7 @@ export default function StoresPage() {
                 ? ` Cada unidade extra custa ${brl(usage.extraPriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`
                 : ' Para ter mais unidades, mude de plano.'}
             </p>
+            {plan?.recommendation && <p className="font-medium">{recommendationText(plan.recommendation)}</p>}
             <Link href="/painel/plano" className="font-medium text-accent-600 underline">
               Ver meu plano
             </Link>

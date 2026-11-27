@@ -210,14 +210,34 @@ export function staffLimitError(max: number) {
   );
 }
 
-export function storeLimitError(eff: EffectivePlan) {
+/**
+ * Plano de rede recomendado (o listado mais barato com o painel da rede) quando o estabelecimento precisa de
+ * pelo menos as unidades que ele inclui (3 na Rede) e o plano vigente não tem o painel. Ex.: Profissional
+ * indo para a 3ª unidade. Com o plano vencido não recomenda (o aviso de renovação já aparece).
+ */
+export async function networkPlanRecommendation(db: Db, eff: EffectivePlan, storesNeeded: number): Promise<Plan | null> {
+  if (eff.expired || eff.plan.networkDashboard) return null;
+  const target = await db.plan.findFirst({ where: { listed: true, networkDashboard: true }, orderBy: [{ priceCents: 'asc' }, { code: 'asc' }] });
+  return target && storesNeeded >= target.includedStores ? target : null;
+}
+
+/** Unidades de que o estabelecimento precisa: as contratadas, ou mais uma quando todas estão em uso. */
+export const storesNeeded = (used: number, max: number) => Math.max(max, used >= max ? used + 1 : used);
+
+/** Frase da recomendação do plano de rede (mensagens da API). */
+export const networkPlanPitch = (p: Plan) =>
+  `A partir de ${plural(p.includedStores, 'unidade', 'unidades')}, recomendamos o plano ${p.name}: ${plural(p.includedStores, 'unidade inclusa', 'unidades inclusas')} por ${brl(p.priceCents)} por mês, com o painel da rede.`;
+
+export function storeLimitError(eff: EffectivePlan, recommended: Plan | null = null) {
   const p = eff.plan;
   const extra =
     p.extraStorePriceCents !== null && !eff.expired
       ? ` Cada unidade extra custa ${brl(p.extraStorePriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`
       : ' Mude de plano para ter mais unidades.';
-  return new AppError(409, 'STORE_LIMIT_REACHED', `Seu plano permite ${plural(eff.maxStores, 'unidade ativa', 'unidades ativas')}.${extra}`, {
+  const pitch = recommended ? ` ${networkPlanPitch(recommended)}` : '';
+  return new AppError(409, 'STORE_LIMIT_REACHED', `Seu plano permite ${plural(eff.maxStores, 'unidade ativa', 'unidades ativas')}.${extra}${pitch}`, {
     max: eff.maxStores,
+    recommendedPlan: recommended?.code ?? null,
   });
 }
 

@@ -6,7 +6,7 @@ import { PlanCompare } from '@/components/plan-compare';
 import { ProgressBar } from '@/components/stamps';
 import { Alert, Badge, Card, FullPageSpinner, cx } from '@/components/ui';
 import { CONTACT_EMAIL, mailtoContact } from '@/lib/contact';
-import { PlanInfo, SUPPORT_LABELS, Usage, brl, daysLeft, planNotice } from '@/lib/plan';
+import { PlanInfo, SUPPORT_LABELS, Usage, brl, daysLeft, planNotice, recommendationText } from '@/lib/plan';
 
 export default function PlanPage() {
   const { plan, reload } = usePanel();
@@ -22,6 +22,15 @@ export default function PlanPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Meu plano</h1>
       {notice && <Alert kind={notice.kind}>{notice.text}</Alert>}
+      {plan.recommendation && (
+        <Alert kind="info">
+          {recommendationText(plan.recommendation)} Para mudar, fale com o suporte do Acumulaê pelo e-mail{' '}
+          <a href={mailtoContact(`Mudar para o plano ${plan.recommendation.name}`)} className="font-semibold underline">
+            {CONTACT_EMAIL}
+          </a>
+          .
+        </Alert>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">

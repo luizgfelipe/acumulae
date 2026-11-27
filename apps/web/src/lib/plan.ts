@@ -24,6 +24,22 @@ export interface PlanInfo {
     customerExport: boolean;
     networkDashboard: boolean;
   };
+  /** Plano de rede recomendado a partir de 3 unidades sem o painel da rede (ex.: Profissional); null = sem recomendação. */
+  recommendation: NetworkRecommendation | null;
+}
+
+export interface NetworkRecommendation {
+  code: string;
+  name: string;
+  priceCents: number;
+  includedStores: number;
+  extraStorePriceCents: number | null;
+}
+
+/** Texto da recomendação do plano de rede. */
+export function recommendationText(r: NetworkRecommendation) {
+  const extra = r.extraStorePriceCents !== null ? ` Unidade adicional: ${brl(r.extraStorePriceCents)} por mês.` : '';
+  return `A partir de ${r.includedStores} unidades, recomendamos o plano ${r.name}: ${r.includedStores} unidades inclusas por ${brl(r.priceCents)} por mês, com o painel consolidado da rede.${extra}`;
 }
 
 export const SUPPORT_LABELS: Record<PlanInfo['plan']['supportChannel'], string> = {
