@@ -10,7 +10,7 @@ import { Alert, Badge, Button, FullPageSpinner, Input, Modal, Spinner, TenantAva
 import { ApiError, errorMessage, newIdempotencyKey, staffApi } from '@/lib/api';
 import { cardDisplay } from '@/lib/card-display';
 import { MoneyInput } from '@/components/money-input';
-import { formatBRL, formatTime, maskPhoneInput, plural } from '@/lib/format';
+import { formatMoney, formatTime, maskPhoneInput, plural } from '@/lib/format';
 import { staffLogout, useStaff } from '@/lib/staff';
 import { amountLimit, convertAmount } from '@/lib/value';
 
@@ -350,12 +350,12 @@ function ValuePreview({
   if (overMax) {
     return (
       <div className="mt-3">
-        <Alert>O valor máximo por lançamento é {formatBRL(amountLimit(c.maxAmountPerEntryCents))}. Confira o valor digitado.</Alert>
+        <Alert>O valor máximo por lançamento é {formatMoney(amountLimit(c.maxAmountPerEntryCents))}. Confira o valor digitado.</Alert>
       </div>
     );
   }
   if (!amount || !conv) {
-    return <p className="mt-3 text-center text-sm text-stone-500">{formatBRL(c.stampValueCents!)} = 1 {c.unitLabel}</p>;
+    return <p className="mt-3 text-center text-sm text-stone-500">{formatMoney(c.stampValueCents!)} = 1 {c.unitLabel}</p>;
   }
   const completes = Math.floor((c.balance + conv.stamps) / c.goal);
   return (
@@ -364,8 +364,8 @@ function ValuePreview({
         {conv.stamps > 0 ? `+${plural(conv.stamps, c.unitLabel, c.unitLabelPlural)}` : `Nenhum ${c.unitLabel} ainda`}
       </p>
       <p className="text-sm text-stone-600">
-        {c.leftoverCents > 0 && <>Com os {formatBRL(c.leftoverCents)} guardados. </>}
-        {conv.leftover > 0 ? `Ficam ${formatBRL(conv.leftover)} para a próxima compra.` : 'Não sobra nada para a próxima.'}
+        {c.leftoverCents > 0 && <>Com os {formatMoney(c.leftoverCents)} guardados. </>}
+        {conv.leftover > 0 ? `Ficam ${formatMoney(conv.leftover)} para a próxima compra.` : 'Não sobra nada para a próxima.'}
       </p>
       {completes > 0 && (
         <p className="mt-1 text-sm font-semibold text-emerald-700">
@@ -407,7 +407,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   const stampsToAdd = byValue ? (conv?.stamps ?? 0) : qty;
   const overMax = byValue && !!amount && amount > amountLimit(c.maxAmountPerEntryCents);
   const canLaunch = !byValue || (!!amount && !overMax);
-  const launchLabel = byValue ? `Lançar ${formatBRL(amount ?? 0)}` : `Lançar ${plural(qty, c.unitLabel, c.unitLabelPlural)}`;
+  const launchLabel = byValue ? `Lançar ${formatMoney(amount ?? 0)}` : `Lançar ${plural(qty, c.unitLabel, c.unitLabelPlural)}`;
   const discard = discardPreview(c, stampsToAdd);
   const canRedeem = c.rewardsAvailable > 0 && c.redeem.allowed;
   const { complete, shown } = cardDisplay(c);
@@ -442,11 +442,11 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
         r.rewardsUnlocked > 0 ? `🎉 Recompensa liberada: ${c.rewardDescription}!` : null,
         r.discarded > 0 ? `${plural(r.discarded, c.unitLabel, c.unitLabelPlural)} além da meta descartado(s).` : null,
         `Agora: ${r.card.balance}/${r.card.goal}`,
-        byValue && r.card.leftoverCents > 0 ? `${formatBRL(r.card.leftoverCents)} guardados` : null,
+        byValue && r.card.leftoverCents > 0 ? `${formatMoney(r.card.leftoverCents)} guardados` : null,
       ];
       onDone({
         kind: 'success',
-        title: byValue ? `${formatBRL(amount ?? 0)} para ${view.name}` : `+${stamps} para ${view.name}`,
+        title: byValue ? `${formatMoney(amount ?? 0)} para ${view.name}` : `+${stamps} para ${view.name}`,
         detail: [view.programs.length > 1 ? c.programName : null, ...parts].filter(Boolean).join(' · '),
       });
     } catch (e) {
@@ -506,12 +506,12 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
             <p className="text-sm text-stone-600">
               {c.leftoverCents > 0 ? (
                 <>
-                  <strong className="tabular-nums">{formatBRL(c.leftoverCents)}</strong> guardados · faltam{' '}
-                  <span className="tabular-nums">{formatBRL(c.stampValueCents! - c.leftoverCents)}</span> para o próximo {c.unitLabel}
+                  <strong className="tabular-nums">{formatMoney(c.leftoverCents)}</strong> guardados · faltam{' '}
+                  <span className="tabular-nums">{formatMoney(c.stampValueCents! - c.leftoverCents)}</span> para o próximo {c.unitLabel}
                 </>
               ) : (
                 <>
-                  {formatBRL(c.stampValueCents!)} = 1 {c.unitLabel}
+                  {formatMoney(c.stampValueCents!)} = 1 {c.unitLabel}
                 </>
               )}
             </p>
@@ -678,7 +678,7 @@ interface CheckoutToken {
 }
 
 /** "R$ 45,00" no programa por valor; senão a quantidade de selos. */
-const tokenLabel = (t: CheckoutToken) => (t.amountCents != null ? formatBRL(t.amountCents) : `+${t.quantity}`);
+const tokenLabel = (t: CheckoutToken) => (t.amountCents != null ? formatMoney(t.amountCents) : `+${t.quantity}`);
 
 function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flash) => void }) {
   const [qty, setQty] = useState(1);
@@ -813,11 +813,11 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
             <MoneyInput id="checkout-amount" cents={amount} onCents={setAmount} className="h-16 text-3xl font-extrabold" />
             {overMax ? (
               <div className="mt-3">
-                <Alert>O valor máximo por lançamento é {formatBRL(amountLimit(selected?.maxAmountPerEntryCents))}.</Alert>
+                <Alert>O valor máximo por lançamento é {formatMoney(amountLimit(selected?.maxAmountPerEntryCents))}.</Alert>
               </div>
             ) : (
               <p className="mt-3 text-center text-sm text-stone-500">
-                {formatBRL(selected!.stampValueCents!)} = 1 {selected!.unitLabel}. Os {selected!.unitLabelPlural} saem na hora, somados ao que o cliente já
+                {formatMoney(selected!.stampValueCents!)} = 1 {selected!.unitLabel}. Os {selected!.unitLabelPlural} saem na hora, somados ao que o cliente já
                 tem guardado.
               </p>
             )}
@@ -861,7 +861,7 @@ function RecentList({ items }: { items: Recent[] }) {
               <Badge color="green">Resgate</Badge>
             ) : (
               <span className="text-right">
-                {r.amountCents != null && <span className="mr-2 text-stone-500 tabular-nums">{formatBRL(r.amountCents)}</span>}
+                {r.amountCents != null && <span className="mr-2 text-stone-500 tabular-nums">{formatMoney(r.amountCents)}</span>}
                 <span className="font-semibold text-emerald-700 tabular-nums">+{r.quantity}</span>
               </span>
             )}

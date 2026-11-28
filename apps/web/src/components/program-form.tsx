@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { Alert, Button, Field, Input, cx } from './ui';
 import { MoneyInput } from './money-input';
-import { WEEKDAYS, formatBRL } from '@/lib/format';
+import { WEEKDAYS, formatMoney } from '@/lib/format';
 import { MAX_AMOUNT_PER_ENTRY_CENTS } from '@/lib/value';
 
 export type ProgramKind = 'SELO' | 'VALOR';
@@ -50,7 +50,7 @@ function valueExample(stampValueCents: number, one: string, many: string) {
   const stamps = Math.floor(purchase / stampValueCents);
   const left = purchase % stampValueCents;
   const units = stamps === 1 ? one : many || `${one}s`;
-  return `Ex.: compra de ${formatBRL(purchase)} → ${stamps} ${units}, e ${formatBRL(left)} ficam guardados para a próxima compra.`;
+  return `Ex.: compra de ${formatMoney(purchase)} → ${stamps} ${units}, e ${formatMoney(left)} ficam guardados para a próxima compra.`;
 }
 
 /** Formulário de programa de fidelidade (criar e editar). */
@@ -84,7 +84,7 @@ export function ProgramForm({
       return;
     }
     if (byValue && p.maxAmountPerEntryCents! > MAX_AMOUNT_PER_ENTRY_CENTS) {
-      setError(`A compra máxima por lançamento vai até ${formatBRL(MAX_AMOUNT_PER_ENTRY_CENTS)}.`);
+      setError(`A compra máxima por lançamento vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`);
       return;
     }
     if (byValue && p.maxAmountPerEntryCents && p.stampValueCents && p.maxAmountPerEntryCents < p.stampValueCents) {
@@ -146,7 +146,7 @@ export function ProgramForm({
             <Field label="Cada compra de" hint={`vale 1 ${p.unitLabel || 'selo'}.`}>
               <MoneyInput cents={p.stampValueCents} onCents={(v) => setP({ ...p, stampValueCents: v })} disabled={valueLocked} required />
             </Field>
-            <Field label="Compra máxima por lançamento" hint={`Evita erro de digitação (ex.: 15000 no lugar de 150,00). Até ${formatBRL(MAX_AMOUNT_PER_ENTRY_CENTS)}.`}>
+            <Field label="Compra máxima por lançamento" hint={`Evita erro de digitação (ex.: 15000 no lugar de 150,00). Até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`}>
               <MoneyInput cents={p.maxAmountPerEntryCents} onCents={(v) => setP({ ...p, maxAmountPerEntryCents: v })} required />
             </Field>
           </div>
@@ -161,7 +161,7 @@ export function ProgramForm({
         {byValue ? (
           p.stampValueCents ? (
             <div className="self-end pb-1 text-xs text-stone-500">
-              Cartão completo a cada <strong className="text-stone-700">{formatBRL(p.stampValueCents * p.goal)}</strong> em compras.
+              Cartão completo a cada <strong className="text-stone-700">{formatMoney(p.stampValueCents * p.goal)}</strong> em compras.
             </div>
           ) : (
             <div />

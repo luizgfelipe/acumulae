@@ -1,5 +1,6 @@
 'use client';
 
+import { CURRENCY_SYMBOL, LOCALE } from '@/lib/region';
 import { InputHTMLAttributes, forwardRef } from 'react';
 import { cx } from './ui';
 
@@ -9,7 +10,7 @@ const MAX_DIGITS = 8;
 /** "1500" → "15,00"; "5" → "0,05"; com milhar: "1.234,56". */
 function display(cents: number | null) {
   if (cents == null) return '';
-  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
+  return new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
 }
 
 /**
@@ -22,7 +23,7 @@ export const MoneyInput = forwardRef<
 >(function MoneyInput({ cents, onCents, className, ...rest }, ref) {
   return (
     <div className={cx('relative h-11', className)}>
-      <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 font-semibold text-stone-500">R$</span>
+      <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 font-semibold text-stone-500">{CURRENCY_SYMBOL}</span>
       <input
         ref={ref}
         {...rest}

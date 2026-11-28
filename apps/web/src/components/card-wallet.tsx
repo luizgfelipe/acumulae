@@ -1,5 +1,6 @@
 'use client';
 
+import { LOCALE } from '@/lib/region';
 import { ChevronRight, Gift, Layers, List, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -66,9 +67,9 @@ export function CardWallet({ cards }: { cards: MembershipCard[] }) {
     return (c: MembershipCard) => (count.get(c.tenant.slug) ?? 0) > 1;
   }, [cards]);
 
-  const q = query.trim().toLocaleLowerCase('pt-BR');
+  const q = query.trim().toLocaleLowerCase(LOCALE);
   const matches = (c: MembershipCard) =>
-    !q || [c.tenant.name, c.programName, c.rewardDescription].some((t) => t.toLocaleLowerCase('pt-BR').includes(q));
+    !q || [c.tenant.name, c.programName, c.rewardDescription].some((t) => t.toLocaleLowerCase(LOCALE).includes(q));
 
   const visible = sortCards(active, sort).filter(matches);
   const visibleInactive = sortCards(inactive, 'recent').filter(matches);

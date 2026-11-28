@@ -1,3 +1,4 @@
+import { LOCALE } from '@/lib/region';
 import type { Metadata, Viewport } from 'next';
 import { ServiceWorker } from '@/components/service-worker';
 import './globals.css';
@@ -19,7 +20,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang={LOCALE}>
       <body className="min-h-dvh font-sans antialiased">
         {children}
         <ServiceWorker />

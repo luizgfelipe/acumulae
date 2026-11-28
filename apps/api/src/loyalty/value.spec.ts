@@ -1,4 +1,4 @@
-import { convertAmount, formatBRL, reverseAmount } from './value';
+import { convertAmount, formatMoney, reverseAmount } from './value';
 
 describe('convertAmount (programa por valor)', () => {
   // R$ 10,00 = 1 selo
@@ -70,12 +70,25 @@ describe('reverseAmount (estorno no programa por valor)', () => {
   });
 });
 
-describe('formatBRL', () => {
+describe('formatMoney', () => {
   it.each([
     [0, 'R$ 0,00'],
     [500, 'R$ 5,00'],
     [123456, 'R$ 1.234,56'],
   ])('%p → %s', (cents, text) => {
-    expect(formatBRL(cents)).toBe(text);
+    expect(formatMoney(cents)).toBe(text);
+  });
+});
+
+describe('formatMoney em Portugal (REGION=PT)', () => {
+  const before = process.env.REGION;
+  beforeAll(() => (process.env.REGION = 'PT'));
+  afterAll(() => (before === undefined ? delete process.env.REGION : (process.env.REGION = before)));
+
+  it.each([
+    [500, '5,00 €'],
+    [123456, '1234,56 €'],
+  ])('%p → %s', (cents, text) => {
+    expect(formatMoney(cents)).toBe(text);
   });
 });

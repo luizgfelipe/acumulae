@@ -1,3 +1,5 @@
+import { LOCALE } from '@/lib/region';
+
 /** Resposta de GET /api/admin/plan. Limites `max: null` = ilimitado. */
 export interface Usage {
   used: number;
@@ -60,7 +62,7 @@ export function daysLeft(expiresAt: string | null, now = Date.now()): number | n
 
 /** Aviso do topo do painel: validade do plano. */
 export function planNotice(p: PlanInfo): { kind: 'warning' | 'error'; text: string } | null {
-  const date = p.expiresAt ? new Date(p.expiresAt).toLocaleDateString('pt-BR') : '';
+  const date = p.expiresAt ? new Date(p.expiresAt).toLocaleDateString(LOCALE) : '';
   if (p.expired) {
     return { kind: 'error', text: `Seu plano ${p.contracted.name} venceu em ${date}. Até ser renovado, valem os recursos do plano Essencial.` };
   }

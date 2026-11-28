@@ -5,7 +5,7 @@ import { AppError, conflict } from '../common/errors';
 import { weekdaysSchema } from '../common/schemas';
 import { describeWeekdays } from '../common/time';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
-import { MAX_AMOUNT_PER_ENTRY_CENTS, formatBRL } from '../loyalty/value';
+import { MAX_AMOUNT_PER_ENTRY_CENTS, formatMoney } from '../loyalty/value';
 import { PrismaService, Tx } from '../prisma/prisma.service';
 import { effectivePlan, withinLimit } from '../plans/plans';
 import type { AdminCtx } from './admin.service';
@@ -21,7 +21,7 @@ const programBaseSchema = z.object({
     .number()
     .int()
     .min(1)
-    .max(MAX_AMOUNT_PER_ENTRY_CENTS, `a compra máxima por lançamento vai até ${formatBRL(MAX_AMOUNT_PER_ENTRY_CENTS)}`)
+    .max(MAX_AMOUNT_PER_ENTRY_CENTS, `a compra máxima por lançamento vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}`)
     .nullish(),
   unitLabel: z.string().trim().min(1).max(30),
   unitLabelPlural: z.string().trim().max(30).nullish(),

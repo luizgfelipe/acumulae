@@ -1,18 +1,18 @@
-const TZ = 'America/Sao_Paulo';
+import { CURRENCY, IS_PT, LOCALE, TZ } from './region';
 
 export function formatDate(d: string | Date | null | undefined) {
   if (!d) return '—';
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d));
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d));
 }
 
 export function formatShortDate(d: string | Date | null | undefined) {
   if (!d) return '—';
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit' }).format(new Date(d));
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: TZ, day: '2-digit', month: '2-digit' }).format(new Date(d));
 }
 
 export function formatDateTime(d: string | Date | null | undefined) {
   if (!d) return '—';
-  return new Intl.DateTimeFormat('pt-BR', {
+  return new Intl.DateTimeFormat(LOCALE, {
     timeZone: TZ,
     day: '2-digit',
     month: '2-digit',
@@ -22,11 +22,16 @@ export function formatDateTime(d: string | Date | null | undefined) {
 }
 
 export function formatTime(d: string | Date) {
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(d));
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(d));
 }
 
-/** Máscara de digitação de telefone brasileiro: (47) 9 9999-9999 */
+/** Máscara de digitação de telefone: BR (47) 9 9999-9999; PT 912 345 678. Com "+" na frente não mascara (número de fora). */
 export function maskPhoneInput(v: string) {
+  if (v.trim().startsWith('+')) return '+' + v.replace(/[^\d ]/g, '').trimStart();
+  if (IS_PT) {
+    const p = v.replace(/\D/g, '').slice(0, 9);
+    return [p.slice(0, 3), p.slice(3, 6), p.slice(6)].filter(Boolean).join(' ');
+  }
   const d = v.replace(/\D/g, '').slice(0, 11);
   if (d.length <= 2) return d.length ? `(${d}` : '';
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
@@ -34,11 +39,12 @@ export function maskPhoneInput(v: string) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`;
 }
 
-/** +5547999998888 → (47) 9 9999-8888 */
+/** +5547999998888 → (47) 9 9999-8888 (instância BR); +351912345678 → 912 345 678 (instância PT); de outro país fica em E.164. */
 export function formatE164(e164: string | null | undefined) {
   if (!e164) return '—';
-  const d = e164.replace(/\D/g, '').replace(/^55/, '');
-  return maskPhoneInput(d);
+  const home = IS_PT ? '351' : '55';
+  const d = e164.replace(/\D/g, '');
+  return d.startsWith(home) ? maskPhoneInput(d.slice(home.length)) : e164;
 }
 
 export function plural(n: number, singular: string, pluralForm: string) {
@@ -85,12 +91,12 @@ export function readableOn(hex: string | null | undefined): '#ffffff' | '#1c1917
   return lum > 0.45 ? '#1c1917' : '#ffffff';
 }
 
-/** "R$ 1.234,50" a partir de centavos. */
-export function formatBRL(cents: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100).replace(/\s/g, ' ');
+/** "R$ 1.234,50" ou "1234,50 €" a partir de centavos (cêntimos). */
+export function formatMoney(cents: number) {
+  return new Intl.NumberFormat(LOCALE, { style: 'currency', currency: CURRENCY }).format(cents / 100).replace(/\s/g, ' ');
 }
 
 /** Regra do programa por valor, para exibir: "R$ 10,00 = 1 selo". */
 export function valueRule(stampValueCents: number, unitLabel: string) {
-  return `${formatBRL(stampValueCents)} = 1 ${unitLabel}`;
+  return `${formatMoney(stampValueCents)} = 1 ${unitLabel}`;
 }

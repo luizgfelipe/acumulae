@@ -1,5 +1,6 @@
 'use client';
 
+import { TZ } from '@/lib/region';
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePanel } from '@/components/panel-context';
@@ -296,7 +297,7 @@ interface StaffItem {
 }
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
-const isoDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
+const isoDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d);
 
 function StaffReport() {
   const today = isoDay(new Date());

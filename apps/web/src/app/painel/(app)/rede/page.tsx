@@ -1,5 +1,6 @@
 'use client';
 
+import { LOCALE } from '@/lib/region';
 import Link from 'next/link';
 import { usePanel } from '@/components/panel-context';
 import { Alert, Badge, Card, FullPageSpinner, cx } from '@/components/ui';
@@ -69,7 +70,7 @@ function NetworkTable() {
       return [k, data.items.length > 1 && max > 0 ? max : null];
     }),
   ) as Record<keyof Network['totals'], number | null>;
-  const month = new Date(data.since).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const month = new Date(data.since).toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-5">

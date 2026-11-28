@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { LedgerSource, LoyaltyProgram, Membership, Prisma, ProgramKind } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { AppError, badRequest, conflict, notFound } from '../common/errors';
-import { describeWeekdays, isoWeekdaySaoPaulo } from '../common/time';
+import { describeWeekdays, isoWeekdayLocal } from '../common/time';
 import {
   creditMessage,
   creditReversedMessage,
@@ -13,7 +13,7 @@ import {
   tenantName,
 } from '../notifications/messages';
 import { PrismaService, Tx } from '../prisma/prisma.service';
-import { MAX_AMOUNT_PER_ENTRY_CENTS, convertAmount, formatBRL, reverseAmount } from './value';
+import { MAX_AMOUNT_PER_ENTRY_CENTS, convertAmount, formatMoney, reverseAmount } from './value';
 
 const unitsOf = (p: LoyaltyProgram) => ({ one: p.unitLabel, many: pluralize(p.unitLabel, p.unitLabelPlural) });
 
@@ -118,14 +118,14 @@ export function assertAmount(p: LoyaltyProgram, amountCents: number | null | und
   // O limite do programa nunca passa do teto de proteção (inclusive programa sem limite preenchido).
   const limit = Math.min(p.maxAmountPerEntryCents ?? MAX_AMOUNT_PER_ENTRY_CENTS, MAX_AMOUNT_PER_ENTRY_CENTS);
   if (amountCents > limit) {
-    throw badRequest('AMOUNT_ABOVE_LIMIT', `O valor máximo por lançamento é ${formatBRL(limit)}.`);
+    throw badRequest('AMOUNT_ABOVE_LIMIT', `O valor máximo por lançamento é ${formatMoney(limit)}.`);
   }
 }
 
 /** Situação do resgate hoje (RN-64). */
 export function redeemRestriction(p: LoyaltyProgram, now = new Date()): string | null {
   if (!p.redeemWeekdays.length) return null;
-  if (p.redeemWeekdays.includes(isoWeekdaySaoPaulo(now))) return null;
+  if (p.redeemWeekdays.includes(isoWeekdayLocal(now))) return null;
   return `Resgate permitido apenas: ${describeWeekdays(p.redeemWeekdays)}.`;
 }
 

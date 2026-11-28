@@ -5,7 +5,7 @@ import type { AdminCtx } from '../admin/admin.service';
 import { logoUrlOf } from '../common/branding';
 import { AppError, badRequest } from '../common/errors';
 import { pageSchema } from '../common/schemas';
-import { startOfMonthSaoPaulo } from '../common/time';
+import { startOfMonthLocal } from '../common/time';
 import { effectivePlan, lockTenant, planFeatureError, withinLimit } from '../plans/plans';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -165,7 +165,7 @@ export class AnnouncementsService {
   }
 
   private usedThisMonth(db: Pick<PrismaService, 'announcement'>, tenantId: string, now = new Date()) {
-    return db.announcement.count({ where: { tenantId, createdAt: { gte: startOfMonthSaoPaulo(now) } } });
+    return db.announcement.count({ where: { tenantId, createdAt: { gte: startOfMonthLocal(now) } } });
   }
 
   /** Uso do mês, público e o histórico paginado (mais recentes primeiro). */

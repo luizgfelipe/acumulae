@@ -10,7 +10,7 @@ import { api, errorMessage } from '@/lib/api';
 import { cardDisplay, leftoverLabel, rewardsLabel } from '@/lib/card-display';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
-import { LEDGER_LABELS, formatBRL, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
+import { LEDGER_LABELS, formatMoney, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
 
 interface Detail {
   membershipId: string;
@@ -204,7 +204,7 @@ function MembershipPage() {
           <ul className="space-y-1 text-sm text-stone-700">
             {d.kind === 'VALOR' && d.stampValueCents && (
               <li>
-                Cada {formatBRL(d.stampValueCents)} em compras vale 1 {d.unitLabel}. O que sobrar de uma compra fica guardado para a próxima.
+                Cada {formatMoney(d.stampValueCents)} em compras vale 1 {d.unitLabel}. O que sobrar de uma compra fica guardado para a próxima.
               </li>
             )}
             <li>
@@ -238,7 +238,7 @@ function MembershipPage() {
                 <div>
                   <p className="font-medium">
                     {LEDGER_LABELS[h.type] ?? h.type}
-                    {h.amountCents != null && <span className="font-normal text-stone-500"> · {formatBRL(Math.abs(h.amountCents))}</span>}
+                    {h.amountCents != null && <span className="font-normal text-stone-500"> · {formatMoney(Math.abs(h.amountCents))}</span>}
                   </p>
                   <p className="text-xs text-stone-500">
                     {formatDateTime(h.createdAt)}
@@ -264,7 +264,7 @@ function LeftoverMeter({ d, color }: { d: Detail; color: string }) {
       <div className="mb-1.5 flex items-baseline justify-between text-xs">
         <span className="font-medium text-stone-700">Próximo {d.unitLabel}</span>
         <span className="tabular-nums text-stone-500">
-          {formatBRL(d.leftoverCents)} de {formatBRL(v)}
+          {formatMoney(d.leftoverCents)} de {formatMoney(v)}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">

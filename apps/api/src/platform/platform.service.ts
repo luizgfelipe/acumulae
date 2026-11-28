@@ -7,6 +7,7 @@ import { SEGMENT_CODES } from '../common/segments';
 import { config } from '../common/config';
 import { badRequest, conflict, notFound } from '../common/errors';
 import { STAMP_ICONS } from '../common/stamps';
+import { localToUtc } from '../common/time';
 import { DEFAULT_PLANS, FALLBACK_PLAN, PILOT_MONTHS, PILOT_PLAN, clearPlanCache, expiryAfterMonths, resolvePlan } from '../plans/plans';
 import {
   brandingFieldsSchema,
@@ -23,12 +24,12 @@ export const storeInputSchema = z.object({
 });
 
 /**
- * Fim da validade do plano: data (vale até o fim do dia, horário de Brasília) ou data e hora ISO.
+ * Fim da validade do plano: data (vale até o fim do dia, fuso da instância) ou data e hora ISO.
  * `null` remove a validade. Ausente ao entrar no PILOTO: vale por PILOT_MONTHS meses.
  */
 const planExpiresAtSchema = z
   .union([z.string().date(), z.string().datetime({ offset: true })])
-  .transform((v) => new Date(v.length === 10 ? `${v}T23:59:59.999-03:00` : v))
+  .transform((v) => (v.length === 10 ? localToUtc(v, '23:59:59.999') : new Date(v)))
   .nullable()
   .optional();
 

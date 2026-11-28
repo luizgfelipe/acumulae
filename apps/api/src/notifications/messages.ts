@@ -1,5 +1,5 @@
 import { NotificationKind } from '@prisma/client';
-import { formatBRL } from '../loyalty/value';
+import { formatMoney } from '../loyalty/value';
 import type { Tx } from '../prisma/prisma.service';
 
 /** Unidade do programa no singular e no plural ("rodízio"/"rodízios"). */
@@ -34,16 +34,16 @@ export function creditMessage(p: {
   const reminder = pending === 0 ? '' : pending === 1 ? ' Você tem 1 recompensa para usar.' : ` Você tem ${pending} recompensas para usar.`;
   const card = `Seu cartão está com ${p.balance} de ${p.goal}.`;
   if (p.value) {
-    const purchase = formatBRL(p.value.amountCents);
+    const purchase = formatMoney(p.value.amountCents);
     // Compra que não fechou selo: só a sobra mudou.
     if (p.quantity === 0) {
       return {
         kind: 'CREDITO',
         title: `Compra de ${purchase} registrada no ${p.tenant}`,
-        body: `Faltam ${formatBRL(p.value.stampValueCents - p.value.leftoverCents)} para o próximo ${p.units.one}. ${card}${reminder}`,
+        body: `Faltam ${formatMoney(p.value.stampValueCents - p.value.leftoverCents)} para o próximo ${p.units.one}. ${card}${reminder}`,
       };
     }
-    const saved = p.value.leftoverCents > 0 ? ` ${formatBRL(p.value.leftoverCents)} já contam para o próximo ${p.units.one}.` : '';
+    const saved = p.value.leftoverCents > 0 ? ` ${formatMoney(p.value.leftoverCents)} já contam para o próximo ${p.units.one}.` : '';
     return {
       kind: 'CREDITO',
       title: `+${qty(p.quantity, p.units)} no ${p.tenant}`,
@@ -85,7 +85,7 @@ export function creditReversedMessage(p: {
   /** Recompensas que continuam disponíveis depois do estorno. */
   rewardsAvailable?: number;
 }): NotificationText {
-  const what = p.amountCents != null ? `a compra de ${formatBRL(p.amountCents)}` : qty(p.quantity, p.units);
+  const what = p.amountCents != null ? `a compra de ${formatMoney(p.amountCents)}` : qty(p.quantity, p.units);
   const cancelled =
     p.cancelledRewards === 0 ? '' : p.cancelledRewards === 1 ? ' 1 recompensa foi cancelada.' : ` ${p.cancelledRewards} recompensas foram canceladas.`;
   const pending = p.rewardsAvailable ?? 0;

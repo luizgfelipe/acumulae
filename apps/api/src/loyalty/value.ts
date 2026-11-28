@@ -1,3 +1,5 @@
+import { regionSettings } from '../common/region';
+
 /**
  * Programa por valor: R$ X na compra = 1 selo. O que não fecha um selo vira "sobra" e conta na
  * próxima compra. Tudo em centavos (inteiros), para não haver erro de arredondamento.
@@ -38,7 +40,8 @@ export function reverseAmount(p: {
   return { cancel, balance: Math.floor(pool / p.stampValueCents), leftover: pool % p.stampValueCents };
 }
 
-/** "R$ 1.234,50" (espaço comum, para caber em notificação e e-mail). */
-export function formatBRL(cents: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100).replace(/\s/g, ' ');
+/** "R$ 1.234,50" ou "1234,50 €" conforme o país (espaço comum, para caber em notificação e e-mail). */
+export function formatMoney(cents: number) {
+  const { locale, currency } = regionSettings();
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(cents / 100).replace(/\s/g, ' ');
 }

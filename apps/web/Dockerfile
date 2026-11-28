@@ -8,6 +8,9 @@ RUN npm ci
 FROM node:22-alpine AS build
 WORKDIR /app
 ARG API_INTERNAL_URL=http://api:3001
+# País da instância (BR ou PT): fixa língua, moeda e formatos no build.
+ARG REGION=BR
+ENV NEXT_PUBLIC_REGION=$REGION
 ENV API_INTERNAL_URL=$API_INTERNAL_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules

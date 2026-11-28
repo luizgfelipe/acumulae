@@ -47,6 +47,7 @@ services:
       context: ./apps/web
       args:
         API_INTERNAL_URL: http://api:3001
+        REGION: ${REGION:-BR}
     environment:
       NODE_ENV: production
       PORT: 3000

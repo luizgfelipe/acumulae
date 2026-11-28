@@ -1,3 +1,5 @@
+import { LOCALE } from '@/lib/region';
+
 export type NotificationKind = 'CREDITO' | 'RECOMPENSA_LIBERADA' | 'RESGATE' | 'ESTORNO' | 'AVISO';
 
 export interface AppNotification {
@@ -26,5 +28,5 @@ export function timeAgo(iso: string, now = Date.now()) {
   const h = Math.floor(min / 60);
   if (h < 24) return `há ${h} h`;
   if (h < 48) return 'ontem';
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return new Date(iso).toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' });
 }

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { Alert, Badge, Button, Field, Input, Modal, cx } from './ui';
 import { errorMessage, staffApi } from '@/lib/api';
-import { LEDGER_LABELS, SOURCE_LABELS, formatBRL, formatDateTime } from '@/lib/format';
+import { LEDGER_LABELS, SOURCE_LABELS, formatMoney, formatDateTime } from '@/lib/format';
 
 export interface LedgerItem {
   id: string;
@@ -40,7 +40,7 @@ function amount(e: LedgerItem) {
       {stamps}
       <span className="ml-1.5 text-xs text-stone-500 tabular-nums">
         {e.amountCents < 0 ? '−' : ''}
-        {formatBRL(Math.abs(e.amountCents))}
+        {formatMoney(Math.abs(e.amountCents))}
       </span>
     </span>
   );
@@ -136,7 +136,7 @@ function ReverseModal({ entry, onClose, onDone }: { entry: LedgerItem | null; on
         <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-stone-700">
             {LEDGER_LABELS[entry.type]} de <strong>{entry.customerName}</strong> em {formatDateTime(entry.createdAt)}
-            {entry.type === 'CREDITO' ? ` (${entry.amountCents != null ? `compra de ${formatBRL(entry.amountCents)}` : entry.quantity})` : ''}. O lançamento original continua visível; será criada uma movimentação
+            {entry.type === 'CREDITO' ? ` (${entry.amountCents != null ? `compra de ${formatMoney(entry.amountCents)}` : entry.quantity})` : ''}. O lançamento original continua visível; será criada uma movimentação
             contrária.
           </p>
           {entry.type === 'CREDITO' && (

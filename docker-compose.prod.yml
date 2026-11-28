@@ -27,6 +27,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      REGION: ${REGION:-BR}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       PUBLIC_URL: ${PUBLIC_URL}
       JWT_SECRET: ${JWT_SECRET}
@@ -60,6 +61,7 @@ services:
       context: ./apps/web
       args:
         API_INTERNAL_URL: http://api:3001
+        REGION: ${REGION:-BR}
     restart: unless-stopped
     environment:
       NODE_ENV: production

@@ -1,5 +1,6 @@
 'use client';
 
+import { LOCALE } from '@/lib/region';
 import { staffApi } from '@/lib/api';
 import { CONTACT_EMAIL } from '@/lib/contact';
 import { ComparePlan, ComparePlans, SUPPORT_LABELS, brl } from '@/lib/plan';
@@ -10,7 +11,7 @@ const SUPPORT_RANK: Record<ComparePlan['supportChannel'], number> = { EMAIL: 0, 
 
 /** Limite numérico: null = ilimitado (vale mais que qualquer número). */
 const rankLimit = (n: number | null) => (n === null ? Number.POSITIVE_INFINITY : n);
-const limit = (n: number | null, unit: string) => (n === null ? 'Ilimitados' : `Até ${n.toLocaleString('pt-BR')} ${unit}`);
+const limit = (n: number | null, unit: string) => (n === null ? 'Ilimitados' : `Até ${n.toLocaleString(LOCALE)} ${unit}`);
 
 interface Row {
   label: string;

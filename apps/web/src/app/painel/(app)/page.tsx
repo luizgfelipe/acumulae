@@ -1,5 +1,6 @@
 'use client';
 
+import { LOCALE } from '@/lib/region';
 import Link from 'next/link';
 import { usePanel } from '@/components/panel-context';
 import { Alert, Card, FullPageSpinner } from '@/components/ui';
@@ -61,7 +62,7 @@ export default function DashboardPage() {
         {tiles.map((t) => (
           <Card key={t.label} className="p-4 sm:p-5">
             <p className="text-xs leading-snug text-stone-500 sm:text-sm">{t.label}</p>
-            <p className="mt-1 text-3xl font-extrabold tabular-nums sm:text-4xl">{t.value.toLocaleString('pt-BR')}</p>
+            <p className="mt-1 text-3xl font-extrabold tabular-nums sm:text-4xl">{t.value.toLocaleString(LOCALE)}</p>
             {t.hint && <p className="mt-1 text-xs text-stone-500">{t.hint}</p>}
           </Card>
         ))}

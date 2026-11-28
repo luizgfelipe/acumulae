@@ -1,5 +1,6 @@
 'use client';
 
+import { LOCALE } from '@/lib/region';
 import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
 import { useId, useRef, useState } from 'react';
 import { Button, TenantAvatar } from './ui';
@@ -28,7 +29,7 @@ export function CounterQr({ tenantName, storeName, url, logoUrl, color, fileName
     const w = window.open('', '_blank', 'width=700,height=900');
     if (!svg || !w) return;
     const logo = logoUrl ? `<img src="${escape(new URL(logoUrl, window.location.origin).href)}" alt="" class="logo">` : '';
-    w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>QR do balcão · ${escape(tenantName)}</title>
+    w.document.write(`<!doctype html><html lang="${LOCALE}"><head><meta charset="utf-8"><title>QR do balcão · ${escape(tenantName)}</title>
 <style>
   @page { margin: 16mm; }
   body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; display: flex; justify-content: center; color: #1c1917; }

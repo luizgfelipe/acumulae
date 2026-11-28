@@ -23,7 +23,7 @@ import {
 import { MAX_STAMP_IMAGE_BYTES, STAMP_ICONS, allowedStampIcons } from '../common/stamps';
 import { SEGMENTS, SEGMENT_CODES } from '../common/segments';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
-import { startOfMonthSaoPaulo } from '../common/time';
+import { addDays, localToUtc, startOfMonthLocal } from '../common/time';
 import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service';
 import { PrismaService, Tx } from '../prisma/prisma.service';
 import { InvitesService } from '../staff/invites.service';
@@ -102,7 +102,7 @@ export class AdminService {
 
   async dashboard(ctx: AdminCtx) {
     const t = ctx.tenantId;
-    const since = startOfMonthSaoPaulo();
+    const since = startOfMonthLocal();
     const [members, newMembers, credits, reversedCredits, visits, unlocked, redeemed, available] = await Promise.all([
       // Clientes distintos (um cliente pode ter cartão em mais de um programa).
       this.prisma.membership.groupBy({ by: ['customerId'], where: { tenantId: t } }).then((r) => r.length),
@@ -196,7 +196,7 @@ export class AdminService {
       this.prisma.loyaltyProgram.count({ where: { tenantId: ctx.tenantId, active: true } }),
       activeStores(this.prisma, ctx.tenantId),
       staffInUse(this.prisma, ctx.tenantId),
-      this.prisma.announcement.count({ where: { tenantId: ctx.tenantId, createdAt: { gte: startOfMonthSaoPaulo() } } }),
+      this.prisma.announcement.count({ where: { tenantId: ctx.tenantId, createdAt: { gte: startOfMonthLocal() } } }),
     ]);
     const rec = await networkPlanRecommendation(this.prisma, eff, storesNeeded(stores, eff.maxStores));
     return {
@@ -552,8 +552,8 @@ export class AdminService {
     };
     if (q.from || q.to) {
       where.createdAt = {
-        ...(q.from ? { gte: new Date(`${q.from}T00:00:00-03:00`) } : {}),
-        ...(q.to ? { lt: new Date(new Date(`${q.to}T00:00:00-03:00`).getTime() + 86400_000) } : {}),
+        ...(q.from ? { gte: localToUtc(q.from) } : {}),
+        ...(q.to ? { lt: localToUtc(addDays(q.to, 1)) } : {}),
       };
     }
     const [total, rows] = await Promise.all([

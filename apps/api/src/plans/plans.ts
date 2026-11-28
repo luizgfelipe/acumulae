@@ -2,6 +2,7 @@ import { Plan, Prisma, SupportChannel } from '@prisma/client';
 import { AppError } from '../common/errors';
 import { allowedStampIcons } from '../common/stamps';
 import type { Tx } from '../prisma/prisma.service';
+import { localDay, localToUtc } from '../common/time';
 
 /** Plano que passa a valer quando a validade do plano contratado acaba. */
 export const FALLBACK_PLAN = 'ESSENCIAL';
@@ -13,12 +14,12 @@ export const ACTIVE_CUSTOMER_DAYS = 90;
 export const PILOT_PLAN = 'PILOTO';
 export const PILOT_MONTHS = 1;
 
-/** Fim do dia (horário de Brasília) daqui a `months` meses; dia inexistente cai no último do mês. */
+/** Fim do dia (fuso da instância) daqui a `months` meses; dia inexistente cai no último do mês. */
 export function expiryAfterMonths(months: number, from = new Date()): Date {
-  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(from).split('-').map(Number);
+  const [y, m, d] = localDay(from).split('-').map(Number);
   const lastDay = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
   const target = new Date(Date.UTC(y, m - 1 + months, Math.min(d, lastDay)));
-  return new Date(`${target.toISOString().slice(0, 10)}T23:59:59.999-03:00`);
+  return localToUtc(target.toISOString().slice(0, 10), '23:59:59.999');
 }
 
 type PlanFields =Omit<Plan, 'createdAt' | 'updatedAt'>;

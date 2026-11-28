@@ -12,7 +12,7 @@ import { ApiError, api, errorMessage } from '@/lib/api';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
 import { useMe } from '@/lib/customer';
-import { formatBRL, plural } from '@/lib/format';
+import { formatMoney, plural } from '@/lib/format';
 
 interface TokenInfo {
   status: 'PENDING' | 'USED' | 'CANCELLED' | 'EXPIRED';
@@ -114,7 +114,7 @@ export default function CheckoutClaimPage() {
               {result.stamps > 0 ? `+${plural(result.stamps, c.unitLabel, c.unitLabelPlural)}` : 'Compra registrada!'}
             </h1>
             <p className="mt-1 text-lg text-stone-600">
-              {result.amountCents != null && <>Compra de {formatBRL(result.amountCents)} </>}
+              {result.amountCents != null && <>Compra de {formatMoney(result.amountCents)} </>}
               no {result.tenantName}. Você tem <strong>{cardDisplay(c).shown}/{c.goal}</strong>.
             </p>
             {leftoverLabel(c) && <p className="mt-1 text-sm text-stone-500">{leftoverLabel(c)}</p>}
@@ -178,12 +178,12 @@ export default function CheckoutClaimPage() {
       {header}
       <h1 className="text-2xl font-bold">
         {info!.amountCents != null
-          ? `Sua compra de ${formatBRL(info!.amountCents)} vale ${p?.unitLabelPlural ?? 'selos'}!`
+          ? `Sua compra de ${formatMoney(info!.amountCents)} vale ${p?.unitLabelPlural ?? 'selos'}!`
           : `Você ganhou ${p ? plural(info!.quantity, p.unitLabel, p.unitLabelPlural) : info!.quantity}!`}
       </h1>
       <p className="mt-2 text-stone-600">
         Entre ou crie sua conta grátis para guardar no seu cartão fidelidade
-        {p?.kind === 'VALOR' && p.stampValueCents ? ` (cada ${formatBRL(p.stampValueCents)} em compras vale 1 ${p.unitLabel}; a cada ${p.goal}, ganhe ${p.rewardDescription})` : p ? ` (a cada ${p.goal}, ganhe ${p.rewardDescription})` : ''}. O código vale por alguns minutos.
+        {p?.kind === 'VALOR' && p.stampValueCents ? ` (cada ${formatMoney(p.stampValueCents)} em compras vale 1 ${p.unitLabel}; a cada ${p.goal}, ganhe ${p.rewardDescription})` : p ? ` (a cada ${p.goal}, ganhe ${p.rewardDescription})` : ''}. O código vale por alguns minutos.
       </p>
       <div className="mt-6 space-y-3">
         <LinkButton href={`/cadastro?next=${back}`} className="h-13 w-full text-lg">

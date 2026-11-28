@@ -1,3 +1,5 @@
+import { regionSettings } from './region';
+
 /** Leitura centralizada das variáveis de ambiente. */
 function required(name: string, fallbackForDev: string): string {
   const v = process.env[name]?.trim();
@@ -59,7 +61,7 @@ export const config = {
       return process.env.SMTP_PASS ?? '';
     },
     get from() {
-      return process.env.MAIL_FROM ?? 'Acumulaê <nao-responda@acumulae.com.br>';
+      return process.env.MAIL_FROM ?? `Acumulaê <nao-responda@${regionSettings().domain}>`;
     },
   },
   /** Notificações no celular (Web Push). Gere o par com: npx web-push generate-vapid-keys */
@@ -72,7 +74,7 @@ export const config = {
     },
     /** Contato do remetente exigido pelos serviços de push (mailto: ou https://). */
     get subject() {
-      return process.env.VAPID_SUBJECT?.trim() || "mailto:suporte@acumulae.com.br";
+      return process.env.VAPID_SUBJECT?.trim() || `mailto:suporte@${regionSettings().domain}`;
     },
     get enabled() {
       return !!(this.publicKey && this.privateKey);

@@ -1,5 +1,6 @@
 'use client';
 
+import { LOCALE } from '@/lib/region';
 import { useEffect } from 'react';
 import { usePanel } from '@/components/panel-context';
 import { PlanCompare } from '@/components/plan-compare';
@@ -56,7 +57,7 @@ export default function PlanPage() {
               <div>
                 <dt className="text-stone-500">Validade</dt>
                 <dd className="font-medium">
-                  {plan.expiresAt ? new Date(plan.expiresAt).toLocaleDateString('pt-BR') : 'Sem data de vencimento'}
+                  {plan.expiresAt ? new Date(plan.expiresAt).toLocaleDateString(LOCALE) : 'Sem data de vencimento'}
                   {left !== null && left > 0 && <span className="text-stone-500"> · {left === 1 ? 'falta 1 dia' : `faltam ${left} dias`}</span>}
                 </dd>
               </div>

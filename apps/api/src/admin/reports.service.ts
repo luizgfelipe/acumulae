@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { maskPhone } from '../common/phone';
 import { pageSchema } from '../common/schemas';
 import { TERMS_DATA_SHARING_SINCE } from '../common/terms';
-import { startOfMonthSaoPaulo } from '../common/time';
+import { addDays, localDay, localToUtc, startOfMonthLocal } from '../common/time';
 import { ACTIVE_CUSTOMER_DAYS, activeCustomers, effectivePlan, planFeatureError } from '../plans/plans';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AdminCtx } from './admin.service';
@@ -17,7 +17,7 @@ export const staffReportQuerySchema = z.object({ from: z.string().date().optiona
 const PHONE_SHARE_ALERT = 2;
 const MIN_CREDITS_FOR_ALERT = 5;
 
-const dayStart = (d: string) => new Date(`${d}T00:00:00-03:00`);
+const dayStart = (d: string) => localToUtc(d);
 
 @Injectable()
 export class ReportsService {
@@ -44,7 +44,7 @@ export class ReportsService {
   async network(ctx: AdminCtx) {
     await this.require(ctx, 'networkDashboard');
     const t = ctx.tenantId;
-    const since = startOfMonthSaoPaulo();
+    const since = startOfMonthLocal();
     const activeSince = new Date(Date.now() - ACTIVE_CUSTOMER_DAYS * 86_400_000);
     const [stores, stamps, visits, redeemed, newCustomers, active] = await Promise.all([
       this.prisma.store.findMany({ where: { tenantId: t }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, status: true } }),
@@ -118,12 +118,12 @@ export class ReportsService {
   }
 
   /**
-   * Aniversariantes do mês (padrão: mês atual em São Paulo), por dia e nome, paginados no servidor.
+   * Aniversariantes do mês (padrão: mês atual no fuso da instância), por dia e nome, paginados no servidor.
    * Um cliente aparece uma vez, mesmo com vários cartões (o da visita mais recente).
    */
   async birthdays(ctx: AdminCtx, q: z.infer<typeof birthdaysQuerySchema>) {
     await this.require(ctx, 'reports');
-    const month = q.month ?? Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', month: '2-digit' }).format(new Date()));
+    const month = q.month ?? Number(localDay().slice(5, 7));
     const base = Prisma.sql`
       SELECT DISTINCT ON (c.id)
         c.id AS "customerId", m.id AS "membershipId", c.name, c.phone_e164 AS phone, c.birth_date AS "birthDate",
@@ -197,8 +197,8 @@ export class ReportsService {
    */
   async staff(ctx: AdminCtx, q: z.infer<typeof staffReportQuerySchema>) {
     await this.require(ctx, 'reports');
-    const from = q.from ? dayStart(q.from) : startOfMonthSaoPaulo();
-    const to = q.to ? new Date(dayStart(q.to).getTime() + 86_400_000) : new Date();
+    const from = q.from ? dayStart(q.from) : startOfMonthLocal();
+    const to = q.to ? dayStart(addDays(q.to, 1)) : new Date();
     const rows = await this.prisma.$queryRaw<
       { staffUserId: string; name: string; credits: bigint; stamps: bigint; phoneCredits: bigint; reversedCredits: bigint; redemptions: bigint; phoneRedemptions: bigint }[]
     >`

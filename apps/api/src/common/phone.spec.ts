@@ -47,3 +47,24 @@ describe('formatPhone', () => {
     expect(formatPhone(undefined)).toBeNull();
   });
 });
+
+describe('telefones em Portugal (REGION=PT)', () => {
+  const before = process.env.REGION;
+  beforeAll(() => (process.env.REGION = 'PT'));
+  afterAll(() => (before === undefined ? delete process.env.REGION : (process.env.REGION = before)));
+
+  it('normaliza telemóvel português sem indicativo', () => {
+    expect(normalizePhone('912 345 678')).toBe('+351912345678');
+    expect(normalizePhone('+351 912 345 678')).toBe('+351912345678');
+  });
+
+  it('continua a aceitar número brasileiro com +55', () => {
+    expect(normalizePhone('+55 47 99912-3456')).toBe('+5547999123456');
+  });
+
+  it('mascara e formata no padrão português', () => {
+    expect(maskPhone('+351912345678')).toBe('912 *** 678');
+    expect(formatPhone('+351912345678')).toBe('912 345 678');
+    expect(formatPhone('+5547999123456')).toBe('+55 47 99912 3456');
+  });
+});
