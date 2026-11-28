@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Alert, Badge, FullPageSpinner, Logo, TenantAvatar } from '@/components/ui';
 import { ApiError, errorMessage, staffApi } from '@/lib/api';
+import { tr } from '@/lib/region';
 import { StaffMe, Workplace } from '@/lib/staff';
 
 export default function Page() {
@@ -49,7 +50,7 @@ function ChooseStore() {
     <div className="mx-auto min-h-dvh max-w-lg px-5 py-6">
       <Logo />
       <h1 className="mt-6 mb-1 text-xl font-bold">Olá, {me.user.name.split(' ')[0]}!</h1>
-      <p className="mb-6 text-stone-600">Escolha onde você está trabalhando agora.</p>
+      <p className="mb-6 text-stone-600">{tr('Escolha onde você está trabalhando agora.', 'Escolha onde está a trabalhar agora.')}</p>
       {error && <Alert>{error}</Alert>}
       <div className="space-y-4">
         {me.workplaces.map((w) => (
@@ -58,7 +59,7 @@ function ChooseStore() {
               <TenantAvatar name={w.tenantName} logoUrl={w.logoUrl} color={w.primaryColor} size={40} />
               <div className="flex-1">
                 <p className="font-semibold">{w.tenantName}</p>
-                <p className="text-xs text-stone-500">{w.role === 'MANAGER' ? 'Gestor' : 'Atendente'}</p>
+                <p className="text-xs text-stone-500">{w.role === 'MANAGER' ? 'Gestor' : tr('Atendente', 'Operador')}</p>
               </div>
               {w.tenantStatus === 'SUSPENDED' && <Badge color="red">Suspenso</Badge>}
             </div>
@@ -74,7 +75,7 @@ function ChooseStore() {
                   <span className="text-stone-400">→</span>
                 </button>
               ))}
-              {w.stores.length === 0 && <p className="text-sm text-stone-500">Nenhuma unidade ativa liberada para você.</p>}
+              {w.stores.length === 0 && <p className="text-sm text-stone-500">{tr('Nenhuma unidade ativa liberada para você.', 'Nenhuma unidade ativa disponível para si.')}</p>}
               {w.role === 'MANAGER' && (
                 <button disabled={busy} onClick={() => choose(w, null)} className="h-10 rounded-xl text-sm font-semibold text-accent-600 hover:bg-accent-100 transition-colors">
                   Só o painel (sem caixa)

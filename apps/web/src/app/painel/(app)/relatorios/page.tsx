@@ -1,6 +1,6 @@
 'use client';
 
-import { TZ } from '@/lib/region';
+import { TZ, tr } from '@/lib/region';
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePanel } from '@/components/panel-context';
@@ -30,14 +30,19 @@ export default function ReportsPage() {
           </p>
           <h2 className="mt-2 font-semibold">Disponível a partir do plano Profissional</h2>
           <ul className="mt-3 space-y-1 text-sm text-stone-700">
-            <li>• Aniversariantes do mês, para mandar um parabéns com desconto</li>
-            <li>• Clientes inativos há 30, 60 ou 90 dias, para chamar de volta</li>
-            <li>• Lançamentos por funcionário, para conferir o uso do telefone no caixa</li>
+            <li>{tr('• Aniversariantes do mês, para mandar um parabéns com desconto', '• Aniversariantes do mês, para enviar os parabéns com um desconto')}</li>
+            <li>{tr('• Clientes inativos há 30, 60 ou 90 dias, para chamar de volta', '• Clientes inativos há 30, 60 ou 90 dias, para os fazer voltar')}</li>
+            <li>
+              {tr(
+                '• Lançamentos por funcionário, para conferir o uso do telefone no caixa',
+                '• Registos por funcionário, para verificar o uso do telemóvel no caixa',
+              )}
+            </li>
             <li>• Enviar notificação só para os aniversariantes ou os inativos</li>
-            <li>• Exportar os clientes em CSV</li>
+            <li>{tr('• Exportar os clientes em CSV', '• Exportar os clientes em folha de cálculo (CSV)')}</li>
           </ul>
           <Link href="/painel/plano" className="mt-4 inline-block font-medium text-accent-600 underline">
-            Ver meu plano
+            {tr('Ver meu plano', 'Ver o meu plano')}
           </Link>
         </Card>
       </div>
@@ -100,7 +105,7 @@ function ExportButton() {
   return (
     <div className="text-right">
       <Button variant="secondary" size="sm" onClick={download} loading={busy}>
-        Exportar clientes (CSV)
+        {tr('Exportar clientes (CSV)', 'Exportar clientes (folha de cálculo/CSV)')}
       </Button>
       <p className="mt-1 text-xs text-stone-500">Clientes que aceitaram os Termos de Uso atuais.</p>
       {err && <p className="text-xs text-red-700">{err}</p>}
@@ -137,13 +142,16 @@ function Birthdays() {
           <h2 className="font-semibold">Aniversariantes</h2>
           <p className="text-sm text-stone-600">
             {data ? `${data.total === 1 ? '1 cliente faz' : `${data.total} clientes fazem`} aniversário em ${MONTHS[month - 1]}. ` : ''}
-            Telefone completo só de quem aceitou receber promoções.
+            {tr('Telefone completo só de quem aceitou receber promoções.', 'Telemóvel completo só de quem aceitou receber promoções.')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <SendNotificationButton
             segment={{ type: 'birthdays', month }}
-            suggestion={{ title: 'Feliz aniversário! 🎉', body: 'Neste mês do seu aniversário, venha comemorar com a gente.' }}
+            suggestion={{
+              title: 'Feliz aniversário! 🎉',
+              body: tr('Neste mês do seu aniversário, venha comemorar com a gente.', 'Neste mês do seu aniversário, venha celebrar connosco.'),
+            }}
           />
           <div className="w-44">
             <Select
@@ -169,7 +177,7 @@ function Birthdays() {
             <tr>
               <th className="px-5 py-2.5">Dia</th>
               <th className="px-5 py-2.5">Cliente</th>
-              <th className="px-5 py-2.5">Telefone</th>
+              <th className="px-5 py-2.5">{tr('Telefone', 'Telemóvel')}</th>
               <th className="hidden px-5 py-2.5 sm:table-cell">Última visita</th>
             </tr>
           </thead>
@@ -227,7 +235,13 @@ function Inactive() {
         <div className="flex flex-wrap items-center gap-2">
           <SendNotificationButton
             segment={{ type: 'inactive', days }}
-            suggestion={{ title: 'Estamos com saudade!', body: 'Faz tempo que você não aparece. Passe aqui e continue juntando selos no seu cartão.' }}
+            suggestion={{
+              title: tr('Estamos com saudade!', 'Temos saudades suas!'),
+              body: tr(
+                'Faz tempo que você não aparece. Passe aqui e continue juntando selos no seu cartão.',
+                'Já há algum tempo que não nos visita. Passe por cá e continue a juntar carimbos no seu cartão.',
+              ),
+            }}
           />
           <div className="w-44">
             <Select
@@ -308,9 +322,12 @@ function StaffReport() {
     <Card className="p-0">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-100 p-5">
         <div className="max-w-md">
-          <h2 className="font-semibold">Lançamentos por funcionário</h2>
+          <h2 className="font-semibold">{tr('Lançamentos por funcionário', 'Registos por funcionário')}</h2>
           <p className="text-sm text-stone-600">
-            Lançar pelo telefone dispensa o QR do cliente. Um uso muito acima da média da equipe ({data ? pct(data.teamPhoneShare) : '…'}) vale uma conferida.
+            {tr(
+              `Lançar pelo telefone dispensa o QR do cliente. Um uso muito acima da média da equipe (${data ? pct(data.teamPhoneShare) : '…'}) vale uma conferida.`,
+              `Registar pelo telemóvel dispensa o QR do cliente. Um uso muito acima da média da equipa (${data ? pct(data.teamPhoneShare) : '…'}) merece ser verificado.`,
+            )}
           </p>
         </div>
         <div className="flex gap-2">
@@ -322,16 +339,16 @@ function StaffReport() {
           </Field>
         </div>
       </div>
-      <ReportBody error={error} loading={!data} empty={data?.items.length === 0} emptyText="Nenhum lançamento no período.">
+      <ReportBody error={error} loading={!data} empty={data?.items.length === 0} emptyText={tr('Nenhum lançamento no período.', 'Nenhum registo no período.')}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-500">
               <tr>
                 <th className="px-5 py-2.5">Funcionário</th>
-                <th className="px-5 py-2.5 text-right">Lançamentos</th>
-                <th className="px-5 py-2.5 text-right">Selos</th>
-                <th className="px-5 py-2.5 text-right">Pelo telefone</th>
-                <th className="px-5 py-2.5 text-right">Estornados</th>
+                <th className="px-5 py-2.5 text-right">{tr('Lançamentos', 'Registos')}</th>
+                <th className="px-5 py-2.5 text-right">{tr('Selos', 'Carimbos')}</th>
+                <th className="px-5 py-2.5 text-right">{tr('Pelo telefone', 'Pelo telemóvel')}</th>
+                <th className="px-5 py-2.5 text-right">{tr('Estornados', 'Anulados')}</th>
                 <th className="px-5 py-2.5 text-right">Resgates</th>
               </tr>
             </thead>
@@ -339,7 +356,7 @@ function StaffReport() {
               {data?.items.map((s) => (
                 <tr key={s.staffUserId} className={cx('transition-colors hover:bg-stone-50', s.attention && 'bg-amber-50/60')}>
                   <td className="px-5 py-3 font-medium">
-                    {s.name} {s.attention && <Badge color="amber">conferir</Badge>}
+                    {s.name} {s.attention && <Badge color="amber">{tr('conferir', 'verificar')}</Badge>}
                   </td>
                   <td className="px-5 py-3 text-right tabular-nums">{s.credits}</td>
                   <td className="px-5 py-3 text-right tabular-nums">{s.stamps}</td>
@@ -349,7 +366,7 @@ function StaffReport() {
                   <td className={cx('px-5 py-3 text-right tabular-nums', s.reversedCredits > 0 && 'text-red-700')}>{s.reversedCredits}</td>
                   <td className="px-5 py-3 text-right tabular-nums">
                     {s.redemptions}
-                    {s.phoneRedemptions > 0 && <span className="text-stone-500"> ({s.phoneRedemptions} pelo telefone)</span>}
+                    {s.phoneRedemptions > 0 && <span className="text-stone-500">{tr(` (${s.phoneRedemptions} pelo telefone)`, ` (${s.phoneRedemptions} pelo telemóvel)`)}</span>}
                   </td>
                 </tr>
               ))}
@@ -374,7 +391,7 @@ function Pager({ page, total, pageSize, onPage }: { page: number; total: number;
         Página {page} de {pages}
       </span>
       <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-        Próxima
+        {tr('Próxima', 'Seguinte')}
       </Button>
     </div>
   );
@@ -399,7 +416,7 @@ function ReportBody({
         <Alert>{error}</Alert>
       </div>
     );
-  if (loading) return <p className="p-5 text-sm text-stone-500">Carregando…</p>;
+  if (loading) return <p className="p-5 text-sm text-stone-500">{tr('Carregando…', 'A carregar…')}</p>;
   if (empty) return <p className="p-5 text-sm text-stone-500">{emptyText}</p>;
   return <>{children}</>;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { LOCALE } from '@/lib/region';
+import { LOCALE, tr } from '@/lib/region';
 import { useEffect } from 'react';
 import { usePanel } from '@/components/panel-context';
 import { PlanCompare } from '@/components/plan-compare';
@@ -21,11 +21,12 @@ export default function PlanPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Meu plano</h1>
+      <h1 className="text-2xl font-bold">{tr('Meu plano', 'O meu plano')}</h1>
       {notice && <Alert kind={notice.kind}>{notice.text}</Alert>}
       {plan.recommendation && (
         <Alert kind="info">
-          {recommendationText(plan.recommendation)} Para mudar, fale com o suporte do Acumulaê pelo e-mail{' '}
+          {recommendationText(plan.recommendation)}{' '}
+          {tr('Para mudar, fale com o suporte do Acumulaê pelo e-mail', 'Para mudar, contacte o suporte do Acumulaê pelo e-mail')}{' '}
           <a href={mailtoContact(`Mudar para o plano ${plan.recommendation.name}`)} className="font-semibold underline">
             {CONTACT_EMAIL}
           </a>
@@ -40,7 +41,11 @@ export default function PlanPage() {
               <div>
                 <p className="text-sm text-stone-500">Plano contratado</p>
                 <p className="text-2xl font-extrabold">{plan.contracted.name}</p>
-                {plan.expired && <p className="text-sm text-red-700">Vencido: valendo os recursos do plano {plan.plan.name}</p>}
+                {plan.expired && (
+                  <p className="text-sm text-red-700">
+                    {tr(`Vencido: valendo os recursos do plano ${plan.plan.name}`, `Expirado: estão em vigor os recursos do plano ${plan.plan.name}`)}
+                  </p>
+                )}
               </div>
               {!plan.expired &&
                 (plan.plan.priceCents > 0 ? (
@@ -57,7 +62,7 @@ export default function PlanPage() {
               <div>
                 <dt className="text-stone-500">Validade</dt>
                 <dd className="font-medium">
-                  {plan.expiresAt ? new Date(plan.expiresAt).toLocaleDateString(LOCALE) : 'Sem data de vencimento'}
+                  {plan.expiresAt ? new Date(plan.expiresAt).toLocaleDateString(LOCALE) : tr('Sem data de vencimento', 'Sem data de expiração')}
                   {left !== null && left > 0 && <span className="text-stone-500"> · {left === 1 ? 'falta 1 dia' : `faltam ${left} dias`}</span>}
                 </dd>
               </div>
@@ -77,12 +82,15 @@ export default function PlanPage() {
                 usage={plan.limits.stores}
                 hint={
                   plan.limits.stores.extraPriceCents !== null
-                    ? `Inclusas no plano: ${plan.limits.stores.included}. Unidade extra: ${brl(plan.limits.stores.extraPriceCents)} por mês.`
+                    ? tr(
+                        `Inclusas no plano: ${plan.limits.stores.included}. Unidade extra: ${brl(plan.limits.stores.extraPriceCents)} por mês.`,
+                        `Incluídas no plano: ${plan.limits.stores.included}. Unidade adicional: ${brl(plan.limits.stores.extraPriceCents)} por mês.`,
+                      )
                     : undefined
                 }
               />
               <UsageRow label="Funcionários (com convites pendentes)" usage={plan.limits.staff} />
-              <UsageRow label="Notificações aos clientes neste mês" usage={plan.limits.announcementsPerMonth} hint="O limite renova no dia 1º de cada mês." />
+              <UsageRow label="Notificações aos clientes neste mês" usage={plan.limits.announcementsPerMonth} hint={tr('O limite renova no dia 1º de cada mês.', 'O limite é renovado no dia 1 de cada mês.')} />
             </div>
           </Card>
         </div>
@@ -91,14 +99,19 @@ export default function PlanPage() {
           <Card>
             <h2 className="mb-4 font-semibold">Recursos</h2>
             <ul className="space-y-2.5 text-sm">
-              <Feature on>Caixa com QR pessoal, QR temporário e telefone</Feature>
+              <Feature on>{tr('Caixa com QR pessoal, QR temporário e telefone', 'Caixa com QR pessoal, QR temporário e telemóvel')}</Feature>
               <Feature on>Painel com clientes e histórico</Feature>
-              <Feature on>Logo e cor do cartão</Feature>
+              <Feature on>{tr('Logo e cor do cartão', 'Logótipo e cor do cartão')}</Feature>
               <Feature on={plan.features.maxStampIcons > 5}>
-                {plan.features.maxStampIcons > 5 ? `${plan.features.maxStampIcons} ícones de selo` : `${plan.features.maxStampIcons} ícones de selo (15 nos planos acima)`}
+                {plan.features.maxStampIcons > 5
+                  ? tr(`${plan.features.maxStampIcons} ícones de selo`, `${plan.features.maxStampIcons} ícones de carimbo`)
+                  : tr(
+                      `${plan.features.maxStampIcons} ícones de selo (15 nos planos acima)`,
+                      `${plan.features.maxStampIcons} ícones de carimbo (15 nos planos superiores)`,
+                    )}
               </Feature>
               <Feature on={plan.features.cardCustomization}>Cor secundária e modelos de cartão</Feature>
-              <Feature on={plan.features.customStampImage}>Imagem própria no selo</Feature>
+              <Feature on={plan.features.customStampImage}>{tr('Imagem própria no selo', 'Imagem própria no carimbo')}</Feature>
               <Feature on={plan.features.reports}>Relatórios de aniversariantes, inativos e por funcionário, com envio de notificação para os filtrados</Feature>
               <Feature on={plan.features.customerExport}>Exportar clientes (CSV)</Feature>
               <Feature on={plan.features.networkDashboard}>Painel consolidado da rede</Feature>
@@ -106,14 +119,16 @@ export default function PlanPage() {
           </Card>
 
           <Card className="border-secondary-300 bg-secondary-100">
-            <h2 className="font-semibold">Quer mudar de plano ou contratar unidades extras?</h2>
+            <h2 className="font-semibold">{tr('Quer mudar de plano ou contratar unidades extras?', 'Quer mudar de plano ou contratar unidades adicionais?')}</h2>
             <p className="mt-1 text-sm text-stone-700">
-              Fale com o suporte do Acumulaê pelo e-mail{' '}
+              {tr('Fale com o suporte do Acumulaê pelo e-mail', 'Contacte o suporte do Acumulaê pelo e-mail')}{' '}
               <a href={mailtoContact('Mudar de plano')} className="font-semibold underline">
                 {CONTACT_EMAIL}
               </a>
-              . A troca vale na hora, e nada do que você já
-              configurou é apagado: recursos que voltarem a ser liberados reaparecem como estavam.
+              {tr(
+                '. A troca vale na hora, e nada do que você já configurou é apagado: recursos que voltarem a ser liberados reaparecem como estavam.',
+                '. A mudança tem efeito imediato, e nada do que já configurou é apagado: os recursos que voltarem a ficar disponíveis reaparecem como estavam.',
+              )}
             </p>
             <UpgradeHint plan={plan} />
           </Card>

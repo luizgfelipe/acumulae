@@ -7,6 +7,7 @@ import { errorMessage, staffApi } from '@/lib/api';
 import { formatMoney, valueRule } from '@/lib/format';
 import { amountLimit } from '@/lib/value';
 import { ProgramItem, ProgramsList } from '@/lib/programs';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 export default function ProgramsPage() {
@@ -57,8 +58,11 @@ export default function ProgramsPage() {
 
       {atLimit && (
         <Alert kind="info">
-          Seu plano permite {limit.maxActive === 1 ? '1 programa ativo' : `${limit.maxActive} programas ativos`}. Você pode criar outros
-          programas desativados e trocar quando quiser.
+          {tr('Seu plano permite', 'O seu plano permite')} {limit.maxActive === 1 ? '1 programa ativo' : `${limit.maxActive} programas ativos`}.{' '}
+          {tr(
+            'Você pode criar outros programas desativados e trocar quando quiser.',
+            'Pode criar outros programas desativados e trocar quando quiser.',
+          )}
         </Alert>
       )}
       {actionError && <Alert>{actionError}</Alert>}
@@ -83,8 +87,11 @@ export default function ProgramsPage() {
               <li>
                 Resgate: {p.redeemWeekdaysText ?? 'qualquer dia'} ·{' '}
                 {p.kind === 'VALOR'
-                  ? `compra máxima de ${formatMoney(amountLimit(p.maxAmountPerEntryCents))} por lançamento`
-                  : `máximo ${p.maxPerEntry} por lançamento`}
+                  ? tr(
+                      `compra máxima de ${formatMoney(amountLimit(p.maxAmountPerEntryCents))} por lançamento`,
+                      `compra máxima de ${formatMoney(amountLimit(p.maxAmountPerEntryCents))} por registo`,
+                    )
+                  : tr(`máximo ${p.maxPerEntry} por lançamento`, `máximo ${p.maxPerEntry} por registo`)}
               </li>
               <li>
                 {p.members} {p.members === 1 ? 'cliente' : 'clientes'} · {p.rewardsAvailable} recompensa(s) a resgatar
@@ -112,7 +119,7 @@ export default function ProgramsPage() {
               )}
               {p.members === 0 && (
                 <Button size="sm" variant="ghost" className="text-stone-500" onClick={() => setConfirm({ kind: 'delete', program: p })}>
-                  Excluir
+                  {tr('Excluir', 'Eliminar')}
                 </Button>
               )}
             </div>
@@ -132,20 +139,31 @@ export default function ProgramsPage() {
       <Modal
         open={!!confirm}
         onClose={() => setConfirm(null)}
-        title={confirm?.kind === 'delete' ? 'Excluir programa' : 'Desativar programa'}
+        title={confirm?.kind === 'delete' ? tr('Excluir programa', 'Eliminar programa') : 'Desativar programa'}
       >
         {confirm && (
           <div className="space-y-4">
             <p className="text-sm text-stone-700">
               {confirm.kind === 'delete' ? (
-                <>
-                  O programa <strong>{confirm.program.name}</strong> será excluído. Como ele ainda não tem clientes, nada se perde.
-                </>
+                tr(
+                  <>
+                    O programa <strong>{confirm.program.name}</strong> será excluído. Como ele ainda não tem clientes, nada se perde.
+                  </>,
+                  <>
+                    O programa <strong>{confirm.program.name}</strong> será eliminado. Como ainda não tem clientes, nada se perde.
+                  </>,
+                )
               ) : (
-                <>
-                  O caixa deixa de lançar consumo em <strong>{confirm.program.name}</strong>. Os clientes continuam vendo o cartão e
-                  podem usar as recompensas já liberadas. Você pode reativar depois.
-                </>
+                tr(
+                  <>
+                    O caixa deixa de lançar consumo em <strong>{confirm.program.name}</strong>. Os clientes continuam vendo o cartão e
+                    podem usar as recompensas já liberadas. Você pode reativar depois.
+                  </>,
+                  <>
+                    O caixa deixa de registar consumos em <strong>{confirm.program.name}</strong>. Os clientes continuam a ver o cartão e
+                    podem usar as recompensas já desbloqueadas. Pode reativá-lo mais tarde.
+                  </>,
+                )
               )}
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -153,7 +171,7 @@ export default function ProgramsPage() {
                 Cancelar
               </Button>
               <Button variant="danger" loading={busy === confirm.program.id} onClick={() => act(confirm.program, confirm.kind)}>
-                {confirm.kind === 'delete' ? 'Excluir' : 'Desativar'}
+                {confirm.kind === 'delete' ? tr('Excluir', 'Eliminar') : 'Desativar'}
               </Button>
             </div>
           </div>

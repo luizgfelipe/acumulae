@@ -8,6 +8,7 @@ import { Alert, Button, Card, Field, FullPageSpinner, Input, Modal, Textarea } f
 import { BODY_MAX, StoreOption, TITLE_MAX, audienceLabel, clients, notifications } from '@/lib/announcements';
 import { errorMessage, staffApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 type Sent = { id: string; title: string; body: string; recipients: number; segment: string; store: StoreOption | null; createdAt: string; sentBy: string };
@@ -112,12 +113,20 @@ export default function AnnouncementsPage() {
       <div>
         <h1 className="text-2xl font-bold">Notificações aos clientes</h1>
         <p className="mt-1 text-stone-600">
-          Mande novidades e promoções para o app dos clientes. A notificação aparece no sino do app (e no celular, para quem ativou) de quem
-          aceitou receber promoções do {ctx.tenantName}.
+          {tr(
+            <>
+              Mande novidades e promoções para o app dos clientes. A notificação aparece no sino do app (e no celular, para quem ativou) de quem
+              aceitou receber promoções do {ctx.tenantName}.
+            </>,
+            <>
+              Envie novidades e promoções para a app dos clientes. A notificação aparece no sino da app (e no telemóvel, para quem a ativou) de
+              quem aceitou receber promoções do {ctx.tenantName}.
+            </>,
+          )}
         </p>
         {plan?.features.reports && (
           <p className="mt-1 text-sm text-stone-500">
-            Para mandar só aos aniversariantes ou aos inativos, use o botão &quot;Enviar notificação&quot; em{' '}
+            {tr('Para mandar só aos aniversariantes ou aos inativos, use', 'Para enviar só aos aniversariantes ou aos inativos, use')} o botão &quot;Enviar notificação&quot; em{' '}
             <Link href="/painel/relatorios" className="font-medium text-accent-600 underline">
               Relatórios
             </Link>
@@ -140,7 +149,7 @@ export default function AnnouncementsPage() {
             {used}
             {max !== null && <span className="text-base font-semibold text-stone-500"> de {max}</span>}
           </p>
-          <p className="text-sm text-stone-500">{max === null ? 'Sem limite no seu plano' : 'O limite renova no dia 1º'}</p>
+          <p className="text-sm text-stone-500">{max === null ? 'Sem limite no seu plano' : tr('O limite renova no dia 1º', 'O limite é renovado no dia 1')}</p>
         </Card>
       </div>
 
@@ -150,16 +159,16 @@ export default function AnnouncementsPage() {
           <form onSubmit={ask} className="space-y-4">
             <StorePicker stores={data.stores} value={storeId} onChange={setStoreId} disabled={sending} />
             <Field label="Título" hint={`${title.length}/${TITLE_MAX}`}>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={TITLE_MAX} placeholder="Ex.: Rodízio em dobro nesta terça" required />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={TITLE_MAX} placeholder={tr('Ex.: Rodízio em dobro nesta terça', 'Ex.: Carimbos a dobrar nesta terça-feira')} required />
             </Field>
             <Field label="Mensagem" hint={`${body.length}/${BODY_MAX}`}>
               <Textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={BODY_MAX} rows={5} required placeholder="Conte a novidade em poucas linhas." />
             </Field>
             {blocked && (
               <Alert kind="warning">
-                Você já usou as {max} notificações do mês no seu plano.{' '}
+                {tr(`Você já usou as ${max} notificações do mês no seu plano.`, `Já usou as ${max} notificações do mês no seu plano.`)}{' '}
                 <Link href="/painel/plano" className="font-semibold underline">
-                  Ver meu plano
+                  {tr('Ver meu plano', 'Ver o meu plano')}
                 </Link>
               </Alert>
             )}
@@ -167,7 +176,10 @@ export default function AnnouncementsPage() {
               <Alert kind="info">
                 {store
                   ? `Nenhum cliente da unidade ${store.name} aceitou receber promoções ainda.`
-                  : `Ainda nenhum cliente aceitou receber promoções. O app pergunta isso a cada cliente no cartão do ${ctx.tenantName}.`}
+                  : tr(
+                      `Ainda nenhum cliente aceitou receber promoções. O app pergunta isso a cada cliente no cartão do ${ctx.tenantName}.`,
+                      `Ainda nenhum cliente aceitou receber promoções. A app pergunta isso a cada cliente no cartão do ${ctx.tenantName}.`,
+                    )}
               </Alert>
             )}
             {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
@@ -218,7 +230,7 @@ export default function AnnouncementsPage() {
         <div className="space-y-4">
           <p className="text-stone-700">
             A notificação &quot;{title.trim()}&quot; vai para {clients(audience ?? 0)}
-            {store && ` da unidade ${store.name}`}. Depois de enviada, não dá para desfazer.
+            {store && ` da unidade ${store.name}`}. {tr('Depois de enviada, não dá para desfazer.', 'Depois de enviada, não é possível anular.')}
             {left !== null && ` ${left - 1 === 1 ? 'Fica' : 'Ficam'} ${notifications(left - 1)} neste mês.`}
           </p>
           <div className="flex gap-2">

@@ -11,6 +11,7 @@ import { ApiError, errorMessage, newIdempotencyKey, staffApi } from '@/lib/api';
 import { cardDisplay } from '@/lib/card-display';
 import { MoneyInput } from '@/components/money-input';
 import { formatMoney, formatTime, maskPhoneInput, plural } from '@/lib/format';
+import { tr } from '@/lib/region';
 import { staffLogout, useStaff } from '@/lib/staff';
 import { amountLimit, convertAmount } from '@/lib/value';
 
@@ -130,7 +131,14 @@ export default function PosPage() {
       </header>
 
       <main className="flex-1 space-y-4 p-4">
-        {suspended && <Alert>Este estabelecimento está suspenso. Lançamentos e resgates estão bloqueados. Fale com o suporte do Acumulaê.</Alert>}
+        {suspended && (
+          <Alert>
+            {tr(
+              'Este estabelecimento está suspenso. Lançamentos e resgates estão bloqueados. Fale com o suporte do Acumulaê.',
+              'Este estabelecimento está suspenso. Registos e resgates estão bloqueados. Contacte o suporte do Acumulaê.',
+            )}
+          </Alert>
+        )}
         {flash && (
           <div
             className={cx(
@@ -152,7 +160,7 @@ export default function PosPage() {
               </Button>
               <div className="grid grid-cols-2 gap-3">
                 <Button size="lg" variant="secondary" className="h-16" onClick={() => setMode({ kind: 'phone' })} disabled={suspended}>
-                  Buscar por telefone
+                  {tr('Buscar por telefone', 'Procurar por telemóvel')}
                 </Button>
                 <Button size="lg" variant="dark" className="h-16" onClick={() => setMode({ kind: 'checkout' })} disabled={suspended}>
                   Gerar QR
@@ -214,7 +222,9 @@ function ScanStep({ onBack, onFound }: { onBack: () => void; onFound: (v: Custom
   return (
     <div className="space-y-4">
       <StepHeader title="Ler QR do cliente" onBack={onBack} />
-      <p className="text-sm text-stone-600">Peça para o cliente abrir o app e tocar em “Meu QR”.</p>
+      <p className="text-sm text-stone-600">
+        {tr('Peça para o cliente abrir o app e tocar em “Meu QR”.', 'Peça ao cliente para abrir a app e tocar em “O meu QR”.')}
+      </p>
       {busy ? (
         <div className="grid aspect-square w-full max-w-sm place-items-center rounded-2xl bg-stone-200 text-brand-600">
           <Spinner className="h-10 w-10" />
@@ -224,7 +234,7 @@ function ScanStep({ onBack, onFound }: { onBack: () => void; onFound: (v: Custom
       )}
       {error && <Alert>{error}</Alert>}
       <details className="text-sm text-stone-600">
-        <summary className="cursor-pointer">Digitar/colar o código manualmente</summary>
+        <summary className="cursor-pointer">{tr('Digitar/colar o código manualmente', 'Escrever/colar o código manualmente')}</summary>
         <form
           className="mt-2 flex gap-2"
           onSubmit={(e) => {
@@ -263,18 +273,18 @@ function PhoneStep({ onBack, onFound, onCheckout }: { onBack: () => void; onFoun
 
   return (
     <div className="space-y-4">
-      <StepHeader title="Buscar por telefone" onBack={onBack} />
+      <StepHeader title={tr('Buscar por telefone', 'Procurar por telemóvel')} onBack={onBack} />
       <form onSubmit={search} className="space-y-3">
         <Input
           autoFocus
           value={phone}
           onChange={(e) => setPhone(maskPhoneInput(e.target.value))}
           inputMode="tel"
-          placeholder="(47) 9 9999-9999"
+          placeholder={tr('(47) 9 9999-9999', '912 345 678')}
           className="h-14 text-xl"
         />
-        <Button type="submit" size="lg" className="w-full" loading={busy} disabled={phone.replace(/\D/g, '').length < 10}>
-          Buscar
+        <Button type="submit" size="lg" className="w-full" loading={busy} disabled={phone.replace(/\D/g, '').length < tr(10, 9)}>
+          {tr('Buscar', 'Procurar')}
         </Button>
       </form>
       {error && (
@@ -350,7 +360,12 @@ function ValuePreview({
   if (overMax) {
     return (
       <div className="mt-3">
-        <Alert>O valor máximo por lançamento é {formatMoney(amountLimit(c.maxAmountPerEntryCents))}. Confira o valor digitado.</Alert>
+        <Alert>
+          {tr(
+            <>O valor máximo por lançamento é {formatMoney(amountLimit(c.maxAmountPerEntryCents))}. Confira o valor digitado.</>,
+            <>O valor máximo por registo é {formatMoney(amountLimit(c.maxAmountPerEntryCents))}. Verifique o valor introduzido.</>,
+          )}
+        </Alert>
       </div>
     );
   }
@@ -407,7 +422,8 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
   const stampsToAdd = byValue ? (conv?.stamps ?? 0) : qty;
   const overMax = byValue && !!amount && amount > amountLimit(c.maxAmountPerEntryCents);
   const canLaunch = !byValue || (!!amount && !overMax);
-  const launchLabel = byValue ? `Lançar ${formatMoney(amount ?? 0)}` : `Lançar ${plural(qty, c.unitLabel, c.unitLabelPlural)}`;
+  const launchVerb = tr('Lançar', 'Registar');
+  const launchLabel = byValue ? `${launchVerb} ${formatMoney(amount ?? 0)}` : `${launchVerb} ${plural(qty, c.unitLabel, c.unitLabelPlural)}`;
   const discard = discardPreview(c, stampsToAdd);
   const canRedeem = c.rewardsAvailable > 0 && c.redeem.allowed;
   const { complete, shown } = cardDisplay(c);
@@ -439,7 +455,7 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
       const stamps = plural(r.stamps, c.unitLabel, c.unitLabelPlural);
       const parts = [
         byValue ? (r.stamps > 0 ? `+${stamps}` : `Nenhum ${c.unitLabel} ainda`) : null,
-        r.rewardsUnlocked > 0 ? `🎉 Recompensa liberada: ${c.rewardDescription}!` : null,
+        r.rewardsUnlocked > 0 ? tr(`🎉 Recompensa liberada: ${c.rewardDescription}!`, `🎉 Recompensa desbloqueada: ${c.rewardDescription}!`) : null,
         r.discarded > 0 ? `${plural(r.discarded, c.unitLabel, c.unitLabelPlural)} além da meta descartado(s).` : null,
         `Agora: ${r.card.balance}/${r.card.goal}`,
         byValue && r.card.leftoverCents > 0 ? `${formatMoney(r.card.leftoverCents)} guardados` : null,
@@ -484,7 +500,11 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-2xl font-bold">{view.name}</p>
-            <p className="text-sm text-stone-500">{view.source === 'TELEFONE' ? 'Encontrado pelo telefone: confirme o nome com o cliente.' : 'QR pessoal lido'}</p>
+            <p className="text-sm text-stone-500">
+              {view.source === 'TELEFONE'
+                ? tr('Encontrado pelo telefone: confirme o nome com o cliente.', 'Encontrado pelo telemóvel: confirme o nome com o cliente.')
+                : 'QR pessoal lido'}
+            </p>
           </div>
           {view.firstVisit && <Badge color="brand">Primeira visita</Badge>}
         </div>
@@ -598,26 +618,34 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
         </div>
       ) : (
         <Alert kind="info">
-          O programa &quot;{c.programName}&quot; foi encerrado: não aceita novos lançamentos, mas as recompensas já liberadas podem ser usadas.
+          {tr(
+            <>O programa &quot;{c.programName}&quot; foi encerrado: não aceita novos lançamentos, mas as recompensas já liberadas podem ser usadas.</>,
+            <>O programa &quot;{c.programName}&quot; foi encerrado: não aceita novos registos, mas as recompensas já desbloqueadas podem ser usadas.</>,
+          )}
         </Alert>
       )}
 
       {error && <Alert>{error}</Alert>}
 
-      <Modal open={confirmCredit} onClose={() => !busy && setConfirmCredit(false)} title="Lançar sem usar a recompensa?">
+      <Modal open={confirmCredit} onClose={() => !busy && setConfirmCredit(false)} title={tr('Lançar sem usar a recompensa?', 'Registar sem usar a recompensa?')}>
         <div className="space-y-3 text-stone-700">
           <p>
             <strong>{view.name}</strong> tem {c.rewardsAvailable === 1 ? '1 recompensa disponível' : `${c.rewardsAvailable} recompensas disponíveis`}:{' '}
             <strong>{c.rewardDescription}</strong>.
           </p>
-          <p className="text-sm text-stone-500">Se o cliente veio usar a recompensa, toque em &quot;Utilizar recompensa&quot;. A recompensa continua guardada se você só lançar.</p>
+          <p className="text-sm text-stone-500">
+            {tr(
+              <>Se o cliente veio usar a recompensa, toque em &quot;Utilizar recompensa&quot;. A recompensa continua guardada se você só lançar.</>,
+              <>Se o cliente veio usar a recompensa, toque em &quot;Utilizar recompensa&quot;. Se só registar, a recompensa continua guardada.</>,
+            )}
+          </p>
         </div>
         <div className="mt-5 grid gap-3">
           <Button size="lg" variant="success" className="w-full" onClick={openRedeem} disabled={busy}>
             Utilizar recompensa
           </Button>
           <Button size="lg" variant="secondary" className="w-full" onClick={launch} loading={busy && confirmCredit}>
-            Só l{launchLabel.slice(1)}
+            {tr(<>Só l{launchLabel.slice(1)}</>, <>Só r{launchLabel.slice(1)}</>)}
           </Button>
         </div>
       </Modal>
@@ -651,7 +679,12 @@ function CustomerStep({ view, onBack, onDone }: { view: CustomerView; onBack: ()
           </Button>
         </div>
         {view.source === 'TELEFONE' && (
-          <Alert kind="warning">Cliente encontrado pelo telefone: confirme o nome dele antes de entregar.</Alert>
+          <Alert kind="warning">
+            {tr(
+              'Cliente encontrado pelo telefone: confirme o nome dele antes de entregar.',
+              'Cliente encontrado pelo telemóvel: confirme o nome antes de entregar.',
+            )}
+          </Alert>
         )}
         <div className="mt-5 grid grid-cols-2 gap-3">
           <Button variant="secondary" onClick={() => setConfirmRedeem(false)}>
@@ -768,12 +801,12 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
     return (
       <div className="space-y-4 text-center">
         <StepHeader title={`QR temporário · ${tokenLabel(token)}`} onBack={cancel} />
-        <p className="text-stone-600">Peça para o cliente apontar a câmera do celular.</p>
+        <p className="text-stone-600">{tr('Peça para o cliente apontar a câmera do celular.', 'Peça ao cliente para apontar a câmara do telemóvel.')}</p>
         <div className="mx-auto w-fit rounded-3xl border-4 border-stone-900 bg-white p-4">
           <QRCodeSVG value={token.url} size={280} level="M" marginSize={0} />
         </div>
         <p className="flex items-center justify-center gap-2 text-stone-600">
-          <Spinner className="h-4 w-4" /> Aguardando o cliente… expira em {mm}:{ss}
+          <Spinner className="h-4 w-4" /> {tr('Aguardando o cliente…', 'A aguardar o cliente…')} expira em {mm}:{ss}
         </p>
         <Button variant="secondary" onClick={cancel} className="w-full">
           Cancelar QR
@@ -785,7 +818,12 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
   return (
     <div className="space-y-4">
       <StepHeader title="Gerar QR temporário" onBack={onBack} />
-      <p className="text-sm text-stone-600">O cliente escaneia com a câmera do celular. Se ainda não tiver conta, ele se cadastra na hora e recebe o crédito.</p>
+      <p className="text-sm text-stone-600">
+        {tr(
+          'O cliente escaneia com a câmera do celular. Se ainda não tiver conta, ele se cadastra na hora e recebe o crédito.',
+          'O cliente lê o código com a câmara do telemóvel. Se ainda não tiver conta, regista-se no momento e recebe o crédito.',
+        )}
+      </p>
       <div className="rounded-2xl border border-stone-200 bg-white p-5">
         {programs && programs.length > 1 && (
           <div className="mb-4">
@@ -813,12 +851,18 @@ function CheckoutStep({ onBack, onDone }: { onBack: () => void; onDone: (f: Flas
             <MoneyInput id="checkout-amount" cents={amount} onCents={setAmount} className="h-16 text-3xl font-extrabold" />
             {overMax ? (
               <div className="mt-3">
-                <Alert>O valor máximo por lançamento é {formatMoney(amountLimit(selected?.maxAmountPerEntryCents))}.</Alert>
+                <Alert>
+                  {tr('O valor máximo por lançamento é ', 'O valor máximo por registo é ')}
+                  {formatMoney(amountLimit(selected?.maxAmountPerEntryCents))}.
+                </Alert>
               </div>
             ) : (
               <p className="mt-3 text-center text-sm text-stone-500">
-                {formatMoney(selected!.stampValueCents!)} = 1 {selected!.unitLabel}. Os {selected!.unitLabelPlural} saem na hora, somados ao que o cliente já
-                tem guardado.
+                {formatMoney(selected!.stampValueCents!)} = 1 {selected!.unitLabel}.{' '}
+                {tr(
+                  <>Os {selected!.unitLabelPlural} saem na hora, somados ao que o cliente já tem guardado.</>,
+                  <>Os {selected!.unitLabelPlural} são atribuídos no momento, somados ao que o cliente já tem guardado.</>,
+                )}
               </p>
             )}
           </>
@@ -849,7 +893,7 @@ function RecentList({ items }: { items: Recent[] }) {
   if (!items.length) return null;
   return (
     <section className="rounded-2xl border border-stone-200 bg-white">
-      <h3 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold text-stone-700">Últimos lançamentos desta unidade</h3>
+      <h3 className="border-b border-stone-100 px-4 py-3 text-sm font-semibold text-stone-700">{tr('Últimos lançamentos desta unidade', 'Últimos registos desta unidade')}</h3>
       <ul className="divide-y divide-stone-100">
         {items.map((r) => (
           <li key={r.id} className={cx('flex items-center justify-between px-4 py-2.5 text-sm', r.reversed && 'opacity-50 line-through')}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { LOCALE } from '@/lib/region';
+import { LOCALE, tr } from '@/lib/region';
 import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
 import { useId, useRef, useState } from 'react';
 import { Button, TenantAvatar } from './ui';
@@ -15,6 +15,11 @@ interface Props {
   /** Nome do arquivo da imagem baixada (sem extensão). */
   fileName: string;
 }
+
+const LEAD = tr('Junte selos e ganhe recompensas', 'Junte carimbos e ganhe recompensas');
+const SUB = tr('Participe do nosso programa de fidelidade', 'Participe no nosso programa de fidelização');
+const STEPS = tr('Aponte a câmera do celular, crie sua conta e pronto.', 'Aponte a câmara do telemóvel, crie a sua conta e está feito.');
+const BRAND = tr('Acumulaê · cartão fidelidade', 'Acumulaê · cartão de fidelização');
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -48,11 +53,11 @@ export function CounterQr({ tenantName, storeName, url, logoUrl, color, fileName
 <div class="poster">
   <div class="top">${logo}<h1>${escape(tenantName)}</h1>${storeName ? `<p class="store">${escape(storeName)}</p>` : ''}</div>
   <div class="body">
-    <p class="lead">Junte selos e ganhe recompensas</p>
-    <p class="sub">Participe do nosso programa de fidelidade</p>
+    <p class="lead">${LEAD}</p>
+    <p class="sub">${SUB}</p>
     ${svg}
-    <p class="steps">Aponte a câmera do celular, crie sua conta e pronto.</p>
-    <p class="brand">Acumulaê · cartão fidelidade</p>
+    <p class="steps">${STEPS}</p>
+    <p class="brand">${BRAND}</p>
   </div>
 </div>
 <script>window.onload = () => { window.print(); };</script>
@@ -87,12 +92,12 @@ export function CounterQr({ tenantName, storeName, url, logoUrl, color, fileName
           </div>
         </div>
         <div className="px-5 pt-4 pb-5">
-          <p className="font-semibold">Junte selos e ganhe recompensas</p>
-          <p className="text-sm text-stone-600">Participe do nosso programa de fidelidade</p>
+          <p className="font-semibold">{LEAD}</p>
+          <p className="text-sm text-stone-600">{SUB}</p>
           <div className="mx-auto my-4 w-fit">
             <QRCodeSVG id={svgId} value={url} size={200} level="M" marginSize={0} />
           </div>
-          <p className="text-sm text-stone-700">Aponte a câmera do celular, crie sua conta e pronto.</p>
+          <p className="text-sm text-stone-700">{STEPS}</p>
         </div>
       </div>
       {/* Versão grande, com margem, só para a imagem baixada. */}
@@ -103,7 +108,7 @@ export function CounterQr({ tenantName, storeName, url, logoUrl, color, fileName
           Imprimir
         </Button>
         <Button variant="secondary" onClick={download} className="px-2">
-          Baixar
+          {tr('Baixar', 'Descarregar')}
         </Button>
         <Button variant="secondary" onClick={copy} className="whitespace-nowrap px-2">
           {copied ? 'Copiado!' : 'Copiar link'}

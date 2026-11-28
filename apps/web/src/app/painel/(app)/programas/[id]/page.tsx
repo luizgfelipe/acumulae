@@ -6,6 +6,7 @@ import { ProgramForm } from '@/components/program-form';
 import { Alert, Badge, Card, FullPageSpinner } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { ProgramItem } from '@/lib/programs';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 export default function EditProgramPage() {
@@ -29,8 +30,12 @@ export default function EditProgramPage() {
         <ProgramForm
           initial={p}
           valueLocked={p.valueLocked}
-          submitLabel="Salvar alterações"
-          extra={<p className="text-xs text-stone-500">Mudar a meta não altera recompensas já liberadas.</p>}
+          submitLabel={tr('Salvar alterações', 'Guardar alterações')}
+          extra={
+            <p className="text-xs text-stone-500">
+              {tr('Mudar a meta não altera recompensas já liberadas.', 'Mudar a meta não altera as recompensas já desbloqueadas.')}
+            </p>
+          }
           onSubmit={async (fields) => {
             try {
               await staffApi(`/api/admin/programs/${id}`, { method: 'PUT', body: fields });

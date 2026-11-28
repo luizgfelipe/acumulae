@@ -8,6 +8,7 @@ import { Alert, Badge, Card, FullPageSpinner } from '@/components/ui';
 import { staffApi } from '@/lib/api';
 import { leftoverLabel } from '@/lib/card-display';
 import { formatDate, formatE164 } from '@/lib/format';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 interface CustomerDetail {
@@ -39,7 +40,7 @@ interface CustomerDetail {
 const REWARD_STATUS: Record<string, { label: string; color: 'green' | 'stone' | 'red' | 'amber' }> = {
   DISPONIVEL: { label: 'Disponível', color: 'green' },
   RESGATADA: { label: 'Resgatada', color: 'stone' },
-  ESTORNADA: { label: 'Cancelada', color: 'red' },
+  ESTORNADA: { label: tr('Cancelada', 'Anulada'), color: 'red' },
   EXPIRADA: { label: 'Expirada', color: 'amber' },
 };
 
@@ -59,7 +60,7 @@ export default function CustomerDetailPage() {
         <Card className="lg:col-span-1">
           <h1 className="text-xl font-bold">{c.name}</h1>
           <dl className="mt-3 space-y-1.5 text-sm">
-            <Row label="Telefone" value={c.marketingConsent ? formatE164(c.phone) : (c.phone ?? '—')} />
+            <Row label={tr('Telefone', 'Telemóvel')}value={c.marketingConsent ? formatE164(c.phone) : (c.phone ?? '—')} />
             {c.marketingConsent && <Row label="E-mail" value={c.email ?? '—'} />}
             {c.marketingConsent && <Row label="Nascimento" value={formatDate(c.birthDate)} />}
             <Row label="Promoções" value={c.marketingConsent ? 'Aceitou' : c.marketingConsent === false ? 'Recusou' : 'Não respondeu'} />

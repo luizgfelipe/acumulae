@@ -1,6 +1,6 @@
 'use client';
 
-import { LOCALE } from '@/lib/region';
+import { LOCALE, tr } from '@/lib/region';
 import Link from 'next/link';
 import { usePanel } from '@/components/panel-context';
 import { Alert, Card, FullPageSpinner } from '@/components/ui';
@@ -30,8 +30,8 @@ export default function DashboardPage() {
 
   const tiles = [
     { label: 'Clientes vinculados', value: data.members, hint: `+${data.newMembersThisMonth} este mês` },
-    { label: `${cap(data.unitLabelPlural)} no mês`, value: data.stampsThisMonth, hint: `${data.visitsThisMonth} lançamentos` },
-    { label: 'Recompensas liberadas no mês', value: data.rewardsUnlockedThisMonth },
+    { label: `${cap(data.unitLabelPlural)} no mês`, value: data.stampsThisMonth, hint: tr(`${data.visitsThisMonth} lançamentos`, `${data.visitsThisMonth} registos`) },
+    { label: tr('Recompensas liberadas no mês', 'Recompensas desbloqueadas no mês'), value: data.rewardsUnlockedThisMonth },
     { label: 'Recompensas resgatadas no mês', value: data.rewardsRedeemedThisMonth },
     { label: 'Recompensas a resgatar', value: data.rewardsAvailableNow, hint: 'disponíveis agora' },
   ];
@@ -47,7 +47,10 @@ export default function DashboardPage() {
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-brand-900">Falta o programa de fidelidade</p>
             <p className="text-sm text-brand-900/80">
-              Crie (ou ative) um programa para começar: por selo ou por valor gasto. Sem ele, o caixa não lança e os clientes não conseguem participar.
+              {tr(
+                'Crie (ou ative) um programa para começar: por selo ou por valor gasto. Sem ele, o caixa não lança e os clientes não conseguem participar.',
+                'Crie (ou ative) um programa para começar: por carimbo ou por valor gasto. Sem ele, o caixa não regista e os clientes não conseguem participar.',
+              )}
             </p>
           </div>
           <Link
@@ -78,7 +81,12 @@ export default function DashboardPage() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-stone-900">QR do balcão</span>
-          <span className="block text-sm text-stone-600">Imprima o cartaz para os clientes entrarem no programa pela câmera do celular.</span>
+          <span className="block text-sm text-stone-600">
+            {tr(
+              'Imprima o cartaz para os clientes entrarem no programa pela câmera do celular.',
+              'Imprima o cartaz para os clientes entrarem no programa pela câmara do telemóvel.',
+            )}
+          </span>
         </span>
         <span aria-hidden className="text-xl text-accent-600">
           ›

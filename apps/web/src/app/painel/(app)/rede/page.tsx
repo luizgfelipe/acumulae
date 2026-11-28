@@ -1,6 +1,6 @@
 'use client';
 
-import { LOCALE } from '@/lib/region';
+import { LOCALE, tr } from '@/lib/region';
 import Link from 'next/link';
 import { usePanel } from '@/components/panel-context';
 import { Alert, Badge, Card, FullPageSpinner, cx } from '@/components/ui';
@@ -27,7 +27,7 @@ interface Network {
 
 const COLUMNS: Array<[keyof Network['totals'], string]> = [
   ['visits', 'Visitas'],
-  ['stamps', 'Selos'],
+  ['stamps', tr('Selos', 'Carimbos')],
   ['newCustomers', 'Clientes novos'],
   ['rewardsRedeemed', 'Resgates'],
   ['activeCustomers', 'Clientes ativos'],
@@ -46,10 +46,13 @@ export default function NetworkPage() {
           </p>
           <h2 className="mt-2 font-semibold">Disponível no plano Rede</h2>
           <p className="mt-2 text-sm text-stone-700">
-            Compare as unidades lado a lado: visitas, selos, clientes novos, resgates e clientes ativos de cada uma, com os totais da rede.
+            {tr(
+              'Compare as unidades lado a lado: visitas, selos, clientes novos, resgates e clientes ativos de cada uma, com os totais da rede.',
+              'Compare as unidades lado a lado: visitas, carimbos, clientes novos, resgates e clientes ativos de cada uma, com os totais da rede.',
+            )}
           </p>
           <Link href="/painel/plano" className="mt-4 inline-block font-medium text-accent-600 underline">
-            Ver meu plano
+            {tr('Ver meu plano', 'Ver o meu plano')}
           </Link>
         </Card>
       </div>

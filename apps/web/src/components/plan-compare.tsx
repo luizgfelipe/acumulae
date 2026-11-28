@@ -1,6 +1,6 @@
 'use client';
 
-import { LOCALE } from '@/lib/region';
+import { LOCALE, tr } from '@/lib/region';
 import { staffApi } from '@/lib/api';
 import { CONTACT_EMAIL } from '@/lib/contact';
 import { ComparePlan, ComparePlans, SUPPORT_LABELS, brl } from '@/lib/plan';
@@ -40,8 +40,8 @@ const ROWS: Row[] = [
     value: (p) => (p.limits.announcementsPerMonth === null ? 'Ilimitadas' : `${p.limits.announcementsPerMonth} por mês`),
     rank: (p) => rankLimit(p.limits.announcementsPerMonth),
   },
-  { label: 'Ícones de selo', value: (p) => `${p.features.maxStampIcons} ícones`, rank: (p) => p.features.maxStampIcons },
-  { label: 'Imagem própria no selo', value: (p) => p.features.customStampImage, rank: (p) => +p.features.customStampImage },
+  { label: tr('Ícones de selo', 'Ícones de carimbo'), value: (p) => `${p.features.maxStampIcons} ícones`, rank: (p) => p.features.maxStampIcons },
+  { label: tr('Imagem própria no selo', 'Imagem própria no carimbo'), value: (p) => p.features.customStampImage, rank: (p) => +p.features.customStampImage },
   { label: 'Cor secundária e modelos de cartão', value: (p) => p.features.cardCustomization, rank: (p) => +p.features.cardCustomization },
   {
     label: 'Relatórios (aniversariantes, inativos, funcionários)',
@@ -74,7 +74,7 @@ export function PlanCompare() {
             <Card key={p.code} className={cx('flex flex-col', mine && 'ring-2 ring-brand-500')}>
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-xl font-extrabold">{p.name}</h3>
-                {mine && <Badge color="brand">Seu plano</Badge>}
+                {mine && <Badge color="brand">{tr('Seu plano', 'O seu plano')}</Badge>}
               </div>
               {/* Preço 0 = valor personalizado, combinado com o Acumulaê (ex.: Piloto). */}
               {p.priceCents > 0 ? (
@@ -106,7 +106,14 @@ export function PlanCompare() {
                   );
                 })}
               </dl>
-              {!mine && <p className="mt-4 text-xs text-stone-500">Para mudar para o {p.name}, fale com o suporte do Acumulaê pelo e-mail {CONTACT_EMAIL}.</p>}
+              {!mine && (
+                <p className="mt-4 text-xs text-stone-500">
+                  {tr(
+                    <>Para mudar para o {p.name}, fale com o suporte do Acumulaê pelo e-mail {CONTACT_EMAIL}.</>,
+                    <>Para mudar para o {p.name}, contacte o suporte do Acumulaê pelo e-mail {CONTACT_EMAIL}.</>,
+                  )}
+                </p>
+              )}
             </Card>
           );
         })}

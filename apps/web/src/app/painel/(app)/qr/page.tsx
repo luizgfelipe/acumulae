@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CounterQr } from '@/components/counter-qr';
 import { Alert, Card, Field, FullPageSpinner, Select } from '@/components/ui';
 import { staffApi } from '@/lib/api';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 interface Data {
@@ -33,7 +34,10 @@ export default function CounterQrPage() {
       <div>
         <h1 className="text-2xl font-bold">QR do balcão</h1>
         <p className="mt-1 text-stone-600">
-          Imprima e deixe à vista no caixa, nas mesas ou na vitrine. O cliente aponta a câmera, cria a conta e já entra no programa do{' '}
+          {tr(
+            'Imprima e deixe à vista no caixa, nas mesas ou na vitrine. O cliente aponta a câmera, cria a conta e já entra no programa do',
+            'Imprima e deixe à vista no caixa, nas mesas ou na montra. O cliente aponta a câmara, cria a conta e entra logo no programa do',
+          )}{' '}
           {data.tenant.name}.
         </p>
       </div>
@@ -65,11 +69,21 @@ export default function CounterQrPage() {
         </Card>
 
         <Card className="h-fit space-y-4 text-sm text-stone-700">
-          <h2 className="font-semibold text-stone-900">Dicas para mais cadastros</h2>
+          <h2 className="font-semibold text-stone-900">{tr('Dicas para mais cadastros', 'Dicas para mais registos')}</h2>
           <Tip title="Deixe à vista">No caixa, na porta e nas mesas. Quanto mais perto de onde o cliente espera, melhor.</Tip>
-          <Tip title="Convide na hora de pagar">&quot;Quer ganhar selos? É só apontar a câmera aqui.&quot; Leva menos de um minuto.</Tip>
-          <Tip title="Use nas redes">Baixe a imagem e poste no Instagram ou mande no WhatsApp com o link.</Tip>
-          <Tip title="O cartaz usa a sua marca">Logo e cor vêm de Perfil → Aparência do cartão.</Tip>
+          <Tip title={tr('Convide na hora de pagar', 'Convide no momento de pagar')}>
+            {tr(
+              <>&quot;Quer ganhar selos? É só apontar a câmera aqui.&quot; Leva menos de um minuto.</>,
+              <>&quot;Quer ganhar carimbos? Basta apontar a câmara aqui.&quot; Demora menos de um minuto.</>,
+            )}
+          </Tip>
+          <Tip title="Use nas redes">
+            {tr(
+              'Baixe a imagem e poste no Instagram ou mande no WhatsApp com o link.',
+              'Descarregue a imagem e publique-a no Instagram ou envie-a no WhatsApp com a ligação.',
+            )}
+          </Tip>
+          <Tip title="O cartaz usa a sua marca">{tr('Logo e cor vêm de Perfil → Aparência do cartão.', 'O logótipo e a cor vêm de Perfil → Aparência do cartão.')}</Tip>
         </Card>
       </div>
     </div>

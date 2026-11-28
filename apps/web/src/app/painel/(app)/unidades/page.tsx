@@ -9,6 +9,7 @@ import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Modal } from
 import { errorMessage, staffApi } from '@/lib/api';
 import { AddressFields, EMPTY_ADDRESS, addressPayload, draftOf } from '@/lib/address';
 import { brl, isFull, recommendationText } from '@/lib/plan';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 interface Store {
@@ -101,7 +102,7 @@ export default function StoresPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-semibold">{s.name}</p>
-                <p className="text-sm text-stone-500">{s.address ?? 'Sem endereço'}</p>
+                <p className="text-sm text-stone-500">{s.address ?? tr('Sem endereço', 'Sem morada')}</p>
               </div>
               <Badge color={s.status === 'ACTIVE' ? 'green' : 'stone'}>{s.status === 'ACTIVE' ? 'Ativa' : 'Inativa'}</Badge>
             </div>
@@ -125,20 +126,23 @@ export default function StoresPage() {
         {full && usage ? (
           <div className="space-y-2 text-sm text-stone-700">
             <p>
-              Seu plano permite {usage.max} {usage.max === 1 ? 'unidade ativa' : 'unidades ativas'}.
+              {tr('Seu plano permite', 'O seu plano permite')} {usage.max} {usage.max === 1 ? 'unidade ativa' : 'unidades ativas'}.
               {usage.extraPriceCents !== null
-                ? ` Cada unidade extra custa ${brl(usage.extraPriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`
+                ? tr(
+                    ` Cada unidade extra custa ${brl(usage.extraPriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`,
+                    ` Cada unidade adicional custa ${brl(usage.extraPriceCents)} por mês: contacte o suporte do Acumulaê para a contratar.`,
+                  )
                 : ' Para ter mais unidades, mude de plano.'}
             </p>
             {plan?.recommendation && <p className="font-medium">{recommendationText(plan.recommendation)}</p>}
             <Link href="/painel/plano" className="font-medium text-accent-600 underline">
-              Ver meu plano
+              {tr('Ver meu plano', 'Ver o meu plano')}
             </Link>
           </div>
         ) : (
           <form onSubmit={create} className="space-y-3">
             <Field label="Nome">
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex.: Sushi X - Shopping" required maxLength={120} />
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={tr('Ex.: Sushi X - Shopping', 'Ex.: Sushi X - Centro Comercial')} required maxLength={120} />
             </Field>
             <AddressForm value={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
             {formError && <Alert>{formError}</Alert>}
@@ -211,7 +215,7 @@ function EditStore({
       setOpenFor(null);
       onClose();
     } catch (x) {
-      setErr(x instanceof Error ? x.message : 'Não foi possível salvar.');
+      setErr(x instanceof Error ? x.message : tr('Não foi possível salvar.', 'Não foi possível guardar.'));
     } finally {
       setBusy(false);
     }
@@ -227,7 +231,7 @@ function EditStore({
       title="Editar unidade"
     >
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Nome" hint="Aparece no app do cliente e no caixa.">
+        <Field label="Nome" hint={tr('Aparece no app do cliente e no caixa.', 'Aparece na app do cliente e no caixa.')}>
           <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} />
         </Field>
         {store && (
@@ -241,7 +245,7 @@ function EditStore({
         )}
         {err && <Alert>{err}</Alert>}
         <Button type="submit" loading={busy} className="w-full">
-          Salvar
+          {tr('Salvar', 'Guardar')}
         </Button>
       </form>
     </Modal>

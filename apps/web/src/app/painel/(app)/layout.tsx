@@ -8,6 +8,7 @@ import { Alert, FullPageSpinner, Logo, TenantAvatar, cx } from '@/components/ui'
 import { staffApi } from '@/lib/api';
 import { CONTACT_EMAIL, mailtoContact } from '@/lib/contact';
 import { PlanInfo, planNotice } from '@/lib/plan';
+import { tr } from '@/lib/region';
 import { staffLogout, useStaff } from '@/lib/staff';
 import { useLoad } from '@/lib/use-load';
 
@@ -19,7 +20,7 @@ const NAV: Array<{ href: string; label: string; feature?: 'reports' | 'networkDa
   { href: '/painel', label: 'Indicadores' },
   { href: '/painel/qr', label: 'QR do balcão' },
   { href: '/painel/clientes', label: 'Clientes' },
-  { href: '/painel/movimentacoes', label: 'Movimentações' },
+  { href: '/painel/movimentacoes', label: tr('Movimentações', 'Movimentos') },
   { href: '/painel/notificacoes', label: 'Notificações' },
   { href: '/painel/relatorios', label: 'Relatórios', feature: 'reports' },
   { href: '/painel/rede', label: 'Rede', feature: 'networkDashboard', hideWithout: true },
@@ -27,7 +28,7 @@ const NAV: Array<{ href: string; label: string; feature?: 'reports' | 'networkDa
   { href: '/painel/perfil', label: 'Perfil' },
   { href: '/painel/unidades', label: 'Unidades' },
   { href: '/painel/funcionarios', label: 'Funcionários' },
-  { href: '/painel/plano', label: 'Meu plano' },
+  { href: '/painel/plano', label: tr('Meu plano', 'O meu plano') },
 ];
 
 export default function PanelLayout({ children }: { children: ReactNode }) {
@@ -115,7 +116,10 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
           {ctx.tenantStatus !== 'ACTIVE' && (
             <div className="mb-4">
               <Alert>
-                Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Fale com o suporte do Acumulaê pelo e-mail{' '}
+                {tr(
+                  'Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Fale com o suporte do Acumulaê pelo e-mail',
+                  'Este estabelecimento está suspenso: o caixa e o painel estão bloqueados. Contacte o suporte do Acumulaê pelo e-mail',
+                )}{' '}
                 <a href={mailtoContact('Estabelecimento suspenso')} className="font-semibold underline">
                   {CONTACT_EMAIL}
                 </a>
@@ -128,7 +132,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
               <Alert kind={notice.kind}>
                 {notice.text}{' '}
                 <Link href="/painel/plano" className="font-semibold underline">
-                  Ver meu plano
+                  {tr('Ver meu plano', 'Ver o meu plano')}
                 </Link>
               </Alert>
             </div>
@@ -187,14 +191,14 @@ function SideMenu({
         <a
           href={mailtoContact('Suporte do painel')}
           className="block rounded-lg px-3 py-2.5 text-stone-600 hover:bg-stone-100 transition-colors"
-          title="Fale com o suporte do Acumulaê"
+          title={tr('Fale com o suporte do Acumulaê', 'Contacte o suporte do Acumulaê')}
         >
           Suporte
           <span className="block break-all text-xs text-stone-500 select-all">{CONTACT_EMAIL}</span>
         </a>
         {hasManyWorkplaces && (
           <Link href="/caixa/unidade?next=/painel" className="block rounded-lg px-3 py-2.5 text-stone-600 hover:bg-stone-100 transition-colors">
-            Trocar estabelecimento
+            {tr('Trocar estabelecimento', 'Mudar de estabelecimento')}
           </Link>
         )}
         <button

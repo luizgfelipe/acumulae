@@ -11,6 +11,7 @@ import { errorMessage, staffApi } from '@/lib/api';
 import { BrandColors, CARD_STYLES, CardStyle, cardTheme, contrastRatio } from '@/lib/card-theme';
 import { STAMP_ICONS, StampStyle, stampIconOf } from '@/lib/stamp-icons';
 import { prepareLogo } from '@/lib/image';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 interface Segment {
@@ -68,7 +69,9 @@ export default function ProfilePage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Perfil</h1>
-          <p className="text-stone-600">Como o {data.tenant.name} aparece para os clientes no app.</p>
+          <p className="text-stone-600">
+            {tr(`Como o ${data.tenant.name} aparece para os clientes no app.`, `Como o ${data.tenant.name} aparece para os clientes na app.`)}
+          </p>
         </div>
         <Link
           href="/painel/qr"
@@ -105,7 +108,10 @@ export default function ProfilePage() {
             <Card className="h-fit">
               <h2 className="mb-1 font-semibold">Dados das unidades</h2>
               <p className="text-sm text-stone-600">
-                Com mais de uma unidade, nome e endereço de cada uma ficam na aba{' '}
+                {tr(
+                  'Com mais de uma unidade, nome e endereço de cada uma ficam na aba',
+                  'Com mais de uma unidade, o nome e a morada de cada uma ficam no separador',
+                )}{' '}
                 <Link href="/painel/unidades" className="font-medium text-accent-600 underline">
                   Unidades
                 </Link>
@@ -162,7 +168,11 @@ function LogoCard({ profile, onSaved, onDraft }: { profile: Profile; onSaved: (p
     try {
       const image = await prepareLogo(file);
       onSaved(await staffApi<Profile>('/api/admin/branding/logo', { method: 'PUT', body: { image } }));
-      setMsg({ kind: 'success', text: 'Logo atualizado. Os cartões dos clientes já mostram a nova versão.' });
+      setMsg({ kind: 'success', text: tr(
+          'Logo atualizado. Os cartões dos clientes já mostram a nova versão.',
+          'Logótipo atualizado. Os cartões dos clientes já mostram a nova versão.',
+        ),
+      });
     } catch (err) {
       setMsg({ kind: 'error', text: err instanceof Error && !('status' in err) ? err.message : errorMessage(err) });
     } finally {
@@ -225,7 +235,7 @@ function LogoCard({ profile, onSaved, onDraft }: { profile: Profile; onSaved: (p
         <div className="space-y-2">
           <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onFile} />
           <Button size="sm" onClick={() => fileRef.current?.click()} loading={busy === 'logo'}>
-            {profile.branding.logoUrl ? 'Trocar logo' : 'Enviar logo'}
+            {profile.branding.logoUrl ? tr('Trocar logo', 'Mudar logótipo') : tr('Enviar logo', 'Carregar logótipo')}
           </Button>
           {profile.branding.logoUrl && (
             <Button size="sm" variant="ghost" className="block text-red-700" onClick={removeLogo} disabled={busy !== null}>
@@ -285,9 +295,12 @@ function LogoCard({ profile, onSaved, onDraft }: { profile: Profile; onSaved: (p
           </div>
           {!custom && (
             <p className="mt-2 text-xs text-stone-500">
-              Cor secundária e os modelos Degradê e Moldura estão disponíveis a partir do plano Profissional.{' '}
+              {tr(
+                'Cor secundária e os modelos Degradê e Moldura estão disponíveis a partir do plano Profissional.',
+                'A cor secundária e os modelos Degradé e Moldura estão disponíveis a partir do plano Profissional.',
+              )}{' '}
               <Link href="/painel/plano" className="font-medium text-accent-600 underline">
-                Ver meu plano
+                {tr('Ver meu plano', 'Ver o meu plano')}
               </Link>
             </p>
           )}
@@ -295,10 +308,15 @@ function LogoCard({ profile, onSaved, onDraft }: { profile: Profile; onSaved: (p
         </fieldset>
 
         {lowContrast && (
-          <Alert kind="warning">Os selos e a barra de progresso ficam sobre fundo branco, e essa cor pode ficar difícil de enxergar. Prefira um tom mais escuro.</Alert>
+          <Alert kind="warning">
+            {tr(
+              'Os selos e a barra de progresso ficam sobre fundo branco, e essa cor pode ficar difícil de enxergar. Prefira um tom mais escuro.',
+              'Os carimbos e a barra de progresso ficam sobre fundo branco, e essa cor pode ficar difícil de ver. Prefira um tom mais escuro.',
+            )}
+          </Alert>
         )}
         <Button type="submit" variant="secondary" loading={busy === 'color'} disabled={!valid || !changed}>
-          Salvar cores e modelo
+          {tr('Salvar cores e modelo', 'Guardar cores e modelo')}
         </Button>
       </form>
       {msg && (
@@ -335,7 +353,7 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
   }
 
   const chooseIcon = (icon: string) =>
-    run(icon, () => staffApi<Profile>('/api/admin/branding', { method: 'PUT', body: { stampIcon: icon } }), 'Ícone do selo atualizado.');
+    run(icon, () => staffApi<Profile>('/api/admin/branding', { method: 'PUT', body: { stampIcon: icon } }), tr('Ícone do selo atualizado.', 'Ícone do carimbo atualizado.'));
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -345,18 +363,19 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
     await run(
       'image',
       async () => staffApi<Profile>('/api/admin/branding/stamp-image', { method: 'PUT', body: { image: await prepareLogo(file, 128, 85_000) } }),
-      'Imagem do selo atualizada.',
+      tr('Imagem do selo atualizada.', 'Imagem do carimbo atualizada.'),
     );
   }
 
   const removeImage = () =>
-    run('image', () => staffApi<Profile>('/api/admin/branding/stamp-image', { method: 'DELETE' }), 'Imagem removida. O selo voltou a usar o ícone.');
+    run('image', () => staffApi<Profile>('/api/admin/branding/stamp-image', { method: 'DELETE' }), tr('Imagem removida. O selo voltou a usar o ícone.', 'Imagem removida. O carimbo voltou a usar o ícone.'));
 
   return (
     <Card>
-      <h2 className="mb-1 font-semibold">Selo</h2>
+      <h2 className="mb-1 font-semibold">{tr('Selo', 'Carimbo')}</h2>
       <p className="mb-4 text-sm text-stone-600">
-        É o que aparece em cada selo cheio do cartão. {hasImage ? 'Hoje o selo usa a sua imagem; remova para voltar ao ícone.' : ''}
+        {tr('É o que aparece em cada selo cheio do cartão.', 'É o que aparece em cada carimbo preenchido do cartão.')}{' '}
+        {hasImage ? tr('Hoje o selo usa a sua imagem; remova para voltar ao ícone.', 'Neste momento o carimbo usa a sua imagem; remova-a para voltar ao ícone.') : ''}
       </p>
 
       <div className={cx('grid grid-cols-5 gap-2', hasImage && 'opacity-50')}>
@@ -397,7 +416,10 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
       </div>
       {locked > 0 && (
         <p className="mt-2 text-xs text-stone-500">
-          O plano {stampOptions.planName} libera {stampOptions.allowedIcons.length} ícones. Os outros {locked} e a imagem própria vêm nos planos acima.
+          {tr(
+            `O plano ${stampOptions.planName} libera ${stampOptions.allowedIcons.length} ícones. Os outros ${locked} e a imagem própria vêm nos planos acima.`,
+            `O plano ${stampOptions.planName} inclui ${stampOptions.allowedIcons.length} ícones. Os outros ${locked} e a imagem própria vêm nos planos superiores.`,
+          )}
         </p>
       )}
 
@@ -407,11 +429,11 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
           <div className="flex items-center gap-3">
             {hasImage && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={branding.stampImageUrl!} alt="Selo atual" className="h-12 w-12 rounded-full border-2 object-cover" style={{ borderColor: th.accent }} />
+              <img src={branding.stampImageUrl!} alt={tr('Selo atual', 'Carimbo atual')} className="h-12 w-12 rounded-full border-2 object-cover" style={{ borderColor: th.accent }} />
             )}
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onFile} />
             <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} loading={busy === 'image'}>
-              {hasImage ? 'Trocar imagem' : 'Enviar imagem'}
+              {hasImage ? tr('Trocar imagem', 'Mudar imagem') : tr('Enviar imagem', 'Carregar imagem')}
             </Button>
             {hasImage && (
               <Button size="sm" variant="ghost" className="text-red-700" onClick={removeImage} disabled={busy !== null}>
@@ -420,9 +442,21 @@ function StampCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
             )}
           </div>
         ) : (
-          <p className="text-sm text-stone-500">🔒 Disponível em planos acima do {stampOptions.planName}. Fale com o suporte do Acumulaê para mudar de plano.</p>
+          <p className="text-sm text-stone-500">
+            {tr(
+              `🔒 Disponível em planos acima do ${stampOptions.planName}. Fale com o suporte do Acumulaê para mudar de plano.`,
+              `🔒 Disponível em planos acima do ${stampOptions.planName}. Contacte o suporte do Acumulaê para mudar de plano.`,
+            )}
+          </p>
         )}
-        {stampOptions.customImage && <p className="mt-2 text-xs text-stone-500">PNG, JPG ou WebP. A imagem é recortada num quadrado de 128 px; fica melhor com o desenho centralizado.</p>}
+        {stampOptions.customImage && (
+          <p className="mt-2 text-xs text-stone-500">
+            {tr(
+              'PNG, JPG ou WebP. A imagem é recortada num quadrado de 128 px; fica melhor com o desenho centralizado.',
+              'PNG, JPG ou WebP. A imagem é recortada num quadrado de 128 px; fica melhor com o desenho centrado.',
+            )}
+          </p>
+        )}
       </div>
       {msg && (
         <div className="mt-4">
@@ -453,7 +487,7 @@ function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
     setMsg(null);
     try {
       onSaved(await staffApi<Profile>('/api/admin/profile', { method: 'PUT', body: { segment: segment || null, showInDirectory: listed } }));
-      setMsg({ kind: 'success', text: 'Alterações salvas.' });
+      setMsg({ kind: 'success', text: tr('Alterações salvas.', 'Alterações guardadas.') });
     } catch (err) {
       setMsg({ kind: 'error', text: errorMessage(err) });
     } finally {
@@ -465,10 +499,22 @@ function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
     <Card>
       <h2 className="mb-4 font-semibold">Sobre o estabelecimento</h2>
       <form onSubmit={save} className="space-y-4">
-        <Field label="Nome" hint="Para trocar o nome do estabelecimento, fale com o suporte do Acumulaê.">
+        <Field
+          label="Nome"
+          hint={tr(
+            'Para trocar o nome do estabelecimento, fale com o suporte do Acumulaê.',
+            'Para mudar o nome do estabelecimento, contacte o suporte do Acumulaê.',
+          )}
+        >
           <Input value={profile.tenant.name} disabled />
         </Field>
-        <Field label="Segmento" hint="Usado para os clientes encontrarem você no guia do app, por segmento e cidade.">
+        <Field
+          label="Segmento"
+          hint={tr(
+            'Usado para os clientes encontrarem você no guia do app, por segmento e cidade.',
+            'Usado para os clientes o encontrarem no guia da app, por segmento e localidade.',
+          )}
+        >
           <Select value={segment} onChange={(e) => setSegment(e.target.value)}>
             <option value="">Selecione…</option>
             {Object.entries(groups).map(([group, items]) => (
@@ -484,16 +530,19 @@ function AboutCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
         </Field>
         <div className="flex items-start justify-between gap-4 rounded-xl border border-stone-200 p-3">
           <div>
-            <p className="text-sm font-medium text-stone-800">Aparecer no guia do app</p>
+            <p className="text-sm font-medium text-stone-800">{tr('Aparecer no guia do app', 'Aparecer no guia da app')}</p>
             <p className="text-xs text-stone-500">
-              Clientes do Acumulaê encontram seu estabelecimento por cidade e segmento. Em breve no app.
+              {tr(
+                'Clientes do Acumulaê encontram seu estabelecimento por cidade e segmento. Em breve no app.',
+                'Os clientes do Acumulaê encontram o seu estabelecimento por localidade e segmento. Brevemente na app.',
+              )}
             </p>
           </div>
-          <Switch checked={listed} onChange={setListed} label="Aparecer no guia do app" />
+          <Switch checked={listed} onChange={setListed} label={tr('Aparecer no guia do app', 'Aparecer no guia da app')} />
         </div>
         {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
         <Button type="submit" loading={busy} disabled={!dirty}>
-          Salvar
+          {tr('Salvar', 'Guardar')}
         </Button>
       </form>
     </Card>
@@ -523,7 +572,7 @@ function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
       const p = await staffApi<Profile>('/api/admin/profile', { method: 'PUT', body });
       setAddress(draftOf(p.store.addressFields));
       onSaved(p);
-      setMsg({ kind: 'success', text: 'Dados da unidade salvos.' });
+      setMsg({ kind: 'success', text: tr('Dados da unidade salvos.', 'Dados da unidade guardados.') });
     } catch (err) {
       setMsg({ kind: 'error', text: errorMessage(err) });
     } finally {
@@ -535,7 +584,7 @@ function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
     <Card>
       <h2 className="mb-4 font-semibold">Dados da unidade</h2>
       <form onSubmit={save} className="space-y-4">
-        <Field label="Nome da unidade" hint="Aparece no app do cliente e no caixa.">
+        <Field label="Nome da unidade" hint={tr('Aparece no app do cliente e no caixa.', 'Aparece na app do cliente e no caixa.')}>
           <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} />
         </Field>
         <AddressForm
@@ -546,7 +595,7 @@ function StoreCard({ profile, onSaved }: { profile: Profile; onSaved: (p: Profil
         />
         {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
         <Button type="submit" loading={busy} disabled={!dirty}>
-          Salvar
+          {tr('Salvar', 'Guardar')}
         </Button>
       </form>
     </Card>
@@ -560,12 +609,17 @@ function PreviewCard({ profile, draft }: { profile: Profile; draft: BrandColors 
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-stone-500">Como o cartão aparece no app do cliente</h2>
-        {draft && <Badge color="amber">Prévia, não salvo</Badge>}
+        <h2 className="text-sm font-semibold text-stone-500">{tr('Como o cartão aparece no app do cliente', 'Como o cartão aparece na app do cliente')}</h2>
+        {draft && <Badge color="amber">{tr('Prévia, não salvo', 'Pré-visualização, não guardado')}</Badge>}
       </div>
       <CardPreview name={profile.tenant.name} subtitle={profile.store.name} logoUrl={profile.branding.logoUrl} brand={brand} />
       <p className="mt-3 text-xs text-stone-500">
-        {draft ? 'Clique em "Salvar cores e modelo" para os clientes verem assim.' : 'Exemplo com 7 de 10 selos. Logo, cores, modelo e selo aparecem como os clientes veem.'}
+        {draft
+          ? tr('Clique em "Salvar cores e modelo" para os clientes verem assim.', 'Clique em "Guardar cores e modelo" para os clientes verem assim.')
+          : tr(
+              'Exemplo com 7 de 10 selos. Logo, cores, modelo e selo aparecem como os clientes veem.',
+              'Exemplo com 7 de 10 carimbos. Logótipo, cores, modelo e carimbo aparecem como os clientes os veem.',
+            )}
       </p>
     </Card>
   );

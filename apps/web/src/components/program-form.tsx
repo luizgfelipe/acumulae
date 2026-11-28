@@ -4,7 +4,11 @@ import { FormEvent, useState } from 'react';
 import { Alert, Button, Field, Input, cx } from './ui';
 import { MoneyInput } from './money-input';
 import { WEEKDAYS, formatMoney } from '@/lib/format';
+import { tr } from '@/lib/region';
 import { MAX_AMOUNT_PER_ENTRY_CENTS } from '@/lib/value';
+
+/** Rótulo padrão da unidade do programa (sugestão; o gestor pode trocar). */
+const DEFAULT_UNIT = tr('selo', 'carimbo');
 
 export type ProgramKind = 'SELO' | 'VALOR';
 
@@ -30,7 +34,7 @@ export const EMPTY_PROGRAM: ProgramFields = {
   kind: 'SELO',
   stampValueCents: null,
   maxAmountPerEntryCents: 100_000,
-  unitLabel: 'selo',
+  unitLabel: DEFAULT_UNIT,
   unitLabelPlural: '',
   goal: 10,
   rewardDescription: '',
@@ -39,10 +43,16 @@ export const EMPTY_PROGRAM: ProgramFields = {
   carryOverExcess: true,
 };
 
-const KINDS: Array<{ value: ProgramKind; label: string; hint: string }> = [
-  { value: 'SELO', label: 'Por selo', hint: 'O atendente escolhe quantos selos o cliente ganha. Ex.: 1 por rodízio.' },
-  { value: 'VALOR', label: 'Por valor gasto', hint: 'O atendente digita o valor da compra e o app converte em selos, guardando o troco.' },
-];
+const KINDS: Array<{ value: ProgramKind; label: string; hint: string }> = tr(
+  [
+    { value: 'SELO', label: 'Por selo', hint: 'O atendente escolhe quantos selos o cliente ganha. Ex.: 1 por rodízio.' },
+    { value: 'VALOR', label: 'Por valor gasto', hint: 'O atendente digita o valor da compra e o app converte em selos, guardando o troco.' },
+  ],
+  [
+    { value: 'SELO', label: 'Por carimbo', hint: 'O operador escolhe quantos carimbos o cliente ganha. Ex.: 1 por café.' },
+    { value: 'VALOR', label: 'Por valor gasto', hint: 'O operador introduz o valor da compra e a app converte em carimbos e guarda o que sobra.' },
+  ],
+);
 
 /** "Ex.: compra de R$ 45,00 → 4 selos, e R$ 5,00 ficam guardados para a próxima." */
 function valueExample(stampValueCents: number, one: string, many: string) {
@@ -76,19 +86,29 @@ export function ProgramForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (byValue && !p.stampValueCents) {
-      setError('Informe quanto a compra precisa somar para valer 1 selo.');
+      setError(tr('Informe quanto a compra precisa somar para valer 1 selo.', 'Indique quanto a compra tem de somar para valer 1 carimbo.'));
       return;
     }
     if (byValue && !p.maxAmountPerEntryCents) {
-      setError('Informe a compra máxima por lançamento.');
+      setError(tr('Informe a compra máxima por lançamento.', 'Indique a compra máxima por registo.'));
       return;
     }
     if (byValue && p.maxAmountPerEntryCents! > MAX_AMOUNT_PER_ENTRY_CENTS) {
-      setError(`A compra máxima por lançamento vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`);
+      setError(
+        tr(
+          `A compra máxima por lançamento vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`,
+          `A compra máxima por registo vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`,
+        ),
+      );
       return;
     }
     if (byValue && p.maxAmountPerEntryCents && p.stampValueCents && p.maxAmountPerEntryCents < p.stampValueCents) {
-      setError('A compra máxima por lançamento não pode ser menor que o valor do selo.');
+      setError(
+        tr(
+          'A compra máxima por lançamento não pode ser menor que o valor do selo.',
+          'A compra máxima por registo não pode ser inferior ao valor do carimbo.',
+        ),
+      );
       return;
     }
     setSaving(true);
@@ -96,7 +116,7 @@ export function ProgramForm({
     try {
       await onSubmit({ ...p, unitLabelPlural: p.unitLabelPlural || null });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Algo deu errado.');
+      setError(err instanceof Error ? err.message : tr('Algo deu errado.', 'Algo correu mal.'));
     } finally {
       setSaving(false);
     }
@@ -107,7 +127,7 @@ export function ProgramForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <Field label="Nome do programa" hint='Aparece no cartão do cliente. Ex.: "Cartão Rodízio".'>
+      <Field label="Nome do programa" hint={tr('Aparece no cartão do cliente. Ex.: "Cartão Rodízio".', 'Aparece no cartão do cliente. Ex.: "Cartão Café".')}>
         <Input value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} required minLength={2} maxLength={60} />
       </Field>
       <fieldset disabled={valueLocked}>
@@ -135,7 +155,7 @@ export function ProgramForm({
         </div>
         {valueLocked && (
           <p className="mt-1.5 text-xs text-stone-500">
-            Este programa já tem clientes: o tipo{byValue ? ' e o valor do selo' : ''} não podem mudar. Para outra regra, crie um programa novo.
+            Este programa já tem clientes: o tipo{byValue ? tr(' e o valor do selo', ' e o valor do carimbo') : ''} não podem mudar. Para outra regra, crie um programa novo.
           </p>
         )}
       </fieldset>
@@ -143,19 +163,25 @@ export function ProgramForm({
       {byValue && (
         <div className="space-y-3 rounded-xl border border-brand-100 bg-brand-50/50 p-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Cada compra de" hint={`vale 1 ${p.unitLabel || 'selo'}.`}>
+            <Field label="Cada compra de" hint={`vale 1 ${p.unitLabel || DEFAULT_UNIT}.`}>
               <MoneyInput cents={p.stampValueCents} onCents={(v) => setP({ ...p, stampValueCents: v })} disabled={valueLocked} required />
             </Field>
-            <Field label="Compra máxima por lançamento" hint={`Evita erro de digitação (ex.: 15000 no lugar de 150,00). Até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`}>
+            <Field
+              label={tr('Compra máxima por lançamento', 'Compra máxima por registo')}
+              hint={tr(
+                `Evita erro de digitação (ex.: 15000 no lugar de 150,00). Até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`,
+                `Evita erros ao introduzir o valor (ex.: 15000 em vez de 150,00). Até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}.`,
+              )}
+            >
               <MoneyInput cents={p.maxAmountPerEntryCents} onCents={(v) => setP({ ...p, maxAmountPerEntryCents: v })} required />
             </Field>
           </div>
-          {p.stampValueCents ? <p className="text-xs text-stone-600">{valueExample(p.stampValueCents, p.unitLabel || 'selo', p.unitLabelPlural || '')}</p> : null}
+          {p.stampValueCents ? <p className="text-xs text-stone-600">{valueExample(p.stampValueCents, p.unitLabel || DEFAULT_UNIT, p.unitLabelPlural || '')}</p> : null}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label={`Meta de ${p.unitLabelPlural || 'selos'}`} hint="De 2 a 50.">
+        <Field label={`Meta de ${p.unitLabelPlural || tr('selos', 'carimbos')}`} hint="De 2 a 50.">
           <Input type="number" min={2} max={50} value={p.goal} onChange={(e) => setP({ ...p, goal: Number(e.target.value) })} required />
         </Field>
         {byValue ? (
@@ -167,19 +193,19 @@ export function ProgramForm({
             <div />
           )
         ) : (
-          <Field label="Máximo por lançamento" hint="Antifraude.">
+          <Field label={tr('Máximo por lançamento', 'Máximo por registo')} hint="Antifraude.">
             <Input type="number" min={1} max={100} value={p.maxPerEntry} onChange={(e) => setP({ ...p, maxPerEntry: Number(e.target.value) })} required />
           </Field>
         )}
       </div>
-      <Field label="Recompensa" hint='Ex.: "1 rodízio grátis".'>
+      <Field label="Recompensa" hint={tr('Ex.: "1 rodízio grátis".', 'Ex.: "1 café grátis".')}>
         <Input value={p.rewardDescription} onChange={(e) => setP({ ...p, rewardDescription: e.target.value })} required maxLength={120} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Nome do selo (singular)" hint='Ex.: "rodízio".'>
+        <Field label={tr('Nome do selo (singular)', 'Nome do carimbo (singular)')} hint={tr('Ex.: "rodízio".', 'Ex.: "café".')}>
           <Input value={p.unitLabel} onChange={(e) => setP({ ...p, unitLabel: e.target.value })} required maxLength={30} />
         </Field>
-        <Field label="Plural (opcional)" hint='Ex.: "rodízios".'>
+        <Field label="Plural (opcional)" hint={tr('Ex.: "rodízios".', 'Ex.: "cafés".')}>
           <Input value={p.unitLabelPlural ?? ''} onChange={(e) => setP({ ...p, unitLabelPlural: e.target.value })} maxLength={30} />
         </Field>
       </div>
@@ -196,7 +222,10 @@ export function ProgramForm({
           <span className="block text-xs text-stone-500">
             {p.carryOverExcess
               ? `Ex.: meta ${p.goal}, cliente com ${p.goal - 1} recebe 3: ganha a recompensa e o cartão já começa com 2.`
-              : `Ex.: meta ${p.goal}, cliente com ${p.goal - 1} recebe 3: ganha a recompensa e o cartão recomeça do zero (2 são descartados). O caixa avisa antes de lançar.`}
+              : tr(
+                  `Ex.: meta ${p.goal}, cliente com ${p.goal - 1} recebe 3: ganha a recompensa e o cartão recomeça do zero (2 são descartados). O caixa avisa antes de lançar.`,
+                  `Ex.: meta ${p.goal}, cliente com ${p.goal - 1} recebe 3: ganha a recompensa e o cartão recomeça do zero (2 são descartados). O caixa avisa antes de registar.`,
+                )}
           </span>
         </span>
       </label>

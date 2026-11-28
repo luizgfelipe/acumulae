@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Input, Spinner } from '@/components/ui';
 import { staffApi } from '@/lib/api';
 import { formatDate, formatE164 } from '@/lib/format';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 interface CustomersPage {
@@ -53,7 +54,7 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold">Clientes</h1>
           <p className="text-sm text-stone-600">{data ? `${data.total} cliente(s) vinculados` : ' '}</p>
         </div>
-        <Input className="max-w-xs" placeholder="Buscar por nome ou telefone" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input className="max-w-xs" placeholder={tr('Buscar por nome ou telefone', 'Pesquisar por nome ou telemóvel')} value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
       {error && <Alert>{error}</Alert>}
       <Card className="p-0">
@@ -62,7 +63,7 @@ export default function CustomersPage() {
             <thead>
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
                 <th className="px-5 py-3 font-medium">Nome</th>
-                <th className="px-3 py-3 font-medium">Telefone</th>
+                <th className="px-3 py-3 font-medium">{tr('Telefone', 'Telemóvel')}</th>
                 <th className="px-3 py-3 font-medium">Saldo</th>
                 <th className="px-3 py-3 font-medium">Visitas</th>
                 <th className="px-3 py-3 font-medium">Último consumo</th>
@@ -111,11 +112,16 @@ export default function CustomersPage() {
             Página {page} de {pages}
           </span>
           <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
-            Próxima
+            {tr('Próxima', 'Seguinte')}
           </Button>
         </div>
       )}
-      <p className="text-xs text-stone-500">O telefone completo só aparece para clientes que aceitaram receber promoções do seu estabelecimento.</p>
+      <p className="text-xs text-stone-500">
+        {tr(
+          'O telefone completo só aparece para clientes que aceitaram receber promoções do seu estabelecimento.',
+          'O telemóvel completo só aparece para clientes que aceitaram receber promoções do seu estabelecimento.',
+        )}
+      </p>
     </div>
   );
 }

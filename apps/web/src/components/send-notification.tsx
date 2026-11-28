@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { BODY_MAX, STORE_HINT, Segment, StoreOption, TITLE_MAX, audienceLabel, clients, notifications, segmentKeyOf, segmentQuery } from '@/lib/announcements';
 import { errorMessage, staffApi } from '@/lib/api';
+import { tr } from '@/lib/region';
 import { usePanel } from './panel-context';
 import { Alert, Button, Card, Field, Input, Modal, Select, TenantAvatar, Textarea } from './ui';
 
@@ -148,7 +149,7 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
                 <span className="mt-1 block text-xs text-stone-500">Vai para todos do filtro, não só os da página que está aberta no relatório.</span>
               </p>
             ) : (
-              !error && <p className="mt-0.5 text-stone-500">Contando os clientes…</p>
+              !error && <p className="mt-0.5 text-stone-500">{tr('Contando os clientes…', 'A contar os clientes…')}</p>
             )}
           </div>
 
@@ -162,18 +163,23 @@ function SendModal({ segment, suggestion, onClose }: { segment: Segment; suggest
 
           {blocked && (
             <Alert kind="warning">
-              Você já usou as {max} notificações do mês no seu plano.{' '}
+              {tr(<>Você já usou as {max} notificações do mês no seu plano.</>, <>Já usou as {max} notificações do mês do seu plano.</>)}{' '}
               <Link href="/painel/plano" className="font-semibold underline">
-                Ver meu plano
+                {tr('Ver meu plano', 'Ver o meu plano')}
               </Link>
             </Alert>
           )}
           {preview && !blocked && preview.audience === 0 && (
-            <Alert kind="info">Ninguém neste filtro aceitou receber promoções, então não há para quem enviar.</Alert>
+            <Alert kind="info">
+              {tr(
+                'Ninguém neste filtro aceitou receber promoções, então não há para quem enviar.',
+                'Ninguém neste filtro aceitou receber promoções, por isso não há a quem enviar.',
+              )}
+            </Alert>
           )}
           {error && <Alert>{error}</Alert>}
 
-          <p className="text-xs text-stone-500">Depois de enviada, não dá para desfazer.</p>
+          <p className="text-xs text-stone-500">{tr('Depois de enviada, não dá para desfazer.', 'Depois de enviada, não é possível anular.')}</p>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" className="flex-1" onClick={onClose} disabled={sending}>
               Cancelar

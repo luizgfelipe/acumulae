@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import { Alert, Badge, Button, Field, Input, Modal, cx } from './ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { LEDGER_LABELS, SOURCE_LABELS, formatMoney, formatDateTime } from '@/lib/format';
+import { tr } from '@/lib/region';
 
 export interface LedgerItem {
   id: string;
@@ -52,7 +53,7 @@ export function LedgerTable({ items, onChanged, showCustomer = true }: { items: 
   // Só mostra o programa quando há movimentações de mais de um.
   const manyPrograms = new Set(items.map((i) => i.programName)).size > 1;
 
-  if (!items.length) return <p className="py-6 text-center text-sm text-stone-500">Nenhuma movimentação encontrada.</p>;
+  if (!items.length) return <p className="py-6 text-center text-sm text-stone-500">{tr('Nenhuma movimentação encontrada.', 'Nenhum movimento encontrado.')}</p>;
 
   return (
     <>
@@ -78,7 +79,7 @@ export function LedgerTable({ items, onChanged, showCustomer = true }: { items: 
                   {LEDGER_LABELS[e.type] ?? e.type}
                   {manyPrograms && e.programName && <span className="block text-xs text-stone-500">{e.programName}</span>}
                   {e.reason && <span className="block text-xs text-stone-500">Motivo: {e.reason}</span>}
-                  {e.reversedBy && <span className="block text-xs text-red-600">Estornado em {formatDateTime(e.reversedBy.createdAt)}</span>}
+                  {e.reversedBy && <span className="block text-xs text-red-600">{tr('Estornado em', 'Anulado em')} {formatDateTime(e.reversedBy.createdAt)}</span>}
                 </td>
                 {showCustomer && (
                   <td className="py-2.5 pr-3">
@@ -94,7 +95,7 @@ export function LedgerTable({ items, onChanged, showCustomer = true }: { items: 
                 <td className="py-2.5 text-right">
                   {e.reversible && (
                     <Button size="sm" variant="ghost" className="text-red-700" onClick={() => setTarget(e)}>
-                      Estornar
+                      {tr('Estornar', 'Anular')}
                     </Button>
                   )}
                 </td>
@@ -131,16 +132,24 @@ function ReverseModal({ entry, onClose, onDone }: { entry: LedgerItem | null; on
   }
 
   return (
-    <Modal open={!!entry} onClose={onClose} title="Estornar movimentação">
+    <Modal open={!!entry} onClose={onClose} title={tr('Estornar movimentação', 'Anular movimento')}>
       {entry && (
         <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-stone-700">
             {LEDGER_LABELS[entry.type]} de <strong>{entry.customerName}</strong> em {formatDateTime(entry.createdAt)}
-            {entry.type === 'CREDITO' ? ` (${entry.amountCents != null ? `compra de ${formatMoney(entry.amountCents)}` : entry.quantity})` : ''}. O lançamento original continua visível; será criada uma movimentação
-            contrária.
+            {entry.type === 'CREDITO' ? ` (${entry.amountCents != null ? `compra de ${formatMoney(entry.amountCents)}` : entry.quantity})` : ''}.{' '}
+            {tr(
+              'O lançamento original continua visível; será criada uma movimentação contrária.',
+              'O registo original continua visível; será criado um movimento contrário.',
+            )}
           </p>
           {entry.type === 'CREDITO' && (
-            <p className="text-xs text-stone-500">Se este consumo liberou uma recompensa ainda não resgatada, ela também será cancelada.</p>
+            <p className="text-xs text-stone-500">
+              {tr(
+                'Se este consumo liberou uma recompensa ainda não resgatada, ela também será cancelada.',
+                'Se este consumo desbloqueou uma recompensa ainda não resgatada, esta também será cancelada.',
+              )}
+            </p>
           )}
           <Field label="Motivo (obrigatório)">
             <Input value={reason} onChange={(e) => setReason(e.target.value)} required minLength={3} autoFocus />
@@ -151,7 +160,7 @@ function ReverseModal({ entry, onClose, onDone }: { entry: LedgerItem | null; on
               Cancelar
             </Button>
             <Button type="submit" variant="danger" loading={busy}>
-              Estornar
+              {tr('Estornar', 'Anular')}
             </Button>
           </div>
         </form>

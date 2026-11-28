@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import { StaffCard } from '@/components/staff-card';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
+import { tr } from '@/lib/region';
 
 export default function StaffForgotPage() {
   const [email, setEmail] = useState('');
@@ -27,9 +28,17 @@ export default function StaffForgotPage() {
   }
 
   return (
-    <StaffCard title="Esqueci a senha" subtitle="Para atendentes e gestores.">
+    <StaffCard
+      title={tr('Esqueci a senha', 'Esqueci-me da palavra-passe')}
+      subtitle={tr('Para atendentes e gestores.', 'Para operadores e gestores.')}
+    >
       {sent ? (
-        <Alert kind="success">Se houver uma conta, enviamos um link para o e-mail. Ele vale por 30 minutos.</Alert>
+        <Alert kind="success">
+          {tr(
+            'Se houver uma conta, enviamos um link para o e-mail. Ele vale por 30 minutos.',
+            'Se existir uma conta, enviámos um link para o e-mail. É válido durante 30 minutos.',
+          )}
+        </Alert>
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <Field label="E-mail">
@@ -42,7 +51,7 @@ export default function StaffForgotPage() {
         </form>
       )}
       <Link href="/painel/entrar" className="mt-4 block text-center text-sm font-semibold text-accent-600">
-        Voltar para o login
+        {tr('Voltar para o login', 'Voltar ao início de sessão')}
       </Link>
     </StaffCard>
   );

@@ -7,6 +7,7 @@ import { EMPTY_PROGRAM, ProgramForm } from '@/components/program-form';
 import { Card, FullPageSpinner } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { ProgramsList } from '@/lib/programs';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 export default function NewProgramPage() {
@@ -41,7 +42,10 @@ export default function NewProgramPage() {
                 Ativar agora
                 {!canActivate && (
                   <span className="block text-xs text-stone-500">
-                    Seu plano já está no limite de programas ativos: o programa será criado desativado.
+                    {tr(
+                      'Seu plano já está no limite de programas ativos: o programa será criado desativado.',
+                      'O seu plano já está no limite de programas ativos: o programa será criado desativado.',
+                    )}
                   </span>
                 )}
               </span>

@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { StaffCard } from '@/components/staff-card';
 import { Alert, Button, Field, FullPageSpinner, Input } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
+import { tr } from '@/lib/region';
 import { StaffMe } from '@/lib/staff';
 
 interface InviteInfo {
@@ -39,7 +40,7 @@ export default function InvitePage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!info?.hasAccount && password !== confirm) return setError('As senhas não conferem.');
+    if (!info?.hasAccount && password !== confirm) return setError(tr('As senhas não conferem.', 'As palavras-passe não coincidem.'));
     setBusy(true);
     setError(null);
     try {
@@ -57,7 +58,7 @@ export default function InvitePage() {
       <StaffCard title="Convite indisponível">
         <Alert kind="warning">{loadError}</Alert>
         <Link href="/painel/entrar" className="mt-4 block text-center font-semibold text-accent-600">
-          Ir para o login
+          {tr('Ir para o login', 'Ir para o início de sessão')}
         </Link>
       </StaffCard>
     );
@@ -66,22 +67,31 @@ export default function InvitePage() {
   return (
     <StaffCard
       title={`Bem-vindo(a) ao ${info.tenantName}`}
-      subtitle={`Você foi convidado(a) como ${info.role === 'MANAGER' ? 'gestor(a)' : 'atendente'} (${info.email}).`}
+      subtitle={tr(
+        `Você foi convidado(a) como ${info.role === 'MANAGER' ? 'gestor(a)' : 'atendente'} (${info.email}).`,
+        `Foi convidado(a) como ${info.role === 'MANAGER' ? 'gestor(a)' : 'operador(a)'} (${info.email}).`,
+      )}
     >
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Seu nome">
+        <Field label={tr('Seu nome', 'O seu nome')}>
           <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
         </Field>
         {info.hasAccount ? (
-          <Field label="Sua senha atual do Acumulaê" hint="Você já tem acesso a outro estabelecimento; use a mesma senha.">
+          <Field
+            label={tr('Sua senha atual do Acumulaê', 'A sua palavra-passe atual do Acumulaê')}
+            hint={tr(
+              'Você já tem acesso a outro estabelecimento; use a mesma senha.',
+              'Já tem acesso a outro estabelecimento; use a mesma palavra-passe.',
+            )}
+          >
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
           </Field>
         ) : (
           <>
-            <Field label="Crie uma senha" hint="Mínimo de 6 caracteres.">
+            <Field label={tr('Crie uma senha', 'Crie uma palavra-passe')} hint="Mínimo de 6 caracteres.">
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
             </Field>
-            <Field label="Repita a senha">
+            <Field label={tr('Repita a senha', 'Repita a palavra-passe')}>
               <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password" />
             </Field>
           </>

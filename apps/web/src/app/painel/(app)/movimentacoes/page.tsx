@@ -5,6 +5,7 @@ import { LedgerItem, LedgerTable } from '@/components/ledger-table';
 import { Alert, Button, Card, Field, Input, Select, cx } from '@/components/ui';
 import { staffApi } from '@/lib/api';
 import { LEDGER_LABELS } from '@/lib/format';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 interface LedgerPage {
@@ -44,7 +45,7 @@ export default function LedgerPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Movimentações</h1>
+        <h1 className="text-2xl font-bold">{tr('Movimentações', 'Movimentos')}</h1>
         <div className="flex items-center gap-2">
           {activeFilters > 0 && (
             <Button size="sm" variant="ghost" onClick={clearFilters}>
@@ -104,7 +105,7 @@ export default function LedgerPage() {
       )}
       {error && <Alert>{error}</Alert>}
       <Card>
-        <p className="mb-2 text-sm text-stone-500">{data?.total ?? 0} movimentação(ões)</p>
+        <p className="mb-2 text-sm text-stone-500">{data?.total ?? 0} {tr('movimentação(ões)', 'movimento(s)')}</p>
         {data && <LedgerTable items={data.items} onChanged={reload} />}
       </Card>
       {pages > 1 && (
@@ -116,7 +117,7 @@ export default function LedgerPage() {
             Página {page} de {pages}
           </span>
           <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
-            Próxima
+            {tr('Próxima', 'Seguinte')}
           </Button>
         </div>
       )}

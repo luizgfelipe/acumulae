@@ -5,6 +5,7 @@ import { usePanel } from '@/components/panel-context';
 import { Alert, Badge, Button, Card, Field, FullPageSpinner, Input, Modal, Select } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { tr } from '@/lib/region';
 import { useLoad } from '@/lib/use-load';
 
 interface StaffData {
@@ -91,7 +92,7 @@ export default function StaffPage() {
             <li key={m.membershipId} className="flex flex-wrap items-center gap-3 px-5 py-4">
               <div className="min-w-48 flex-1">
                 <p className="font-medium">
-                  {m.name} {m.isMe && <span className="text-xs text-stone-500">(você)</span>}
+                  {m.name} {m.isMe && <span className="text-xs text-stone-500">{tr('(você)', '(o próprio)')}</span>}
                 </p>
                 <p className="text-sm text-stone-500">{m.email}</p>
                 {m.role === 'ATTENDANT' && !singleStore && (
@@ -99,7 +100,7 @@ export default function StaffPage() {
                 )}
                 {m.role === 'MANAGER' && !singleStore && <p className="text-xs text-stone-500">Todas as unidades</p>}
               </div>
-              <Badge color={m.role === 'MANAGER' ? 'brand' : 'stone'}>{m.role === 'MANAGER' ? 'Gestor' : 'Atendente'}</Badge>
+              <Badge color={m.role === 'MANAGER' ? 'brand' : 'stone'}>{m.role === 'MANAGER' ? 'Gestor' : tr('Atendente', 'Operador')}</Badge>
               <Badge color={m.status === 'ACTIVE' ? 'green' : 'red'}>{m.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}</Badge>
               {!m.isMe && (
                 <div className="flex gap-2">
@@ -117,7 +118,7 @@ export default function StaffPage() {
                         : update(m.membershipId, { role: m.role === 'MANAGER' ? 'ATTENDANT' : 'MANAGER' })
                     }
                   >
-                    Tornar {m.role === 'MANAGER' ? 'atendente' : 'gestor'}
+                    Tornar {m.role === 'MANAGER' ? tr('atendente', 'operador') : 'gestor'}
                   </Button>
                   <Button size="sm" variant={m.status === 'ACTIVE' ? 'ghost' : 'secondary'} className={m.status === 'ACTIVE' ? 'text-red-700' : ''} onClick={() => update(m.membershipId, { status: m.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' })}>
                     {m.status === 'ACTIVE' ? 'Desativar' : 'Reativar'}
@@ -137,7 +138,7 @@ export default function StaffPage() {
               <li key={i.id} className="flex justify-between gap-3">
                 <span>
                   {i.name ? `${i.name} · ` : ''}
-                  {i.email} ({i.role === 'MANAGER' ? 'gestor' : 'atendente'})
+                  {i.email} ({i.role === 'MANAGER' ? 'gestor' : tr('atendente', 'operador')})
                   {i.role !== 'MANAGER' && !singleStore && i.stores.length > 0 && (
                     <span className="text-stone-500"> · {i.stores.map((st) => st.name).join(', ')}</span>
                   )}
@@ -162,14 +163,14 @@ export default function StaffPage() {
           </div>
           <Field label="Perfil">
             <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as 'ATTENDANT' | 'MANAGER' })}>
-              <option value="ATTENDANT">Atendente (só caixa)</option>
+              <option value="ATTENDANT">{tr('Atendente (só caixa)', 'Operador (só caixa)')}</option>
               <option value="MANAGER">Gestor (caixa + painel)</option>
             </Select>
           </Field>
           {form.role === 'ATTENDANT' && !singleStore && (
             <StorePicker stores={activeStores} value={form.storeIds} onChange={(storeIds) => setForm({ ...form, storeIds })} />
           )}
-          {form.role === 'MANAGER' && !singleStore && <p className="text-xs text-stone-500">Gestores acessam todas as unidades.</p>}
+          {form.role === 'MANAGER' && !singleStore && <p className="text-xs text-stone-500">{tr('Gestores acessam todas as unidades.', 'Os gestores têm acesso a todas as unidades.')}</p>}
           {formError && <Alert>{formError}</Alert>}
           <Button type="submit" loading={busy}>
             Enviar convite
@@ -190,11 +191,16 @@ export default function StaffPage() {
       />
 
       <Modal open={!!inviteUrl} onClose={() => setInviteUrl(null)} title="Convite criado">
-        <p className="text-sm text-stone-700">Enviamos o convite por e-mail. Você também pode mandar este link (uso único, válido por 72 horas):</p>
+        <p className="text-sm text-stone-700">
+          {tr(
+            'Enviamos o convite por e-mail. Você também pode mandar este link (uso único, válido por 72 horas):',
+            'Enviámos o convite por e-mail. Também pode enviar esta ligação (uso único, válida por 72 horas):',
+          )}
+        </p>
         <Input readOnly value={inviteUrl ?? ''} className="mt-3 text-sm" onFocus={(e) => e.target.select()} />
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Button variant="secondary" onClick={() => inviteUrl && navigator.clipboard?.writeText(inviteUrl)}>
-            Copiar link
+            {tr('Copiar link', 'Copiar ligação')}
           </Button>
           <Button onClick={() => setInviteUrl(null)}>Fechar</Button>
         </div>
@@ -227,7 +233,9 @@ function StorePicker({ stores, value, onChange }: { stores: Store[]; value: stri
           </label>
         ))}
       </div>
-      <p className="mt-1.5 text-xs text-stone-500">O atendente só entra no caixa das unidades marcadas.</p>
+      <p className="mt-1.5 text-xs text-stone-500">
+        {tr('O atendente só entra no caixa das unidades marcadas.', 'O operador só entra no caixa das unidades marcadas.')}
+      </p>
     </div>
   );
 }
@@ -248,9 +256,13 @@ function StoresModal({
   const [saving, setSaving] = useState(false);
   if (!target) return null;
   return (
-    <Modal open onClose={onClose} title={target.demote ? 'Tornar ' + target.member.name + ' atendente' : 'Unidades de ' + target.member.name}>
+    <Modal open onClose={onClose} title={target.demote ? 'Tornar ' + target.member.name + tr(' atendente', ' operador') : 'Unidades de ' + target.member.name}>
       <div className="space-y-4">
-        {target.demote && <p className="text-sm text-stone-600">Atendentes só usam o caixa. Escolha em quais unidades.</p>}
+        {target.demote && (
+          <p className="text-sm text-stone-600">
+            {tr('Atendentes só usam o caixa. Escolha em quais unidades.', 'Os operadores só usam o caixa. Escolha em que unidades.')}
+          </p>
+        )}
         <StorePicker stores={stores} value={ids} onChange={setIds} />
         <div className="grid grid-cols-2 gap-3">
           <Button variant="secondary" onClick={onClose}>
@@ -265,7 +277,7 @@ function StoresModal({
               setSaving(false);
             }}
           >
-            {target.demote ? 'Tornar atendente' : 'Salvar'}
+            {target.demote ? tr('Tornar atendente', 'Tornar operador') : tr('Salvar', 'Guardar')}
           </Button>
         </div>
       </div>

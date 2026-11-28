@@ -6,6 +6,7 @@ import { FormEvent, Suspense, useState } from 'react';
 import { StaffCard } from '@/components/staff-card';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { errorMessage, staffApi } from '@/lib/api';
+import { tr } from '@/lib/region';
 
 export default function Page() {
   return (
@@ -25,7 +26,7 @@ function StaffReset() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (password !== confirm) return setError('As senhas não conferem.');
+    if (password !== confirm) return setError(tr('As senhas não conferem.', 'As palavras-passe não coincidem.'));
     setBusy(true);
     setError(null);
     try {
@@ -39,25 +40,25 @@ function StaffReset() {
   }
 
   return (
-    <StaffCard title="Nova senha">
+    <StaffCard title={tr('Nova senha', 'Nova palavra-passe')}>
       {done ? (
         <>
-          <Alert kind="success">Senha alterada. Entre novamente.</Alert>
+          <Alert kind="success">{tr('Senha alterada. Entre novamente.', 'Palavra-passe alterada. Inicie sessão novamente.')}</Alert>
           <Link href="/painel/entrar" className="mt-4 block text-center font-semibold text-accent-600">
             Entrar
           </Link>
         </>
       ) : (
         <form onSubmit={submit} className="mt-4 space-y-4">
-          <Field label="Nova senha">
+          <Field label={tr('Nova senha', 'Nova palavra-passe')}>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
           </Field>
-          <Field label="Repita a nova senha">
+          <Field label={tr('Repita a nova senha', 'Repita a nova palavra-passe')}>
             <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password" />
           </Field>
           {error && <Alert>{error}</Alert>}
           <Button type="submit" loading={busy} className="w-full">
-            Salvar
+            {tr('Salvar', 'Guardar')}
           </Button>
         </form>
       )}
