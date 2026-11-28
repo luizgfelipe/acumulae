@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
+import { tr } from '@/lib/region';
 import { InstallAfterSignup } from './install-prompt';
 import { Logo, cx } from './ui';
 
@@ -14,7 +15,7 @@ const NAV = [
   },
   {
     href: '/qr',
-    label: 'Meu QR',
+    label: tr('Meu QR', 'O meu QR'),
     icon: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" />,
   },
   {
@@ -99,7 +100,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <main className="flex-1">{children}</main>
       <footer className="mt-10 flex justify-center gap-4 text-xs text-stone-500">
         <Link href="/termos" className="transition-colors hover:text-stone-800 hover:underline">
-          Termos de Uso
+          {tr('Termos de Uso', 'Termos de Utilização')}
         </Link>
         <Link href="/privacidade" className="transition-colors hover:text-stone-800 hover:underline">
           Privacidade

@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { bannerDue, dismissBanner, takeInstallPending, useInstall } from '@/lib/install';
+import { tr } from '@/lib/region';
 import { Button, Modal } from './ui';
 
-const BENEFITS = ['Seus cartões e o QR a um toque, direto da tela inicial', 'Abre na hora, sem digitar endereço', 'Ocupa quase nada de espaço'];
+const BENEFITS = tr(
+  ['Seus cartões e o QR a um toque, direto da tela inicial', 'Abre na hora, sem digitar endereço', 'Ocupa quase nada de espaço'],
+  ['Os seus cartões e o QR à distância de um toque, no ecrã principal', 'Abre na hora, sem escrever o endereço', 'Não ocupa quase espaço nenhum'],
+);
 
 /** Convite com o botão de instalar (Android) ou o passo a passo (iPhone). */
 export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -26,7 +30,7 @@ export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => 
   }
 
   return (
-    <Modal open={open && install.shouldInvite} onClose={onClose} title="Instale o Acumulaê no celular">
+    <Modal open={open && install.shouldInvite} onClose={onClose} title={tr('Instale o Acumulaê no celular', 'Instale o Acumulaê no telemóvel')}>
       <div className="space-y-5">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -58,7 +62,7 @@ export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => 
 }
 
 function Steps({ platform }: { platform: 'ios' | 'android' | 'other' }) {
-  const steps =
+  const steps = tr(
     platform === 'ios'
       ? [
           <>
@@ -78,7 +82,28 @@ function Steps({ platform }: { platform: 'ios' | 'android' | 'other' }) {
           <>
             Escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.
           </>,
-        ];
+        ],
+    platform === 'ios'
+      ? [
+          <>
+            Toque em <strong>Partilhar</strong> <ShareIcon /> na barra do Safari.
+          </>,
+          <>
+            Escolha <strong>Adicionar ao ecrã principal</strong>.
+          </>,
+          <>
+            Toque em <strong>Adicionar</strong>.
+          </>,
+        ]
+      : [
+          <>
+            Toque no menu <strong>⋮</strong> do navegador.
+          </>,
+          <>
+            Escolha <strong>Instalar aplicação</strong> ou <strong>Adicionar ao ecrã principal</strong>.
+          </>,
+        ],
+  );
   return (
     <ol className="space-y-3 rounded-2xl bg-stone-50 p-4 text-sm text-stone-800">
       {steps.map((s, i) => (
@@ -93,7 +118,7 @@ function Steps({ platform }: { platform: 'ios' | 'android' | 'other' }) {
 
 function ShareIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="-mt-1 inline h-4 w-4 text-sky-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="ícone de compartilhar">
+    <svg viewBox="0 0 24 24" className="-mt-1 inline h-4 w-4 text-sky-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label={tr('ícone de compartilhar', 'ícone de partilhar')}>
       <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
     </svg>
   );
@@ -136,7 +161,7 @@ export function InstallBanner() {
         <img src="/icons/icon-192.png" alt="" width={40} height={40} className="h-10 w-10 rounded-xl" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-stone-900">Instale o app</p>
-          <p className="text-xs text-stone-600">Seus cartões a um toque, na tela inicial.</p>
+          <p className="text-xs text-stone-600">{tr('Seus cartões a um toque, na tela inicial.', 'Os seus cartões à distância de um toque, no ecrã principal.')}</p>
         </div>
         <Button size="sm" onClick={() => setSheet(true)}>
           Instalar

@@ -9,6 +9,7 @@ import { api, errorMessage } from '@/lib/api';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
 import { useMe } from '@/lib/customer';
+import { tr } from '@/lib/region';
 
 interface PublicTenant extends BrandColors, StampStyle {
   name: string;
@@ -83,13 +84,26 @@ function StoreLanding() {
           <h1 className="text-2xl font-bold">{tenant.name}</h1>
         </div>
         {programs.length === 0 && (
-          <p className="p-6 text-center text-stone-600">O programa de fidelidade deste estabelecimento está sendo preparado. Volte em breve!</p>
+          <p className="p-6 text-center text-stone-600">
+            {tr(
+              'O programa de fidelidade deste estabelecimento está sendo preparado. Volte em breve!',
+              'O programa de fidelização deste estabelecimento está a ser preparado. Volte em breve!',
+            )}
+          </p>
         )}
         {programs.length === 1 && (
           <div className="space-y-5 p-6">
             <p className="text-center text-lg">
-              Participe do programa de fidelidade: a cada <strong>{programs[0].goal} {programs[0].unitLabelPlural}</strong>, ganhe{' '}
-              <strong>{programs[0].rewardDescription}</strong>.
+              {tr(
+                <>
+                  Participe do programa de fidelidade: a cada <strong>{programs[0].goal} {programs[0].unitLabelPlural}</strong>, ganhe{' '}
+                  <strong>{programs[0].rewardDescription}</strong>.
+                </>,
+                <>
+                  Participe no programa de fidelização: a cada <strong>{programs[0].goal} {programs[0].unitLabelPlural}</strong>, ganhe{' '}
+                  <strong>{programs[0].rewardDescription}</strong>.
+                </>,
+              )}
             </p>
             <StampGrid filled={0} goal={programs[0].goal} color={th.accent} checkColor={th.accentFg} size={programs[0].goal > 15 ? 'sm' : 'md'} />
             {programs[0].redeemWeekdaysText && <p className="text-center text-sm text-stone-500">Resgate: {programs[0].redeemWeekdaysText}.</p>}
@@ -97,7 +111,9 @@ function StoreLanding() {
         )}
         {programs.length > 1 && (
           <div className="space-y-3 p-6">
-            <p className="text-center text-lg">Participe dos nossos programas de fidelidade:</p>
+            <p className="text-center text-lg">
+              {tr('Participe dos nossos programas de fidelidade:', 'Participe nos nossos programas de fidelização:')}
+            </p>
             {programs.map((p) => (
               <div key={p.id} className="rounded-2xl border border-stone-200 px-4 py-3">
                 <p className="font-semibold">{p.name}</p>
@@ -112,11 +128,15 @@ function StoreLanding() {
       </div>
 
       <div className="mt-6 space-y-3">
-        {!tenant.active && <Alert kind="warning">Este estabelecimento está com o programa pausado no momento.</Alert>}
+        {!tenant.active && (
+          <Alert kind="warning">
+            {tr('Este estabelecimento está com o programa pausado no momento.', 'Este estabelecimento tem o programa em pausa de momento.')}
+          </Alert>
+        )}
         {error && <Alert>{error}</Alert>}
         {programs.length === 0 ? null : me ? (
           <Button size="lg" className="w-full" onClick={join} loading={joining} disabled={!tenant.active}>
-            Participar com minha conta
+            {tr('Participar com minha conta', 'Participar com a minha conta')}
           </Button>
         ) : (
           <>

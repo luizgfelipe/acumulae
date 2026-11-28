@@ -10,6 +10,7 @@ import { Alert, Button, Field, Input, Modal } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { safeNext } from '@/lib/customer';
 import { maskPhoneInput } from '@/lib/format';
+import { tr } from '@/lib/region';
 
 export default function Page() {
   return (
@@ -36,9 +37,16 @@ function SignupPage() {
   function review(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (form.phone.replace(/\D/g, '').length < 10) return setError('Informe o telefone com DDD.');
-    if (form.password.length < 6) return setError('A senha precisa ter pelo menos 6 caracteres.');
-    if (!terms) return setError('Para continuar, aceite os Termos de Uso e a Política de Privacidade.');
+    // PT: 9 dígitos (912 345 678); BR: DDD + número.
+    if (form.phone.replace(/\D/g, '').length < tr(10, 9)) return setError(tr('Informe o telefone com DDD.', 'Indique o número de telemóvel completo.'));
+    if (form.password.length < 6) return setError(tr('A senha precisa ter pelo menos 6 caracteres.', 'A palavra-passe tem de ter pelo menos 6 caracteres.'));
+    if (!terms)
+      return setError(
+        tr(
+          'Para continuar, aceite os Termos de Uso e a Política de Privacidade.',
+          'Para continuar, aceite os Termos de Utilização e a Política de Privacidade.',
+        ),
+      );
     // RN-05: confirmação de telefone e e-mail antes de salvar.
     setConfirming(true);
   }
@@ -65,7 +73,9 @@ function SignupPage() {
   return (
     <PublicShell>
       <h1 className="mb-1 text-2xl font-bold">Criar conta</h1>
-      <p className="mb-6 text-stone-600">Uma conta só, válida em todos os estabelecimentos participantes.</p>
+      <p className="mb-6 text-stone-600">
+        {tr('Uma conta só, válida em todos os estabelecimentos participantes.', 'Uma só conta, válida em todos os estabelecimentos aderentes.')}
+      </p>
 
       <SocialButtons next={next} />
 
@@ -73,16 +83,32 @@ function SignupPage() {
         <Field label="Nome">
           <Input value={form.name} onChange={set('name')} autoComplete="name" required minLength={2} />
         </Field>
-        <Field label="Telefone (WhatsApp)" hint="É por ele que o atendente encontra você no caixa.">
-          <Input value={form.phone} onChange={set('phone')} autoComplete="tel-national" inputMode="tel" placeholder="(47) 9 9999-9999" required />
+        <Field
+          label={tr('Telefone (WhatsApp)', 'Telemóvel')}
+          hint={tr('É por ele que o atendente encontra você no caixa.', 'É por ele que o operador de caixa o encontra.')}
+        >
+          <Input
+            value={form.phone}
+            onChange={set('phone')}
+            autoComplete="tel-national"
+            inputMode="tel"
+            placeholder={tr('(47) 9 9999-9999', '912 345 678')}
+            required
+          />
         </Field>
-        <Field label="E-mail" hint="Usado para entrar e para recuperar a senha.">
+        <Field label="E-mail" hint={tr('Usado para entrar e para recuperar a senha.', 'Usado para entrar e para recuperar a palavra-passe.')}>
           <Input type="email" value={form.email} onChange={set('email')} autoComplete="email" required />
         </Field>
-        <Field label="Senha" hint="Mínimo de 6 caracteres. Evite sequências e sua data de nascimento.">
+        <Field
+          label={tr('Senha', 'Palavra-passe')}
+          hint={tr('Mínimo de 6 caracteres. Evite sequências e sua data de nascimento.', 'Mínimo de 6 caracteres. Evite sequências e a sua data de nascimento.')}
+        >
           <Input type="password" value={form.password} onChange={set('password')} autoComplete="new-password" required minLength={6} />
         </Field>
-        <Field label="Data de nascimento (opcional)" hint="Informe apenas se quiser receber promoções de aniversário.">
+        <Field
+          label="Data de nascimento (opcional)"
+          hint={tr('Informe apenas se quiser receber promoções de aniversário.', 'Indique apenas se quiser receber promoções de aniversário.')}
+        >
           <Input type="date" value={form.birthDate} onChange={set('birthDate')} max={new Date().toISOString().slice(0, 10)} />
         </Field>
         <label className="flex items-start gap-3 text-sm text-stone-700">
@@ -90,13 +116,16 @@ function SignupPage() {
           <span>
             Li e aceito os{' '}
             <Link href="/termos" target="_blank" className="font-medium text-accent-600 underline">
-              Termos de Uso
+              {tr('Termos de Uso', 'Termos de Utilização')}
             </Link>{' '}
             e a{' '}
             <Link href="/privacidade" target="_blank" className="font-medium text-accent-600 underline">
               Política de Privacidade
             </Link>
-            . Cada estabelecimento onde eu consumir verá meu nome e meu histórico de consumo nele.
+            {tr(
+              '. Cada estabelecimento onde eu consumir verá meu nome e meu histórico de consumo nele.',
+              '. Cada estabelecimento onde eu consumir verá o meu nome e o meu histórico de consumo nele.',
+            )}
           </span>
         </label>
         {error && (
@@ -108,7 +137,7 @@ function SignupPage() {
                   Entrar
                 </Link>
                 <Link href="/esqueci-senha" className="underline">
-                  Esqueci minha senha
+                  {tr('Esqueci minha senha', 'Esqueci-me da palavra-passe')}
                 </Link>
               </span>
             )}
@@ -126,11 +155,21 @@ function SignupPage() {
         </Link>
       </p>
 
-      <Modal open={confirming} onClose={() => setConfirming(false)} title="Confira seus dados">
+      <Modal open={confirming} onClose={() => setConfirming(false)} title={tr('Confira seus dados', 'Verifique os seus dados')}>
         <p className="text-stone-700">
-          Seu WhatsApp é <strong className="whitespace-nowrap">{form.phone}</strong> e seu e-mail é <strong className="break-all">{form.email}</strong>?
+          {tr(
+            <>
+              Seu WhatsApp é <strong className="whitespace-nowrap">{form.phone}</strong> e seu e-mail é <strong className="break-all">{form.email}</strong>?
+            </>,
+            <>
+              O seu telemóvel é o <strong className="whitespace-nowrap">{form.phone}</strong> e o seu e-mail é{' '}
+              <strong className="break-all">{form.email}</strong>?
+            </>,
+          )}
         </p>
-        <p className="mt-2 text-sm text-stone-500">Um erro de digitação impede a recuperação da conta.</p>
+        <p className="mt-2 text-sm text-stone-500">
+          {tr('Um erro de digitação impede a recuperação da conta.', 'Um erro de escrita impede a recuperação da conta.')}
+        </p>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <Button variant="secondary" onClick={() => setConfirming(false)}>
             Corrigir

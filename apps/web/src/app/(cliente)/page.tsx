@@ -8,6 +8,7 @@ import { CardWallet } from '@/components/card-wallet';
 import { Alert, Card, FullPageSpinner, LinkButton } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { MembershipCard } from '@/lib/customer';
+import { tr } from '@/lib/region';
 
 /** Home: cartões do cliente (o layout põe o cabeçalho e o menu) ou a landing, sem login. */
 export default function HomePage() {
@@ -41,14 +42,14 @@ function Cards({ firstName }: { firstName: string }) {
       <div className="flex items-end justify-between pt-2">
         <div>
           <p className="text-stone-500">Olá, {firstName}!</p>
-          <h1 className="text-2xl font-bold">Seus cartões</h1>
+          <h1 className="text-2xl font-bold">{tr('Seus cartões', 'Os seus cartões')}</h1>
         </div>
         <div className="flex gap-2">
           <LinkButton href="/ler" variant="secondary" className="h-10 text-sm">
             Ler QR
           </LinkButton>
           <LinkButton href="/qr" variant="dark" className="h-10 text-sm">
-            Meu QR
+            {tr('Meu QR', 'O meu QR')}
           </LinkButton>
         </div>
       </div>
@@ -61,9 +62,12 @@ function Cards({ firstName }: { firstName: string }) {
               <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
             </svg>
           </div>
-          <h2 className="font-semibold">Nenhum cartão ainda</h2>
+          <h2 className="font-semibold">{tr('Nenhum cartão ainda', 'Ainda sem cartões')}</h2>
           <p className="mt-1 text-sm text-stone-600">
-            No próximo restaurante participante, mostre seu QR no caixa ou escaneie o QR do balcão para começar a acumular.
+            {tr(
+              'No próximo restaurante participante, mostre seu QR no caixa ou escaneie o QR do balcão para começar a acumular.',
+              'No próximo restaurante aderente, mostre o seu QR na caixa ou leia o QR do balcão para começar a acumular.',
+            )}
           </p>
         </Card>
       )}

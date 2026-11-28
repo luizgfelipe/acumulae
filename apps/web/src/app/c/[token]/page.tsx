@@ -13,6 +13,7 @@ import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
 import { useMe } from '@/lib/customer';
 import { formatMoney, plural } from '@/lib/format';
+import { tr } from '@/lib/region';
 
 interface TokenInfo {
   status: 'PENDING' | 'USED' | 'CANCELLED' | 'EXPIRED';
@@ -111,22 +112,40 @@ export default function CheckoutClaimPage() {
           </div>
           <div>
             <h1 className="text-3xl font-extrabold">
-              {result.stamps > 0 ? `+${plural(result.stamps, c.unitLabel, c.unitLabelPlural)}` : 'Compra registrada!'}
+              {result.stamps > 0 ? `+${plural(result.stamps, c.unitLabel, c.unitLabelPlural)}` : tr('Compra registrada!', 'Compra registada!')}
             </h1>
             <p className="mt-1 text-lg text-stone-600">
               {result.amountCents != null && <>Compra de {formatMoney(result.amountCents)} </>}
-              no {result.tenantName}. Você tem <strong>{cardDisplay(c).shown}/{c.goal}</strong>.
+              {tr(
+                <>
+                  no {result.tenantName}. Você tem <strong>{cardDisplay(c).shown}/{c.goal}</strong>.
+                </>,
+                <>
+                  no {result.tenantName}. Tem <strong>{cardDisplay(c).shown}/{c.goal}</strong>.
+                </>,
+              )}
             </p>
             {leftoverLabel(c) && <p className="mt-1 text-sm text-stone-500">{leftoverLabel(c)}</p>}
           </div>
           {result.rewardsUnlocked > 0 && (
             <Alert kind="success">
-              🎉 Você ganhou <strong>{c.rewardDescription}</strong>! Para resgatar, mostre seu QR ou informe seu telefone no caixa.
+              {tr(
+                <>
+                  🎉 Você ganhou <strong>{c.rewardDescription}</strong>! Para resgatar, mostre seu QR ou informe seu telefone no caixa.
+                </>,
+                <>
+                  🎉 Ganhou <strong>{c.rewardDescription}</strong>! Para resgatar, mostre o seu QR ou indique o seu telemóvel na caixa.
+                </>,
+              )}
             </Alert>
           )}
           {result.rewardsUnlocked === 0 && c.rewardsAvailable > 0 && (
             <Alert kind="info">
-              🎁 {rewardsLabel(c.rewardsAvailable)}: {c.rewardDescription}. Para resgatar, mostre seu QR ou informe seu telefone no caixa.
+              🎁 {rewardsLabel(c.rewardsAvailable)}: {c.rewardDescription}.{' '}
+              {tr(
+                'Para resgatar, mostre seu QR ou informe seu telefone no caixa.',
+                'Para resgatar, mostre o seu QR ou indique o seu telemóvel na caixa.',
+              )}
             </Alert>
           )}
           <StampGrid
@@ -140,7 +159,7 @@ export default function CheckoutClaimPage() {
             complete={cardDisplay(c).complete}
           />
           <LinkButton href={`/cartao/${c.membershipId}`} className="h-13 w-full text-lg">
-            Ver meu cartão
+            {tr('Ver meu cartão', 'Ver o meu cartão')}
           </LinkButton>
         </div>
         {/* A cada selo ganho, enquanto o app não estiver instalado. */}
@@ -155,14 +174,14 @@ export default function CheckoutClaimPage() {
       (info?.status === 'USED'
         ? 'Este código já foi usado.'
         : info?.status === 'CANCELLED'
-          ? 'Este código foi cancelado. Peça um novo ao atendente.'
-          : 'Este código expirou, peça um novo ao atendente.');
+          ? tr('Este código foi cancelado. Peça um novo ao atendente.', 'Este código foi cancelado. Peça um novo ao operador de caixa.')
+          : tr('Este código expirou, peça um novo ao atendente.', 'Este código expirou. Peça um novo ao operador de caixa.'));
     return (
       <PublicShell>
         {header}
         <Alert kind="warning">{msg}</Alert>
         <Link href="/" className="mt-6 block text-center font-semibold text-accent-600">
-          Ir para meus cartões
+          {tr('Ir para meus cartões', 'Ir para os meus cartões')}
         </Link>
       </PublicShell>
     );
@@ -178,12 +197,22 @@ export default function CheckoutClaimPage() {
       {header}
       <h1 className="text-2xl font-bold">
         {info!.amountCents != null
-          ? `Sua compra de ${formatMoney(info!.amountCents)} vale ${p?.unitLabelPlural ?? 'selos'}!`
-          : `Você ganhou ${p ? plural(info!.quantity, p.unitLabel, p.unitLabelPlural) : info!.quantity}!`}
+          ? tr(
+              `Sua compra de ${formatMoney(info!.amountCents)} vale ${p?.unitLabelPlural ?? 'selos'}!`,
+              `A sua compra de ${formatMoney(info!.amountCents)} vale ${p?.unitLabelPlural ?? 'carimbos'}!`,
+            )
+          : tr(
+              `Você ganhou ${p ? plural(info!.quantity, p.unitLabel, p.unitLabelPlural) : info!.quantity}!`,
+              `Ganhou ${p ? plural(info!.quantity, p.unitLabel, p.unitLabelPlural) : info!.quantity}!`,
+            )}
       </h1>
       <p className="mt-2 text-stone-600">
-        Entre ou crie sua conta grátis para guardar no seu cartão fidelidade
-        {p?.kind === 'VALOR' && p.stampValueCents ? ` (cada ${formatMoney(p.stampValueCents)} em compras vale 1 ${p.unitLabel}; a cada ${p.goal}, ganhe ${p.rewardDescription})` : p ? ` (a cada ${p.goal}, ganhe ${p.rewardDescription})` : ''}. O código vale por alguns minutos.
+        {tr(
+          'Entre ou crie sua conta grátis para guardar no seu cartão fidelidade',
+          'Entre ou crie a sua conta grátis para guardar no seu cartão de fidelização',
+        )}
+        {p?.kind === 'VALOR' && p.stampValueCents ? ` (cada ${formatMoney(p.stampValueCents)} em compras vale 1 ${p.unitLabel}; a cada ${p.goal}, ganhe ${p.rewardDescription})` : p ? ` (a cada ${p.goal}, ganhe ${p.rewardDescription})` : ''}.{' '}
+        {tr('O código vale por alguns minutos.', 'O código é válido durante alguns minutos.')}
       </p>
       <div className="mt-6 space-y-3">
         <LinkButton href={`/cadastro?next=${back}`} className="h-13 w-full text-lg">

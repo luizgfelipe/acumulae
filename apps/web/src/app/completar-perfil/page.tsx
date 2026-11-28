@@ -9,6 +9,7 @@ import { Alert, Button, Field, FullPageSpinner, Input, Modal } from '@/component
 import { api, errorMessage } from '@/lib/api';
 import { safeNext, useMe } from '@/lib/customer';
 import { maskPhoneInput } from '@/lib/format';
+import { tr } from '@/lib/region';
 
 export default function Page() {
   return (
@@ -40,8 +41,15 @@ function CompleteProfile() {
   function review(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (phone.replace(/\D/g, '').length < 10) return setError('Informe o telefone com DDD.');
-    if (!terms) return setError('Para continuar, aceite os Termos de Uso e a Política de Privacidade.');
+    // PT: 9 dígitos (912 345 678); BR: DDD + número.
+    if (phone.replace(/\D/g, '').length < tr(10, 9)) return setError(tr('Informe o telefone com DDD.', 'Indique o número de telemóvel completo.'));
+    if (!terms)
+      return setError(
+        tr(
+          'Para continuar, aceite os Termos de Uso e a Política de Privacidade.',
+          'Para continuar, aceite os Termos de Utilização e a Política de Privacidade.',
+        ),
+      );
     setConfirming(true);
   }
 
@@ -62,18 +70,32 @@ function CompleteProfile() {
   return (
     <PublicShell>
       <h1 className="mb-1 text-2xl font-bold">Falta pouco, {me.name.split(' ')[0]}!</h1>
-      <p className="mb-6 text-stone-600">Precisamos do seu WhatsApp para o atendente encontrar você no caixa.</p>
+      <p className="mb-6 text-stone-600">
+        {tr(
+          'Precisamos do seu WhatsApp para o atendente encontrar você no caixa.',
+          'Precisamos do seu telemóvel para o operador de caixa o encontrar.',
+        )}
+      </p>
       <form onSubmit={review} className="space-y-4">
-        <Field label="Telefone (WhatsApp)">
-          <Input value={phone} onChange={(e) => setPhone(maskPhoneInput(e.target.value))} inputMode="tel" placeholder="(47) 9 9999-9999" required />
+        <Field label={tr('Telefone (WhatsApp)', 'Telemóvel')}>
+          <Input
+            value={phone}
+            onChange={(e) => setPhone(maskPhoneInput(e.target.value))}
+            inputMode="tel"
+            placeholder={tr('(47) 9 9999-9999', '912 345 678')}
+            required
+          />
         </Field>
-        <Field label="Data de nascimento (opcional)" hint="Informe apenas se quiser receber promoções de aniversário.">
+        <Field
+          label="Data de nascimento (opcional)"
+          hint={tr('Informe apenas se quiser receber promoções de aniversário.', 'Indique apenas se quiser receber promoções de aniversário.')}
+        >
           <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
         </Field>
         <label className="flex items-start gap-3 text-sm text-stone-700">
           <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} className="mt-0.5 h-5 w-5 accent-brand-600" />
           <span>
-            Li e aceito os <Link href="/termos" target="_blank" className="font-medium text-accent-600 underline">Termos de Uso</Link> e a{' '}
+            Li e aceito os <Link href="/termos" target="_blank" className="font-medium text-accent-600 underline">{tr('Termos de Uso', 'Termos de Utilização')}</Link> e a{' '}
             <Link href="/privacidade" target="_blank" className="font-medium text-accent-600 underline">Política de Privacidade</Link>.
           </span>
         </label>
@@ -82,9 +104,16 @@ function CompleteProfile() {
           Continuar
         </Button>
       </form>
-      <Modal open={confirming} onClose={() => setConfirming(false)} title="Confira seus dados">
+      <Modal open={confirming} onClose={() => setConfirming(false)} title={tr('Confira seus dados', 'Verifique os seus dados')}>
         <p className="text-stone-700">
-          Seu WhatsApp é <strong>{phone}</strong> e seu e-mail é <strong className="break-all">{me.email ?? '—'}</strong>?
+          {tr(
+            <>
+              Seu WhatsApp é <strong>{phone}</strong> e seu e-mail é <strong className="break-all">{me.email ?? '—'}</strong>?
+            </>,
+            <>
+              O seu telemóvel é o <strong>{phone}</strong> e o seu e-mail é <strong className="break-all">{me.email ?? '—'}</strong>?
+            </>,
+          )}
         </p>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <Button variant="secondary" onClick={() => setConfirming(false)}>

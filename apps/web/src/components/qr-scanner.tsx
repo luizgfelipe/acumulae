@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { tr } from '@/lib/region';
 import { Alert } from './ui';
 
 /**
@@ -46,10 +47,10 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
           const msg = String((e as Error)?.message ?? e);
           setError(
             /permission|NotAllowed/i.test(msg)
-              ? 'Permita o acesso à câmera no navegador para ler o QR.'
+              ? tr('Permita o acesso à câmera no navegador para ler o QR.', 'Permita o acesso à câmara no navegador para ler o QR.')
               : window.isSecureContext
-                ? 'Não foi possível abrir a câmera deste aparelho.'
-                : 'A câmera só funciona com HTTPS.',
+                ? tr('Não foi possível abrir a câmera deste aparelho.', 'Não foi possível abrir a câmara deste dispositivo.')
+                : tr('A câmera só funciona com HTTPS.', 'A câmara só funciona com HTTPS.'),
           );
         }
       }

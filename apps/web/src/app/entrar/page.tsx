@@ -8,6 +8,7 @@ import { SocialButtons } from '@/components/social-buttons';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { safeNext } from '@/lib/customer';
+import { tr } from '@/lib/region';
 
 export default function Page() {
   return (
@@ -43,21 +44,26 @@ function LoginPage() {
   return (
     <PublicShell>
       <h1 className="mb-1 text-2xl font-bold">Entrar</h1>
-      <p className="mb-6 text-stone-600">Acesse seus cartões fidelidade.</p>
+      <p className="mb-6 text-stone-600">{tr('Acesse seus cartões fidelidade.', 'Aceda aos seus cartões de fidelização.')}</p>
 
       {linking && (
         <div className="mb-4">
-          <Alert kind="info">Já existe uma conta com este e-mail. Entre com sua senha para vincular o login social a ela.</Alert>
+          <Alert kind="info">
+            {tr(
+              'Já existe uma conta com este e-mail. Entre com sua senha para vincular o login social a ela.',
+              'Já existe uma conta com este e-mail. Entre com a sua palavra-passe para lhe associar o início de sessão social.',
+            )}
+          </Alert>
         </div>
       )}
 
       {!linking && <SocialButtons next={next} />}
 
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Telefone (WhatsApp) ou e-mail">
+        <Field label={tr('Telefone (WhatsApp) ou e-mail', 'Telemóvel ou e-mail')}>
           <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} autoComplete="username" inputMode="email" required />
         </Field>
-        <Field label="Senha">
+        <Field label={tr('Senha', 'Palavra-passe')}>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
         </Field>
         {error && <Alert>{error}</Alert>}
@@ -68,12 +74,12 @@ function LoginPage() {
 
       <div className="mt-6 space-y-2 text-center text-sm">
         <Link href="/esqueci-senha" className="block font-medium text-accent-600">
-          Esqueci minha senha
+          {tr('Esqueci minha senha', 'Esqueci-me da palavra-passe')}
         </Link>
         <p className="text-stone-600">
           Não tem conta?{' '}
           <Link href={`/cadastro?next=${encodeURIComponent(next)}`} className="font-semibold text-accent-600">
-            Cadastre-se
+            {tr('Cadastre-se', 'Registe-se')}
           </Link>
         </p>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { LOCALE } from '@/lib/region';
+import { LOCALE, tr } from '@/lib/region';
 import { ChevronRight, Gift, Layers, List, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -87,13 +87,13 @@ export function CardWallet({ cards }: { cards: MembershipCard[] }) {
         <div className="space-y-3">
           {cards.length >= SEARCH_FROM && (
             <label className="relative block">
-              <span className="sr-only">Buscar cartão</span>
+              <span className="sr-only">{tr('Buscar cartão', 'Pesquisar cartão')}</span>
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar por estabelecimento ou recompensa"
+                placeholder={tr('Buscar por estabelecimento ou recompensa', 'Pesquisar por estabelecimento ou recompensa')}
                 className="h-11 w-full rounded-xl border border-stone-300 bg-white pr-3 pl-9 text-base outline-none placeholder:text-stone-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </label>
@@ -124,7 +124,9 @@ export function CardWallet({ cards }: { cards: MembershipCard[] }) {
       )}
 
       {q && visible.length === 0 && visibleInactive.length === 0 && (
-        <p className="py-6 text-center text-sm text-stone-500">Nenhum cartão encontrado para “{query.trim()}”.</p>
+        <p className="py-6 text-center text-sm text-stone-500">
+          {tr(<>Nenhum cartão encontrado para “{query.trim()}”.</>, <>Nenhum cartão encontrado para «{query.trim()}».</>)}
+        </p>
       )}
 
       {view === 'stack' && visible.length > 1 ? (
@@ -141,7 +143,7 @@ export function CardWallet({ cards }: { cards: MembershipCard[] }) {
         <details className="group pt-2" open={active.length === 0 || undefined}>
           <summary className="flex list-none items-center gap-1 rounded-lg py-1 text-sm font-semibold text-stone-600 [&::-webkit-details-marker]:hidden">
             <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden />
-            Pausados e encerrados ({visibleInactive.length})
+            {tr('Pausados e encerrados', 'Em pausa e encerrados')} ({visibleInactive.length})
           </summary>
           <div className="mt-3 space-y-4 opacity-75">
             {visibleInactive.map((c) => (
@@ -187,7 +189,7 @@ function RewardsHighlight({ cards }: { cards: MembershipCard[] }) {
       </button>
 
       <Modal open={open} onClose={close} title={rewardsLabel(total)}>
-        <p className="-mt-2 text-sm text-stone-600">Mostre seu QR no caixa para resgatar.</p>
+        <p className="-mt-2 text-sm text-stone-600">{tr('Mostre seu QR no caixa para resgatar.', 'Mostre o seu QR na caixa para resgatar.')}</p>
         <ul className="mt-3 divide-y divide-stone-200">
           {cards.map((c) => (
             <li key={c.membershipId}>
@@ -211,7 +213,7 @@ function RewardsHighlight({ cards }: { cards: MembershipCard[] }) {
               router.push('/qr');
             }}
           >
-            Mostrar meu QR
+            {tr('Mostrar meu QR', 'Mostrar o meu QR')}
           </Button>
           <Button variant="ghost" onClick={close} className="h-11">
             Agora não
@@ -383,7 +385,7 @@ function CardBody({ card: c }: { card: MembershipCard }) {
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         {complete ? (
           <span className="font-semibold" style={{ color: th.accent }}>
-            🎉 Cartão completo! Resgate no caixa
+            {tr('🎉 Cartão completo! Resgate no caixa', '🎉 Cartão completo! Resgate na caixa')}
           </span>
         ) : (
           <span className="text-stone-600">{missing === 0 ? 'Meta atingida!' : `${missing === 1 ? 'Falta' : 'Faltam'} ${plural(missing, c.unitLabel, c.unitLabelPlural)}`}</span>
@@ -392,7 +394,7 @@ function CardBody({ card: c }: { card: MembershipCard }) {
           {isAlmostThere(c) && isCardActive(c) && <Badge color="brand">Quase lá!</Badge>}
           {c.rewardsAvailable > 0 && !complete && <Badge color="green">{rewardsLabel(c.rewardsAvailable)}</Badge>}
           {complete && c.rewardsAvailable > 1 && <Badge color="green">{c.rewardsAvailable} recompensas</Badge>}
-          {!c.tenant.active && <Badge color="amber">Pausado</Badge>}
+          {!c.tenant.active && <Badge color="amber">{tr('Pausado', 'Em pausa')}</Badge>}
           {c.tenant.active && !c.programActive && <Badge color="stone">Encerrado</Badge>}
         </span>
       </div>

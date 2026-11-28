@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { QrScanner } from '@/components/qr-scanner';
 import { Alert, Spinner } from '@/components/ui';
+import { tr } from '@/lib/region';
 
 /**
  * Converte o texto lido num caminho interno do app, se for um QR de estabelecimento:
@@ -38,7 +39,7 @@ export default function ReadQrPage() {
     }
     setError(
       text.trim().startsWith('AC1.')
-        ? 'Esse é o QR pessoal de um cliente. Aponte para o QR do estabelecimento.'
+        ? tr('Esse é o QR pessoal de um cliente. Aponte para o QR do estabelecimento.', 'Este é o QR pessoal de um cliente. Aponte para o QR do estabelecimento.')
         : 'Este QR não é de um estabelecimento do Acumulaê.',
     );
     setAttempt((a) => a + 1); // reinicia o leitor
@@ -48,7 +49,7 @@ export default function ReadQrPage() {
     <div className="mx-auto flex w-full max-w-sm flex-col gap-4 pt-4">
       <div className="text-center">
         <p className="text-2xl font-bold">Ler QR Code</p>
-        <p className="text-stone-500">Aponte para o QR do balcão ou o que o caixa mostrar na tela</p>
+        <p className="text-stone-500">{tr('Aponte para o QR do balcão ou o que o caixa mostrar na tela', 'Aponte para o QR do balcão ou para o que a caixa mostrar no ecrã')}</p>
       </div>
       {going ? (
         <div className="grid aspect-square w-full place-items-center rounded-2xl bg-stone-200 text-brand-600">

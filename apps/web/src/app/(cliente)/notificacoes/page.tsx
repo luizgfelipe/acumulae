@@ -7,6 +7,7 @@ import { Alert, Button, Card, FullPageSpinner, TenantAvatar, cx } from '@/compon
 import { api, errorMessage } from '@/lib/api';
 import { AppNotification, NotificationKind, NotificationPage, timeAgo } from '@/lib/notifications';
 import { usePush } from '@/lib/push';
+import { tr } from '@/lib/region';
 
 const KIND_ICON: Record<NotificationKind, { path: ReactNode; className: string }> = {
   CREDITO: { path: <path d="M12 5v14M5 12h14" />, className: 'bg-brand-100 text-brand-700' },
@@ -92,10 +93,18 @@ export default function NotificationsPage() {
               <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" />
             </svg>
           </div>
-          <h2 className="font-semibold">Nada por aqui ainda</h2>
+          <h2 className="font-semibold">{tr('Nada por aqui ainda', 'Ainda nada por aqui')}</h2>
           <p className="mt-1 text-sm text-stone-600">
-            Quando você ganhar selos, liberar ou resgatar uma recompensa, avisamos aqui. Os estabelecimentos que você autorizar também podem mandar
-            novidades.
+            {tr(
+              <>
+                Quando você ganhar selos, liberar ou resgatar uma recompensa, avisamos aqui. Os estabelecimentos que você autorizar também podem mandar
+                novidades.
+              </>,
+              <>
+                Quando ganhar carimbos, desbloquear ou resgatar uma recompensa, avisamos aqui. Os estabelecimentos que autorizar também podem enviar
+                novidades.
+              </>,
+            )}
           </p>
         </Card>
       ) : (
@@ -197,10 +206,15 @@ function PushInvite() {
           <path d="M6 6l12 12M18 6 6 18" />
         </svg>
       </button>
-      <h2 className="pr-8 font-semibold">Receba no celular</h2>
+      <h2 className="pr-8 font-semibold">{tr('Receba no celular', 'Receba no telemóvel')}</h2>
       {state === 'off' ? (
         <>
-          <p className="mt-1 text-sm text-stone-600">Saiba na hora quando ganhar selos ou liberar uma recompensa e receba novidades e promoções dos seus estabelecimentos favoritos, mesmo com o app fechado.</p>
+          <p className="mt-1 text-sm text-stone-600">
+            {tr(
+              'Saiba na hora quando ganhar selos ou liberar uma recompensa e receba novidades e promoções dos seus estabelecimentos favoritos, mesmo com o app fechado.',
+              'Saiba na hora quando ganhar carimbos ou desbloquear uma recompensa e receba novidades e promoções dos seus estabelecimentos favoritos, mesmo com a app fechada.',
+            )}
+          </p>
           {error && (
             <div className="mt-3">
               <Alert>{error}</Alert>
@@ -212,7 +226,10 @@ function PushInvite() {
         </>
       ) : (
         <p className="mt-1 text-sm text-stone-600">
-          No iPhone, adicione o Acumulaê à Tela de Início (Compartilhar → Adicionar à Tela de Início) e abra por lá para receber as notificações.
+          {tr(
+            'No iPhone, adicione o Acumulaê à Tela de Início (Compartilhar → Adicionar à Tela de Início) e abra por lá para receber as notificações.',
+            'No iPhone, adicione o Acumulaê ao ecrã principal (Partilhar → Adicionar ao ecrã principal) e abra-o a partir daí para receber as notificações.',
+          )}
         </p>
       )}
     </Card>

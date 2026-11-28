@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLoggedCustomer } from '@/components/customer-context';
 import { Alert, Spinner } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { tr } from '@/lib/region';
 
 interface QrPayload {
   payload: string;
@@ -62,7 +63,7 @@ export default function MyQrPage() {
     <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 pt-4">
       <div className="text-center">
         <p className="text-2xl font-bold">{me.name}</p>
-        <p className="text-stone-500">Mostre este código no caixa</p>
+        <p className="text-stone-500">{tr('Mostre este código no caixa', 'Mostre este código na caixa')}</p>
       </div>
       <div className="rounded-3xl border-4 border-stone-900 bg-white p-5">
         {qr ? (
@@ -82,7 +83,9 @@ export default function MyQrPage() {
         </div>
       )}
       {error && <Alert>{error}</Alert>}
-      <p className="text-center text-sm text-stone-500">Dica: aumente o brilho da tela para facilitar a leitura.</p>
+      <p className="text-center text-sm text-stone-500">
+        {tr('Dica: aumente o brilho da tela para facilitar a leitura.', 'Dica: aumente o brilho do ecrã para facilitar a leitura.')}
+      </p>
     </div>
   );
 }

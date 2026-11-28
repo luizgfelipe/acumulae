@@ -8,6 +8,7 @@ import { api, errorMessage } from '@/lib/api';
 import { MembershipCard, logout } from '@/lib/customer';
 import { forgetPushDevice, usePush } from '@/lib/push';
 import { formatE164 } from '@/lib/format';
+import { tr } from '@/lib/region';
 
 export default function AccountPage() {
   const { me, reload } = useLoggedCustomer();
@@ -41,7 +42,7 @@ export default function AccountPage() {
     try {
       await api('/api/me', { method: 'PATCH', body: { name: name.trim(), birthDate: birthDate || null } });
       await reload();
-      setMsg({ kind: 'success', text: 'Dados salvos.' });
+      setMsg({ kind: 'success', text: tr('Dados salvos.', 'Dados guardados.') });
     } catch (err) {
       setMsg({ kind: 'error', text: errorMessage(err) });
     } finally {
@@ -102,7 +103,13 @@ export default function AccountPage() {
               <Field label="Nome">
                 <Input value={name} onChange={(e) => edit(() => setName(e.target.value))} required minLength={2} maxLength={120} autoComplete="name" />
               </Field>
-              <Field label="Data de nascimento" hint="Opcional. Serve para os estabelecimentos lembrarem do seu aniversário.">
+              <Field
+                label="Data de nascimento"
+                hint={tr(
+                  'Opcional. Serve para os estabelecimentos lembrarem do seu aniversário.',
+                  'Opcional. Serve para os estabelecimentos se lembrarem do seu aniversário.',
+                )}
+              >
                 <Input
                   type="date"
                   value={birthDate}
@@ -118,16 +125,18 @@ export default function AccountPage() {
                   </Button>
                 )}
                 <Button type="submit" loading={saving} disabled={!canSave} className="flex-1">
-                  {dirty ? 'Salvar alterações' : 'Salvo'}
+                  {dirty ? tr('Salvar alterações', 'Guardar alterações') : tr('Salvo', 'Guardado')}
                 </Button>
               </div>
             </form>
 
             <dl className="mt-5 divide-y divide-stone-100 border-t border-stone-100 text-sm">
-              <InfoRow label="Telefone (WhatsApp)" value={formatE164(me.phone) || '—'} />
+              <InfoRow label={tr('Telefone (WhatsApp)', 'Telemóvel')} value={formatE164(me.phone) || '—'} />
               <InfoRow label="E-mail" value={me.email ?? '—'} />
             </dl>
-            <p className="mt-2 text-xs text-stone-500">Para trocar o telefone ou o e-mail, fale com o suporte.</p>
+            <p className="mt-2 text-xs text-stone-500">
+              {tr('Para trocar o telefone ou o e-mail, fale com o suporte.', 'Para mudar o telemóvel ou o e-mail, contacte o suporte.')}
+            </p>
           </Card>
         </Section>
 
@@ -135,18 +144,25 @@ export default function AccountPage() {
 
         <Section
           title="Promoções"
-          hint="Quem você autorizar pode ver seu telefone, e-mail e aniversário e mandar ofertas. Estabelecimentos novos perguntam quando você ganhar o primeiro cartão."
+          hint={tr(
+            'Quem você autorizar pode ver seu telefone, e-mail e aniversário e mandar ofertas. Estabelecimentos novos perguntam quando você ganhar o primeiro cartão.',
+            'Quem autorizar pode ver o seu telemóvel, e-mail e aniversário e enviar ofertas. Os novos estabelecimentos perguntam quando ganhar o primeiro cartão.',
+          )}
         >
           <Card className="p-0">
             {cards.length === 0 ? (
-              <p className="p-5 text-sm text-stone-500">Você ainda não participa de nenhum programa.</p>
+              <p className="p-5 text-sm text-stone-500">{tr('Você ainda não participa de nenhum programa.', 'Ainda não participa em nenhum programa.')}</p>
             ) : (
               <ul className="divide-y divide-stone-100">
                 <li className="flex items-center gap-3 rounded-t-2xl bg-stone-50 px-5 py-3.5">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">Todos os estabelecimentos</p>
                     <p className="text-xs text-stone-500">
-                      {allOn ? 'Recebendo de todos' : someOn ? 'Recebendo de alguns: ajuste abaixo' : 'Não recebendo de nenhum'}
+                      {allOn
+                        ? tr('Recebendo de todos', 'A receber de todos')
+                        : someOn
+                          ? tr('Recebendo de alguns: ajuste abaixo', 'A receber de alguns: ajuste em baixo')
+                          : tr('Não recebendo de nenhum', 'Sem receber de nenhum')}
                     </p>
                   </div>
                   <Switch checked={allOn} onChange={toggleAll} label="Receber promoções de todos os estabelecimentos" />
@@ -170,7 +186,7 @@ export default function AccountPage() {
         <Section title="Acesso">
           <Card className="p-0">
             <ActionRow onClick={() => setPwOpen(true)} icon={<KeyRound className="h-5 w-5" aria-hidden />}>
-              {me.hasPassword ? 'Trocar senha' : 'Criar senha'}
+              {me.hasPassword ? tr('Trocar senha', 'Alterar palavra-passe') : tr('Criar senha', 'Criar palavra-passe')}
             </ActionRow>
           </Card>
         </Section>
@@ -248,11 +264,14 @@ function DangerZone({ onDelete }: { onDelete: () => void }) {
       </summary>
       <div className="space-y-3 px-5 pb-5">
         <p className="text-sm text-red-900/80">
-          Excluir a conta apaga seus dados pessoais, cartões e recompensas de todos os estabelecimentos. Não dá para desfazer.
+          {tr(
+            'Excluir a conta apaga seus dados pessoais, cartões e recompensas de todos os estabelecimentos. Não dá para desfazer.',
+            'Eliminar a conta apaga os seus dados pessoais, cartões e recompensas de todos os estabelecimentos. Não é possível anular.',
+          )}
         </p>
         <Button variant="danger" className="w-full" onClick={onDelete}>
           <Trash2 className="h-4.5 w-4.5" aria-hidden />
-          Excluir minha conta
+          {tr('Excluir minha conta', 'Eliminar a minha conta')}
         </Button>
       </div>
     </details>
@@ -282,13 +301,19 @@ function PasswordModal({ open, onClose, hasPassword, onDone }: { open: boolean; 
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={hasPassword ? 'Trocar senha' : 'Criar senha'}>
+    <Modal open={open} onClose={onClose} title={hasPassword ? tr('Trocar senha', 'Alterar palavra-passe') : tr('Criar senha', 'Criar palavra-passe')}>
       {ok ? (
         <div className="space-y-4">
           <Alert kind="success">
             {hasPassword
-              ? 'Senha alterada. As sessões em outros aparelhos foram encerradas.'
-              : 'Senha criada. Agora você também pode entrar com seu telefone ou e-mail e essa senha.'}
+              ? tr(
+                  'Senha alterada. As sessões em outros aparelhos foram encerradas.',
+                  'Palavra-passe alterada. As sessões noutros dispositivos foram terminadas.',
+                )
+              : tr(
+                  'Senha criada. Agora você também pode entrar com seu telefone ou e-mail e essa senha.',
+                  'Palavra-passe criada. Agora também pode entrar com o seu telemóvel ou e-mail e essa palavra-passe.',
+                )}
           </Alert>
           <Button className="w-full" onClick={onClose}>
             Fechar
@@ -299,32 +324,46 @@ function PasswordModal({ open, onClose, hasPassword, onDone }: { open: boolean; 
           {!hasPassword && (
             <div className="space-y-2 text-sm text-stone-600">
               <p>
-                Você já entra com sua conta Google ou Apple e <strong>não precisa de senha</strong>. Criar uma é opcional.
+                {tr(
+                  <>
+                    Você já entra com sua conta Google ou Apple e <strong>não precisa de senha</strong>. Criar uma é opcional.
+                  </>,
+                  <>
+                    Já entra com a sua conta Google ou Apple e <strong>não precisa de palavra-passe</strong>. Criar uma é opcional.
+                  </>,
+                )}
               </p>
-              <p>Com uma senha, você também pode entrar usando seu telefone ou e-mail. Isso ajuda quando:</p>
+              <p>
+                {tr(
+                  'Com uma senha, você também pode entrar usando seu telefone ou e-mail. Isso ajuda quando:',
+                  'Com uma palavra-passe, também pode entrar com o seu telemóvel ou e-mail. Isto ajuda quando:',
+                )}
+              </p>
               <ul className="list-disc space-y-1 pl-5">
-                <li>você perder o acesso à sua conta Google ou Apple;</li>
-                <li>estiver em um aparelho onde ela não está conectada.</li>
+                <li>{tr('você perder o acesso à sua conta Google ou Apple;', 'perder o acesso à sua conta Google ou Apple;')}</li>
+                <li>{tr('estiver em um aparelho onde ela não está conectada.', 'estiver num dispositivo onde ela não tem sessão iniciada.')}</li>
               </ul>
             </div>
           )}
           {hasPassword && (
-            <Field label="Senha atual">
+            <Field label={tr('Senha atual', 'Palavra-passe atual')}>
               <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" required />
             </Field>
           )}
-          <Field label="Nova senha" hint="Mínimo de 6 caracteres.">
+          <Field label={tr('Nova senha', 'Nova palavra-passe')} hint="Mínimo de 6 caracteres.">
             <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" required />
           </Field>
           {error && <Alert>{error}</Alert>}
           <Button type="submit" loading={loading} className="w-full">
-            Salvar
+            {tr('Salvar', 'Guardar')}
           </Button>
         </form>
       )}
     </Modal>
   );
 }
+
+const CONFIRM_WORD = tr('EXCLUIR', 'ELIMINAR');
 
 function DeleteModal({ open, onClose, hasPassword, onDone }: { open: boolean; onClose: () => void; hasPassword: boolean; onDone: () => void }) {
   const [password, setPassword] = useState('');
@@ -347,23 +386,31 @@ function DeleteModal({ open, onClose, hasPassword, onDone }: { open: boolean; on
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Excluir minha conta">
+    <Modal open={open} onClose={onClose} title={tr('Excluir minha conta', 'Eliminar a minha conta')}>
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-stone-700">
-          Seus dados pessoais serão apagados e você perderá todos os cartões e recompensas. Os estabelecimentos mantêm apenas o histórico de
-          movimentações, sem identificar você. Isso não pode ser desfeito.
+          {tr(
+            <>
+              Seus dados pessoais serão apagados e você perderá todos os cartões e recompensas. Os estabelecimentos mantêm apenas o histórico de
+              movimentações, sem identificar você. Isso não pode ser desfeito.
+            </>,
+            <>
+              Os seus dados pessoais serão apagados e perderá todos os cartões e recompensas. Os estabelecimentos mantêm apenas o histórico de
+              movimentos, sem o identificar. Isto não pode ser anulado.
+            </>,
+          )}
         </p>
         {hasPassword && (
-          <Field label="Sua senha">
+          <Field label={tr('Sua senha', 'A sua palavra-passe')}>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </Field>
         )}
-        <Field label='Digite "EXCLUIR" para confirmar'>
+        <Field label={tr('Digite "EXCLUIR" para confirmar', 'Escreva "ELIMINAR" para confirmar')}>
           <Input value={confirm} onChange={(e) => setConfirm(e.target.value.toUpperCase())} required />
         </Field>
         {error && <Alert>{error}</Alert>}
-        <Button type="submit" variant="danger" loading={loading} disabled={confirm !== 'EXCLUIR'} className="w-full">
-          Excluir definitivamente
+        <Button type="submit" variant="danger" loading={loading} disabled={confirm !== CONFIRM_WORD} className="w-full">
+          {tr('Excluir definitivamente', 'Eliminar definitivamente')}
         </Button>
       </form>
     </Modal>
@@ -386,15 +433,23 @@ function PushSection() {
   }
 
   return (
-    <Section title="Notificações no celular" hint="Vale só para este aparelho. Mesmo desligadas, tudo continua aparecendo no sino do app.">
+    <Section
+      title={tr('Notificações no celular', 'Notificações no telemóvel')}
+      hint={tr(
+        'Vale só para este aparelho. Mesmo desligadas, tudo continua aparecendo no sino do app.',
+        'Vale só para este dispositivo. Mesmo desligadas, tudo continua a aparecer no sino da app.',
+      )}
+    >
       <Card>
         {state === 'on' || state === 'off' ? (
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <p className="font-medium">Avisar neste aparelho</p>
-              <p className="text-sm text-stone-500">Selos, recompensas, resgates e novidades dos estabelecimentos.</p>
+              <p className="font-medium">{tr('Avisar neste aparelho', 'Avisar neste dispositivo')}</p>
+              <p className="text-sm text-stone-500">
+                {tr('Selos, recompensas, resgates e novidades dos estabelecimentos.', 'Carimbos, recompensas, resgates e novidades dos estabelecimentos.')}
+              </p>
             </div>
-            <Switch checked={state === 'on'} onChange={(v) => !busy && toggle(v)} label="Receber notificações neste aparelho" />
+            <Switch checked={state === 'on'} onChange={(v) => !busy && toggle(v)} label={tr('Receber notificações neste aparelho', 'Receber notificações neste dispositivo')} />
           </div>
         ) : (
           <p className="text-sm text-stone-600">{PUSH_HELP[state]}</p>
@@ -409,8 +464,15 @@ function PushSection() {
   );
 }
 
-const PUSH_HELP: Record<'unsupported' | 'needs-install' | 'denied', string> = {
-  unsupported: 'Este navegador não recebe notificações. Elas continuam aparecendo no sino do app.',
-  'needs-install': 'No iPhone, adicione o Acumulaê à Tela de Início (Compartilhar → Adicionar à Tela de Início) e abra por lá para ativar.',
-  denied: 'As notificações do Acumulaê estão bloqueadas neste aparelho. Libere nas configurações do navegador (ícone de cadeado ao lado do endereço) ou do celular.',
-};
+const PUSH_HELP: Record<'unsupported' | 'needs-install' | 'denied', string> = tr(
+  {
+    unsupported: 'Este navegador não recebe notificações. Elas continuam aparecendo no sino do app.',
+    'needs-install': 'No iPhone, adicione o Acumulaê à Tela de Início (Compartilhar → Adicionar à Tela de Início) e abra por lá para ativar.',
+    denied: 'As notificações do Acumulaê estão bloqueadas neste aparelho. Libere nas configurações do navegador (ícone de cadeado ao lado do endereço) ou do celular.',
+  },
+  {
+    unsupported: 'Este navegador não recebe notificações. Continuam a aparecer no sino da app.',
+    'needs-install': 'No iPhone, adicione o Acumulaê ao ecrã principal (Partilhar → Adicionar ao ecrã principal) e abra-o a partir daí para ativar.',
+    denied: 'As notificações do Acumulaê estão bloqueadas neste dispositivo. Permita-as nas definições do navegador (ícone do cadeado ao lado do endereço) ou do telemóvel.',
+  },
+);

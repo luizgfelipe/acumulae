@@ -11,6 +11,7 @@ import { cardDisplay, leftoverLabel, rewardsLabel } from '@/lib/card-display';
 import { BrandColors, cardTheme } from '@/lib/card-theme';
 import type { StampStyle } from '@/lib/stamp-icons';
 import { LEDGER_LABELS, formatMoney, formatDate, formatDateTime, formatShortDate, plural } from '@/lib/format';
+import { tr } from '@/lib/region';
 
 interface Detail {
   membershipId: string;
@@ -49,7 +50,7 @@ function BackLink() {
       className="-ml-2 inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-accent-600 transition-colors hover:bg-accent-100"
     >
       <ArrowLeft className="h-4 w-4" aria-hidden />
-      Seus cartões
+      {tr('Seus cartões', 'Os seus cartões')}
     </Link>
   );
 }
@@ -68,7 +69,11 @@ function MembershipPage() {
   async function consent(value: boolean) {
     if (!d) return;
     setD({ ...d, marketingConsent: value });
-    setConsentMsg(value ? `Combinado! O ${d.tenant.name} poderá enviar promoções para você.` : null);
+    setConsentMsg(
+      value
+        ? tr(`Combinado! O ${d.tenant.name} poderá enviar promoções para você.`, `Combinado! O ${d.tenant.name} poderá enviar-lhe promoções.`)
+        : null,
+    );
     try {
       await api(`/api/me/memberships/${d.membershipId}/consent`, { method: 'PATCH', body: { marketingConsent: value } });
     } catch (e) {
@@ -97,7 +102,14 @@ function MembershipPage() {
     <>
       <div className="space-y-5 pt-2">
         <BackLink />
-        {isNew && <Alert kind="success">Pronto! Agora é só acumular a cada visita ao {d.tenant.name}.</Alert>}
+        {isNew && (
+          <Alert kind="success">
+            {tr(
+              <>Pronto! Agora é só acumular a cada visita ao {d.tenant.name}.</>,
+              <>Pronto! Agora basta acumular a cada visita ao {d.tenant.name}.</>,
+            )}
+          </Alert>
+        )}
 
         <div
           className={cx('overflow-hidden rounded-3xl border-2 shadow-lg shadow-stone-900/10', complete && 'card-complete')}
@@ -140,12 +152,15 @@ function MembershipPage() {
             {d.kind === 'VALOR' && d.stampValueCents && <LeftoverMeter d={d} color={th.accent} />}
             {complete ? (
               <p className="mt-4 rounded-xl px-3 py-2 text-center text-sm font-medium" style={{ background: `${th.accent}1A`, color: th.accent }}>
-                Para resgatar, mostre seu QR ou informe seu telefone no caixa. O cartão recomeça depois do resgate.
+                {tr(
+                  'Para resgatar, mostre seu QR ou informe seu telefone no caixa. O cartão recomeça depois do resgate.',
+                  'Para resgatar, mostre o seu QR ou indique o seu telemóvel na caixa. O cartão recomeça depois do resgate.',
+                )}
               </p>
             ) : (
               available.length > 0 && (
                 <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-center text-sm font-medium text-emerald-800">
-                  🎁 {rewardsLabel(available.length)}. Veja abaixo.
+                  🎁 {rewardsLabel(available.length)}. {tr('Veja abaixo.', 'Veja em baixo.')}
                 </p>
               )
             )}
@@ -153,9 +168,21 @@ function MembershipPage() {
         </div>
 
         {d.tenant.active && !d.programActive && (
-          <Alert kind="info">Este programa foi encerrado pelo estabelecimento. Recompensas já liberadas ainda podem ser usadas.</Alert>
+          <Alert kind="info">
+            {tr(
+              'Este programa foi encerrado pelo estabelecimento. Recompensas já liberadas ainda podem ser usadas.',
+              'Este programa foi encerrado pelo estabelecimento. As recompensas já desbloqueadas ainda podem ser usadas.',
+            )}
+          </Alert>
         )}
-        {!d.tenant.active && <Alert kind="warning">O programa deste estabelecimento está pausado. Seu progresso continua guardado.</Alert>}
+        {!d.tenant.active && (
+          <Alert kind="warning">
+            {tr(
+              'O programa deste estabelecimento está pausado. Seu progresso continua guardado.',
+              'O programa deste estabelecimento está em pausa. O seu progresso continua guardado.',
+            )}
+          </Alert>
+        )}
 
         {/* RN-35: consentimento de marketing por estabelecimento, perguntado no app do cliente. */}
         {d.marketingConsent === null && (
@@ -164,7 +191,10 @@ function MembershipPage() {
               Quer receber promoções do <strong>{d.tenant.name}</strong>?
             </p>
             <p className="mt-1 text-sm text-stone-600">
-              Só esse estabelecimento verá seu telefone para enviar ofertas. Você pode mudar isso quando quiser em Conta.
+              {tr(
+                'Só esse estabelecimento verá seu telefone para enviar ofertas. Você pode mudar isso quando quiser em Conta.',
+                'Só esse estabelecimento verá o seu telemóvel para enviar ofertas. Pode mudar isto quando quiser em Conta.',
+              )}
             </p>
             <div className="mt-3 flex gap-2">
               <Button size="sm" onClick={() => consent(true)} style={{ background: th.accent, color: th.accentFg }}>
@@ -184,17 +214,22 @@ function MembershipPage() {
             <ul className="mt-2 space-y-1 text-sm text-emerald-900">
               {available.map((r) => (
                 <li key={r.id}>
-                  {r.description} <span className="text-emerald-700">· liberada em {formatShortDate(r.unlockedAt)}</span>
+                  {r.description} <span className="text-emerald-700">· {tr('liberada em', 'desbloqueada em')} {formatShortDate(r.unlockedAt)}</span>
                 </li>
               ))}
             </ul>
             {d.rules.redeemBlockedToday ? (
               <p className="mt-3 text-sm text-amber-800">{d.rules.redeemBlockedToday}</p>
             ) : (
-              <p className="mt-3 text-sm text-emerald-800">Para resgatar, mostre seu QR ou informe seu telefone no caixa.</p>
+              <p className="mt-3 text-sm text-emerald-800">
+                {tr(
+                  'Para resgatar, mostre seu QR ou informe seu telefone no caixa.',
+                  'Para resgatar, mostre o seu QR ou indique o seu telemóvel na caixa.',
+                )}
+              </p>
             )}
             <LinkButton href="/qr" variant="dark" className="mt-3 w-full">
-              Mostrar meu QR
+              {tr('Mostrar meu QR', 'Mostrar o meu QR')}
             </LinkButton>
           </Card>
         )}
@@ -231,7 +266,7 @@ function MembershipPage() {
 
         <Card>
           <h2 className="mb-3 font-semibold">Histórico</h2>
-          {d.history.length === 0 && <p className="text-sm text-stone-500">Nenhuma movimentação ainda.</p>}
+          {d.history.length === 0 && <p className="text-sm text-stone-500">{tr('Nenhuma movimentação ainda.', 'Ainda sem movimentos.')}</p>}
           <ul className="divide-y divide-stone-100">
             {d.history.map((h) => (
               <li key={h.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">

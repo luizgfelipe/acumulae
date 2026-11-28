@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { api, errorMessage } from '@/lib/api';
 import { logout } from '@/lib/customer';
+import { tr } from '@/lib/region';
 import { Alert, Button, Modal } from './ui';
 
 /** Quem aceitou uma versão antiga dos Termos de Uso precisa aceitar a atual para continuar usando o app. */
@@ -29,17 +30,26 @@ export function TermsUpdate({ onAccepted }: { onAccepted: () => Promise<void> })
   }
 
   return (
-    <Modal open onClose={() => undefined} title="Atualizamos os Termos de Uso">
+    <Modal open onClose={() => undefined} title={tr('Atualizamos os Termos de Uso', 'Atualizámos os Termos de Utilização')}>
       <div className="space-y-4 text-stone-700">
         <p>
-          Agora os termos deixam claro que, ao participar do programa de um estabelecimento, ele recebe seu nome, telefone, e-mail e data de
-          nascimento, além do seu histórico <strong>naquele</strong> estabelecimento. Ofertas e notificações de promoção continuam só para quem
-          você autorizar.
+          {tr(
+            <>
+              Agora os termos deixam claro que, ao participar do programa de um estabelecimento, ele recebe seu nome, telefone, e-mail e data de
+              nascimento, além do seu histórico <strong>naquele</strong> estabelecimento. Ofertas e notificações de promoção continuam só para quem
+              você autorizar.
+            </>,
+            <>
+              Agora os termos deixam claro que, ao participar no programa de um estabelecimento, este recebe o seu nome, telemóvel, e-mail e data
+              de nascimento, além do seu histórico <strong>nesse</strong> estabelecimento. Ofertas e notificações de promoções continuam a ser
+              enviadas só por quem autorizar.
+            </>,
+          )}
         </p>
         <p className="text-sm">
           Leia os{' '}
           <Link href="/termos" target="_blank" className="font-medium text-accent-600 underline">
-            Termos de Uso
+            {tr('Termos de Uso', 'Termos de Utilização')}
           </Link>{' '}
           e a{' '}
           <Link href="/privacidade" target="_blank" className="font-medium text-accent-600 underline">
