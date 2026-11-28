@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppError, badRequest, notFound } from '../common/errors';
 import { UFS } from '../common/address';
+import { region } from '../common/region';
 
 export interface CepResult {
   cep: string;
@@ -65,6 +66,8 @@ export class CepService {
   providers: Provider[] = [brasilApi, viaCep];
 
   async lookup(raw: string): Promise<CepResult> {
+    // Só existe consulta para CEP brasileiro; em Portugal o gestor preenche a morada à mão.
+    if (region() === 'PT') throw notFound('Consulta de código postal indisponível. Preencha a morada.', 'CEP_NOT_SUPPORTED');
     const cep = raw.replace(/\D/g, '');
     if (cep.length !== 8) throw badRequest('CEP_INVALID', 'CEP deve ter 8 dígitos.');
 

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AddressDraft, AddressFields, UFS, cepDigits, maskCep } from '@/lib/address';
+import { AddressDraft, AddressFields, PT_DISTRICTS, UFS, cepDigits, maskCep } from '@/lib/address';
+import { IS_PT } from '@/lib/region';
 import { ApiError, staffApi } from '@/lib/api';
 import { Field, Input, Select, Spinner, cx } from './ui';
 
@@ -14,7 +15,7 @@ const CORREIOS_SEARCH = 'https://buscacepinter.correios.com.br/app/endereco/inde
  * Cidade e UF vindas do CEP ficam travadas (é o que o guia usa para filtrar); se o CEP não for
  * encontrado, o gestor preenche à mão.
  */
-export function AddressForm({
+function BrAddressForm({
   value,
   onChange,
   legacy,
@@ -142,6 +143,70 @@ export function AddressForm({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+type AddressFormProps = Parameters<typeof BrAddressForm>[0];
+
+/** Morada da unidade: no Brasil preenchida pelo CEP; em Portugal à mão (sem consulta), com o distrito numa lista. */
+export function AddressForm(props: AddressFormProps) {
+  return IS_PT ? <PtAddressForm {...props} /> : <BrAddressForm {...props} />;
+}
+
+function PtAddressForm({ value, onChange, legacy }: AddressFormProps) {
+  const latest = useRef(value);
+  latest.current = value;
+  const set = (patch: Partial<AddressDraft>) => onChange({ ...latest.current, ...patch });
+
+  return (
+    <div className="space-y-3">
+      {legacy && !value.cep && (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Morada atual: <strong>{legacy}</strong>. Preencha a morada completa para aparecer corretamente na sua localidade.
+        </p>
+      )}
+      <Field label="Rua">
+        <Input value={value.street} onChange={(e) => set({ street: e.target.value })} maxLength={200} autoComplete="address-line1" />
+      </Field>
+      <div className="grid grid-cols-[7rem_1fr] gap-3">
+        <Field label="Número">
+          <Input value={value.number} onChange={(e) => set({ number: e.target.value })} maxLength={20} placeholder="s/n" />
+        </Field>
+        <Field label="Andar / porta">
+          <Input value={value.complement} onChange={(e) => set({ complement: e.target.value })} maxLength={80} placeholder="3.º Esq., loja B…" />
+        </Field>
+      </div>
+      <div className="grid grid-cols-[9rem_1fr] gap-3">
+        <Field label="Código postal">
+          <Input
+            value={value.cep}
+            onChange={(e) => set({ cep: maskCep(e.target.value) })}
+            inputMode="numeric"
+            autoComplete="postal-code"
+            placeholder="0000-000"
+            maxLength={8}
+          />
+        </Field>
+        <Field label="Localidade">
+          <Input value={value.city} onChange={(e) => set({ city: e.target.value })} maxLength={120} autoComplete="address-level2" />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Freguesia" hint="Opcional.">
+          <Input value={value.district} onChange={(e) => set({ district: e.target.value })} maxLength={120} />
+        </Field>
+        <Field label="Distrito">
+          <Select value={value.state} onChange={(e) => set({ state: e.target.value })}>
+            <option value="">--</option>
+            {PT_DISTRICTS.map(([code, name]) => (
+              <option key={code} value={code}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
     </div>
   );
 }
