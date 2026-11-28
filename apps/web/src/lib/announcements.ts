@@ -1,3 +1,5 @@
+import { tr } from '@/lib/region';
+
 /** Notificações que o estabelecimento manda aos clientes (painel → Notificações e Relatórios). */
 
 export const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -34,4 +36,7 @@ export type StoreOption = { id: string; name: string };
 /** Público com a unidade: "Inativos há mais de 30 dias · Joinville". */
 export const audienceLabel = (key: string, store?: StoreOption | null) => `${segmentLabel(key)}${store ? ` · ${store.name}` : ''}`;
 
-export const STORE_HINT = 'Clientes que se cadastraram pelo QR da unidade ou já tiveram algum lançamento nela.';
+export const STORE_HINT = tr(
+  'Clientes que se cadastraram pelo QR da unidade ou já tiveram algum lançamento nela.',
+  'Clientes que se registaram pelo QR da unidade ou que já tiveram algum registo nela.',
+);

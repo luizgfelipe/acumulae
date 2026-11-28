@@ -1,4 +1,5 @@
-import { LOCALE } from '@/lib/region';
+import { formatMoney } from '@/lib/format';
+import { IS_PT, LOCALE, tr } from '@/lib/region';
 
 /** Resposta de GET /api/admin/plan. Limites `max: null` = ilimitado. */
 export interface Usage {
@@ -41,7 +42,10 @@ export interface NetworkRecommendation {
 /** Texto da recomendação do plano de rede. */
 export function recommendationText(r: NetworkRecommendation) {
   const extra = r.extraStorePriceCents !== null ? ` Unidade adicional: ${brl(r.extraStorePriceCents)} por mês.` : '';
-  return `A partir de ${r.includedStores} unidades, recomendamos o plano ${r.name}: ${r.includedStores} unidades inclusas por ${brl(r.priceCents)} por mês, com o painel consolidado da rede.${extra}`;
+  return tr(
+    `A partir de ${r.includedStores} unidades, recomendamos o plano ${r.name}: ${r.includedStores} unidades inclusas por ${brl(r.priceCents)} por mês, com o painel consolidado da rede.${extra}`,
+    `A partir de ${r.includedStores} unidades, recomendamos o plano ${r.name}: ${r.includedStores} unidades incluídas por ${brl(r.priceCents)} por mês, com o painel consolidado da rede.${extra}`,
+  );
 }
 
 export const SUPPORT_LABELS: Record<PlanInfo['plan']['supportChannel'], string> = {
@@ -50,7 +54,8 @@ export const SUPPORT_LABELS: Record<PlanInfo['plan']['supportChannel'], string> 
   WHATSAPP_PRIORITARIO: 'WhatsApp prioritário',
 };
 
-export const brl = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+/** Preço do plano: "R$ 49,90" na instância BR; em PT sai em euros pelo `formatMoney`. */
+export const brl = (cents: number) => (IS_PT ? formatMoney(cents) : `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`);
 
 export const isFull = (u: Usage) => u.max !== null && u.used >= u.max;
 
@@ -64,11 +69,23 @@ export function daysLeft(expiresAt: string | null, now = Date.now()): number | n
 export function planNotice(p: PlanInfo): { kind: 'warning' | 'error'; text: string } | null {
   const date = p.expiresAt ? new Date(p.expiresAt).toLocaleDateString(LOCALE) : '';
   if (p.expired) {
-    return { kind: 'error', text: `Seu plano ${p.contracted.name} venceu em ${date}. Até ser renovado, valem os recursos do plano Essencial.` };
+    return {
+      kind: 'error',
+      text: tr(
+        `Seu plano ${p.contracted.name} venceu em ${date}. Até ser renovado, valem os recursos do plano Essencial.`,
+        `O seu plano ${p.contracted.name} expirou em ${date}. Até ser renovado, aplicam-se os recursos do plano Essencial.`,
+      ),
+    };
   }
   const left = daysLeft(p.expiresAt);
   if (left !== null && left <= 7) {
-    return { kind: 'warning', text: `Seu plano ${p.contracted.name} vence em ${date}. Fale com o suporte do Acumulaê para renovar.` };
+    return {
+      kind: 'warning',
+      text: tr(
+        `Seu plano ${p.contracted.name} vence em ${date}. Fale com o suporte do Acumulaê para renovar.`,
+        `O seu plano ${p.contracted.name} expira em ${date}. Contacte o suporte do Acumulaê para renovar.`,
+      ),
+    };
   }
   return null;
 }

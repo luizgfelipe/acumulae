@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { tr } from './region';
 
 /** Modelos de cartão que o estabelecimento escolhe no painel. */
 export type CardStyle = 'CLASSICO' | 'DEGRADE' | 'MOLDURA';
@@ -10,11 +11,18 @@ export interface BrandColors {
   cardStyle: CardStyle;
 }
 
-export const CARD_STYLES: Array<{ value: CardStyle; label: string; hint: string }> = [
-  { value: 'CLASSICO', label: 'Clássico', hint: 'Topo na cor principal; selos e barra na secundária.' },
-  { value: 'DEGRADE', label: 'Degradê', hint: 'Topo em degradê da principal para a secundária.' },
-  { value: 'MOLDURA', label: 'Moldura', hint: 'Topo e selos na principal; borda na secundária.' },
-];
+export const CARD_STYLES: Array<{ value: CardStyle; label: string; hint: string }> = tr(
+  [
+    { value: 'CLASSICO', label: 'Clássico', hint: 'Topo na cor principal; selos e barra na secundária.' },
+    { value: 'DEGRADE', label: 'Degradê', hint: 'Topo em degradê da principal para a secundária.' },
+    { value: 'MOLDURA', label: 'Moldura', hint: 'Topo e selos na principal; borda na secundária.' },
+  ],
+  [
+    { value: 'CLASSICO', label: 'Clássico', hint: 'Topo na cor principal; carimbos e barra na secundária.' },
+    { value: 'DEGRADE', label: 'Degradé', hint: 'Topo em degradé da principal para a secundária.' },
+    { value: 'MOLDURA', label: 'Moldura', hint: 'Topo e carimbos na principal; contorno na secundária.' },
+  ],
+);
 
 const DARK = '#1c1917';
 const LIGHT = '#ffffff';

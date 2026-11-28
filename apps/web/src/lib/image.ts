@@ -1,9 +1,11 @@
+import { tr } from '@/lib/region';
+
 /**
  * Prepara o logo no navegador: centraliza a imagem num quadrado de até 256 px
  * (fundo transparente) e devolve um data URL PNG leve, pronto para enviar à API.
  */
 export async function prepareLogo(file: File, size = 256, maxChars = 260_000): Promise<string> {
-  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error('Envie uma imagem PNG, JPG ou WebP.');
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error(tr('Envie uma imagem PNG, JPG ou WebP.', 'Carregue uma imagem PNG, JPG ou WebP.'));
   if (file.size > 10 * 1024 * 1024) throw new Error('A imagem original deve ter no máximo 10 MB.');
 
   const url = URL.createObjectURL(file);

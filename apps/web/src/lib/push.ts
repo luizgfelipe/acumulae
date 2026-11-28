@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
 import { detectPlatform, isStandalone } from './install';
+import { tr } from './region';
 
 /**
  * Notificações no celular (Web Push). Quem ativa recebe cada notificação do sino também no aparelho;
@@ -134,7 +135,9 @@ export function usePush() {
       setState(await fn());
     } catch {
       setState(await readState());
-      throw new Error('Não foi possível ativar as notificações neste aparelho. Tente de novo.');
+      throw new Error(
+        tr('Não foi possível ativar as notificações neste aparelho. Tente de novo.', 'Não foi possível ativar as notificações neste dispositivo. Tente novamente.'),
+      );
     } finally {
       setBusy(false);
     }

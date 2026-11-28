@@ -97,3 +97,22 @@ DATABASE_URL=postgresql://acumulae:acumulae@localhost:5432/acumulae npx prisma m
 ```
 
 Em produção, a API roda `prisma migrate deploy` ao subir.
+
+## Países (Brasil e Portugal)
+
+O mesmo código atende os dois países, cada um numa **instância própria** (banco de dados e domínio separados),
+escolhida pela variável `REGION`:
+
+| `REGION` | Domínio | Língua | Moeda | Telefone | Morada | Fuso |
+|---|---|---|---|---|---|---|
+| `BR` (padrão) | acumulae.com.br | pt-BR | R$ | +55 | CEP (consulta automática), UF | America/Sao_Paulo |
+| `PT` | acumulae.com | pt-PT | € | +351 | código postal 0000-000, distrito | Europe/Lisbon |
+
+- Na API ela é lida em tempo de execução (`apps/api/src/common/region.ts`); no web vira `NEXT_PUBLIC_REGION`
+  no **build** (`apps/web/src/lib/region.ts`), então trocar de país exige refazer o deploy do web.
+- Textos que mudam entre os países ficam juntos no código: `tr('texto pt-BR', 'texto pt-PT')`.
+  Ao escrever um texto novo visível ao utilizador, escreva as duas variantes.
+- Para subir Portugal no Dokploy: um segundo serviço Compose com este mesmo `docker-compose.prod.yml`,
+  `REGION=PT`, `PUBLIC_URL=https://acumulae.com` e `MAIL_FROM`/`VAPID_SUBJECT` com o domínio .com.
+- Os preços dos planos são os mesmos números nas duas instâncias (59,90 vira 59,90 €); ajuste com a API da plataforma.
+- Os Termos e a Política de Privacidade em pt-PT (RGPD) são texto-base: revisar com assessoria jurídica antes de publicar.

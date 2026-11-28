@@ -1,11 +1,14 @@
-import { LOCALE } from '@/lib/region';
+import { LOCALE, tr } from '@/lib/region';
 import type { Metadata, Viewport } from 'next';
 import { ServiceWorker } from '@/components/service-worker';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Acumulaê — seu cartão fidelidade', template: '%s · Acumulaê' },
-  description: 'Acumule e acompanhe seus cartões fidelidade de restaurantes num só lugar, sem papel.',
+  title: { default: tr('Acumulaê — seu cartão fidelidade', 'Acumulaê — o seu cartão de fidelização'), template: '%s · Acumulaê' },
+  description: tr(
+    'Acumule e acompanhe seus cartões fidelidade de restaurantes num só lugar, sem papel.',
+    'Acumule e acompanhe os seus cartões de fidelização de restaurantes num só lugar, sem papel.',
+  ),
   applicationName: 'Acumulaê',
   appleWebApp: { capable: true, title: 'Acumulaê', statusBarStyle: 'default' },
   formatDetection: { telephone: false },

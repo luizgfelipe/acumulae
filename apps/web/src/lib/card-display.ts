@@ -12,6 +12,7 @@ export function cardDisplay(c: { balance: number; goal: number; rewardsAvailable
 }
 
 import { formatMoney } from './format';
+import { IS_PT } from './region';
 
 /**
  * Programa por valor: a sobra guardada e quanto falta para o próximo selo.
@@ -26,6 +27,7 @@ export function leftoverLabel(c: { kind?: 'SELO' | 'VALOR'; stampValueCents?: nu
 
 /** Aviso da recompensa pendente ("Você tem 1 recompensa para usar"). */
 export function rewardsLabel(n: number) {
+  if (IS_PT) return n === 1 ? 'Tem 1 recompensa para usar' : `Tem ${n} recompensas para usar`;
   return n === 1 ? 'Você tem 1 recompensa para usar' : `Você tem ${n} recompensas para usar`;
 }
 

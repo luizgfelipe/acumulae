@@ -4,6 +4,8 @@
  * renova uma vez via refresh e repete a chamada.
  */
 
+import { tr } from './region';
+
 export type Realm = 'customer' | 'staff';
 
 export class ApiError extends Error {
@@ -71,7 +73,7 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
   const data = text ? safeJson(text) : null;
   if (!res.ok) {
     const d = (data ?? {}) as { code?: string; message?: string; details?: unknown };
-    throw new ApiError(res.status, d.code ?? 'HTTP_ERROR', d.message ?? 'Algo deu errado. Tente novamente.', d.details);
+    throw new ApiError(res.status, d.code ?? 'HTTP_ERROR', d.message ?? tr('Algo deu errado. Tente novamente.', 'Algo correu mal. Tente novamente.'), d.details);
   }
   return data as T;
 }
@@ -89,8 +91,8 @@ export const staffApi = <T = unknown>(path: string, opts: Omit<RequestOptions, '
 
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) return e.message;
-  if (e instanceof Error && e.message === 'Failed to fetch') return 'Sem conexão. Verifique sua internet.';
-  return 'Algo deu errado. Tente novamente.';
+  if (e instanceof Error && e.message === 'Failed to fetch') return tr('Sem conexão. Verifique sua internet.', 'Sem ligação. Verifique a sua ligação à internet.');
+  return tr('Algo deu errado. Tente novamente.', 'Algo correu mal. Tente novamente.');
 }
 
 export function newIdempotencyKey(): string {

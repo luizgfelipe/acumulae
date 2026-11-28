@@ -1,4 +1,4 @@
-import { CURRENCY, IS_PT, LOCALE, TZ } from './region';
+import { CURRENCY, IS_PT, LOCALE, TZ, tr } from './region';
 
 export function formatDate(d: string | Date | null | undefined) {
   if (!d) return '—';
@@ -61,25 +61,47 @@ export const WEEKDAYS = [
   { value: 7, short: 'Dom', label: 'domingo' },
 ];
 
-export const LEDGER_LABELS: Record<string, string> = {
-  CREDITO: 'Consumo',
-  ESTORNO_CREDITO: 'Estorno de consumo',
-  RECOMPENSA_LIBERADA: 'Recompensa liberada',
-  RECOMPENSA_CANCELADA: 'Recompensa cancelada',
-  RESGATE: 'Resgate',
-  ESTORNO_RESGATE: 'Estorno de resgate',
-  EXPIRACAO: 'Expiração',
-  EXCEDENTE_DESCARTADO: 'Excedente descartado',
-  ESTORNO_EXCEDENTE: 'Excedente devolvido',
-};
+export const LEDGER_LABELS: Record<string, string> = tr(
+  {
+    CREDITO: 'Consumo',
+    ESTORNO_CREDITO: 'Estorno de consumo',
+    RECOMPENSA_LIBERADA: 'Recompensa liberada',
+    RECOMPENSA_CANCELADA: 'Recompensa cancelada',
+    RESGATE: 'Resgate',
+    ESTORNO_RESGATE: 'Estorno de resgate',
+    EXPIRACAO: 'Expiração',
+    EXCEDENTE_DESCARTADO: 'Excedente descartado',
+    ESTORNO_EXCEDENTE: 'Excedente devolvido',
+  },
+  {
+    CREDITO: 'Consumo',
+    ESTORNO_CREDITO: 'Anulação de consumo',
+    RECOMPENSA_LIBERADA: 'Recompensa desbloqueada',
+    RECOMPENSA_CANCELADA: 'Recompensa cancelada',
+    RESGATE: 'Resgate',
+    ESTORNO_RESGATE: 'Anulação de resgate',
+    EXPIRACAO: 'Expiração',
+    EXCEDENTE_DESCARTADO: 'Excedente descartado',
+    ESTORNO_EXCEDENTE: 'Excedente devolvido',
+  },
+);
 
-export const SOURCE_LABELS: Record<string, string> = {
-  QR_PESSOAL: 'QR do cliente',
-  TELEFONE: 'Telefone',
-  QR_TEMPORARIO: 'QR temporário',
-  SISTEMA: 'Sistema',
-  PAINEL: 'Painel',
-};
+export const SOURCE_LABELS: Record<string, string> = tr(
+  {
+    QR_PESSOAL: 'QR do cliente',
+    TELEFONE: 'Telefone',
+    QR_TEMPORARIO: 'QR temporário',
+    SISTEMA: 'Sistema',
+    PAINEL: 'Painel',
+  },
+  {
+    QR_PESSOAL: 'QR do cliente',
+    TELEFONE: 'Telemóvel',
+    QR_TEMPORARIO: 'QR temporário',
+    SISTEMA: 'Sistema',
+    PAINEL: 'Painel',
+  },
+);
 
 /** Garante legibilidade do texto sobre a cor da marca. */
 export function readableOn(hex: string | null | undefined): '#ffffff' | '#1c1917' {

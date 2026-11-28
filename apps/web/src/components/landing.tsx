@@ -7,12 +7,13 @@ import { ArrowRight, BellRing, ChartColumn, Check, Copy, ExternalLink, Gift, Mai
 import type { LucideIcon } from 'lucide-react';
 import { cardTheme, type CardStyle } from '@/lib/card-theme';
 import { CONTACT_EMAIL } from '@/lib/contact';
+import { tr } from '@/lib/region';
 import { ProgressBar, StampGrid } from './stamps';
 import { LinkButton, Logo, Modal, TenantAvatar, cx } from './ui';
 
 /** Contato comercial (por enquanto, e-mail; o mesmo do suporte). */
 const SALES_EMAIL = CONTACT_EMAIL;
-const SALES_SUBJECT = 'Quero o Acumulaê no meu estabelecimento';
+const SALES_SUBJECT = tr('Quero o Acumulaê no meu estabelecimento', 'Quero o Acumulaê no meu negócio');
 const SALES_MAILTO = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(SALES_SUBJECT)}`;
 const SALES_GMAIL = `https://mail.google.com/mail/?view=cm&fs=1&to=${SALES_EMAIL}&su=${encodeURIComponent(SALES_SUBJECT)}`;
 
@@ -60,7 +61,7 @@ function TopBar() {
         </Link>
         <nav className="flex items-center gap-1 sm:gap-2">
           <a href="#estabelecimentos" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:text-stone-900 md:block">
-            Para estabelecimentos
+            {tr('Para estabelecimentos', 'Para negócios')}
           </a>
           <Link href="/entrar" className="rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 transition-colors hover:bg-white/70 hover:text-stone-900">
             Entrar
@@ -80,7 +81,7 @@ function Hero() {
       <Container className="grid items-center gap-14 pt-10 pb-20 lg:grid-cols-[1.1fr_1fr] lg:gap-10 lg:pt-16 lg:pb-28">
         <div className="landing-rise space-y-7 text-center lg:text-left">
           <h1 className="text-[2.6rem] leading-[1.05] font-extrabold tracking-tight text-stone-900 sm:text-6xl">
-            Seu cartão fidelidade,{' '}
+            {tr('Seu cartão fidelidade,', 'O seu cartão de fidelização,')}{' '}
             <span className="relative whitespace-nowrap text-brand-600">
               sem papel.
               <svg aria-hidden viewBox="0 0 300 18" preserveAspectRatio="none" className="absolute -bottom-2 left-0 h-3 w-full text-brand-200">
@@ -89,12 +90,14 @@ function Hero() {
             </span>
           </h1>
           <p className="mx-auto max-w-xl text-lg text-stone-600 sm:text-xl lg:mx-0">
-            Junte selos nos seus lugares favoritos e troque por recompensas. Todos os cartões num app só, e você nunca mais perde o
-            progresso.
+            {tr(
+              'Junte selos nos seus lugares favoritos e troque por recompensas. Todos os cartões num app só, e você nunca mais perde o progresso.',
+              'Junte carimbos nos seus sítios favoritos e troque-os por recompensas. Todos os cartões numa só app, sem nunca perder o progresso.',
+            )}
           </p>
           <div className="mx-auto flex max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center lg:justify-start">
             <LinkButton href="/cadastro" className="h-13 px-6 text-lg">
-              Criar minha conta grátis
+              {tr('Criar minha conta grátis', 'Criar conta grátis')}
               <ArrowRight className="h-5 w-5" aria-hidden />
             </LinkButton>
             <LinkButton href="/entrar" variant="secondary" className="h-13 px-6 text-lg">
@@ -102,7 +105,10 @@ function Hero() {
             </LinkButton>
           </div>
           <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-stone-600 lg:justify-start">
-            {['Cadastro em 1 minuto', 'Sem baixar nada da loja', 'Aviso quando ganhar'].map((t) => (
+            {tr(
+              ['Cadastro em 1 minuto', 'Sem baixar nada da loja', 'Aviso quando ganhar'],
+              ['Registo em 1 minuto', 'Nada para instalar da loja', 'Aviso quando ganhar'],
+            ).map((t) => (
               <li key={t} className="flex items-center gap-1.5">
                 <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} aria-hidden />
                 {t}
@@ -129,11 +135,18 @@ interface Demo {
   goal: number;
 }
 
-const DEMOS: Demo[] = [
-  { name: 'Pizzaria Bella Massa', reward: '1 pizza broto grátis', primary: '#B91C1C', secondary: '#F59E0B', style: 'CLASSICO', icon: 'pizza', filled: 8, goal: 8 },
-  { name: 'Café do Largo', reward: 'Um café especial', primary: '#4A2C1D', secondary: '#C08552', style: 'DEGRADE', icon: 'coffee', filled: 7, goal: 10 },
-  { name: 'Burger da Vila', reward: 'Batata frita grande', primary: '#0F766E', secondary: '#FACC15', style: 'MOLDURA', icon: 'hamburger', filled: 3, goal: 6 },
-];
+const DEMOS: Demo[] = tr(
+  [
+    { name: 'Pizzaria Bella Massa', reward: '1 pizza broto grátis', primary: '#B91C1C', secondary: '#F59E0B', style: 'CLASSICO', icon: 'pizza', filled: 8, goal: 8 },
+    { name: 'Café do Largo', reward: 'Um café especial', primary: '#4A2C1D', secondary: '#C08552', style: 'DEGRADE', icon: 'coffee', filled: 7, goal: 10 },
+    { name: 'Burger da Vila', reward: 'Batata frita grande', primary: '#0F766E', secondary: '#FACC15', style: 'MOLDURA', icon: 'hamburger', filled: 3, goal: 6 },
+  ],
+  [
+    { name: 'Pastelaria Flor do Bairro', reward: 'Pastel de nata grátis', primary: '#B91C1C', secondary: '#F59E0B', style: 'CLASSICO', icon: 'cake', filled: 8, goal: 8 },
+    { name: 'Café do Largo', reward: 'Galão e torrada', primary: '#4A2C1D', secondary: '#C08552', style: 'DEGRADE', icon: 'coffee', filled: 7, goal: 10 },
+    { name: 'Hamburgueria da Ribeira', reward: 'Batatas fritas grandes', primary: '#0F766E', secondary: '#FACC15', style: 'MOLDURA', icon: 'hamburger', filled: 3, goal: 6 },
+  ],
+);
 
 function DemoCard({ d, className }: { d: Demo; className?: string }) {
   const th = cardTheme({ primaryColor: d.primary, secondaryColor: d.secondary, cardStyle: d.style });
@@ -160,7 +173,7 @@ function DemoCard({ d, className }: { d: Demo; className?: string }) {
         {complete && (
           <p className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold" style={{ background: `${th.accent}14`, color: th.accent }}>
             <Gift className="h-3.5 w-3.5" aria-hidden />
-            Recompensa liberada! Mostre no caixa.
+            {tr('Recompensa liberada! Mostre no caixa.', 'Recompensa desbloqueada! Mostre ao balcão.')}
           </p>
         )}
       </div>
@@ -181,11 +194,11 @@ function PhoneMockup() {
             <div className="flex items-end justify-between">
               <div>
                 <p className="text-xs text-stone-500">Olá, Ana!</p>
-                <p className="text-lg font-bold text-stone-900">Seus cartões</p>
+                <p className="text-lg font-bold text-stone-900">{tr('Seus cartões', 'Os seus cartões')}</p>
               </div>
               <span className="flex items-center gap-1 rounded-lg bg-stone-900 px-2.5 py-1.5 text-[11px] font-semibold text-white">
                 <QrCode className="h-3.5 w-3.5" />
-                Meu QR
+                {tr('Meu QR', 'O meu QR')}
               </span>
             </div>
             {DEMOS.map((d) => (
@@ -201,15 +214,15 @@ function PhoneMockup() {
           <BellRing className="h-4.5 w-4.5" />
         </span>
         <div className="text-left">
-          <p className="text-xs font-semibold text-stone-900">Pizza broto liberada!</p>
-          <p className="text-[11px] text-stone-500">Pizzaria Bella Massa · agora</p>
+          <p className="text-xs font-semibold text-stone-900">{tr('Pizza broto liberada!', 'Pastel de nata desbloqueado!')}</p>
+          <p className="text-[11px] text-stone-500">{DEMOS[0].name} · agora</p>
         </div>
       </div>
       <div className="landing-float absolute z-20 -right-3 -bottom-5 flex items-center gap-2 rounded-2xl border border-stone-200 bg-white/95 px-3 py-2 shadow-xl [animation-delay:1.4s] sm:-right-10">
         <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-600 text-white">
           <Check className="h-4 w-4" strokeWidth={3} />
         </span>
-        <p className="text-xs font-semibold text-stone-900">+1 selo no Café do Largo</p>
+        <p className="text-xs font-semibold text-stone-900">{tr('+1 selo no Café do Largo', '+1 carimbo no Café do Largo')}</p>
       </div>
     </div>
   );
@@ -227,17 +240,24 @@ function SectionTitle({ eyebrow, title, text }: { eyebrow: string; title: string
   );
 }
 
-const STEPS: Array<{ Icon: LucideIcon; title: string; text: string }> = [
-  { Icon: Smartphone, title: 'Crie sua conta', text: 'Grátis, em menos de um minuto. Funciona direto no navegador do celular.' },
-  { Icon: QrCode, title: 'Mostre o QR no caixa', text: 'Mostre seu QR ou escaneie o do atendente. Os selos entram na hora.' },
-  { Icon: Gift, title: 'Ganhe a recompensa', text: 'Completou o cartão? O app avisa, e é só resgatar na próxima visita.' },
-];
+const STEPS: Array<{ Icon: LucideIcon; title: string; text: string }> = tr(
+  [
+    { Icon: Smartphone, title: 'Crie sua conta', text: 'Grátis, em menos de um minuto. Funciona direto no navegador do celular.' },
+    { Icon: QrCode, title: 'Mostre o QR no caixa', text: 'Mostre seu QR ou escaneie o do atendente. Os selos entram na hora.' },
+    { Icon: Gift, title: 'Ganhe a recompensa', text: 'Completou o cartão? O app avisa, e é só resgatar na próxima visita.' },
+  ],
+  [
+    { Icon: Smartphone, title: 'Crie a sua conta', text: 'Grátis, em menos de um minuto. Funciona diretamente no navegador do telemóvel.' },
+    { Icon: QrCode, title: 'Mostre o QR ao balcão', text: 'Mostre o seu QR ou leia o do operador. Os carimbos entram na hora.' },
+    { Icon: Gift, title: 'Ganhe a recompensa', text: 'Completou o cartão? A app avisa e basta resgatar na próxima visita.' },
+  ],
+);
 
 function HowItWorks() {
   return (
     <section className="border-y border-stone-200/70 bg-white py-20 sm:py-24">
       <Container>
-        <SectionTitle eyebrow="Como funciona" title="Três passos e pronto" />
+        <SectionTitle eyebrow="Como funciona" title={tr('Três passos e pronto', 'Três passos e já está')} />
         <ol className="mt-14 grid gap-6 md:grid-cols-3">
           {STEPS.map(({ Icon, title, text }, i) => (
             <li key={title} className="relative rounded-3xl border border-stone-200 bg-secondary-50/60 p-6 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-stone-900/5">
@@ -255,18 +275,33 @@ function HowItWorks() {
   );
 }
 
-const BENEFITS: Array<{ Icon: LucideIcon; title: string; text: string }> = [
-  { Icon: WalletCards, title: 'Todos os cartões num lugar', text: 'Pizzaria, café, hamburgueria: cada um com a sua cara, todos numa carteira só.' },
-  { Icon: ShieldCheck, title: 'Nada se perde', text: 'Esqueceu a carteira? Trocou de celular? Seus selos ficam guardados na sua conta.' },
-  { Icon: BellRing, title: 'Aviso na hora', text: 'Receba uma notificação a cada selo e quando a recompensa estiver liberada.' },
-  { Icon: Gift, title: 'Sem custo para você', text: 'Para o cliente o Acumulaê é grátis, sempre. É só consumir e acumular.' },
-];
+const BENEFITS: Array<{ Icon: LucideIcon; title: string; text: string }> = tr(
+  [
+    { Icon: WalletCards, title: 'Todos os cartões num lugar', text: 'Pizzaria, café, hamburgueria: cada um com a sua cara, todos numa carteira só.' },
+    { Icon: ShieldCheck, title: 'Nada se perde', text: 'Esqueceu a carteira? Trocou de celular? Seus selos ficam guardados na sua conta.' },
+    { Icon: BellRing, title: 'Aviso na hora', text: 'Receba uma notificação a cada selo e quando a recompensa estiver liberada.' },
+    { Icon: Gift, title: 'Sem custo para você', text: 'Para o cliente o Acumulaê é grátis, sempre. É só consumir e acumular.' },
+  ],
+  [
+    { Icon: WalletCards, title: 'Todos os cartões num só lugar', text: 'Pastelaria, café, hamburgueria: cada um com a sua imagem, todos numa só carteira.' },
+    { Icon: ShieldCheck, title: 'Nada se perde', text: 'Esqueceu-se da carteira? Mudou de telemóvel? Os seus carimbos ficam guardados na sua conta.' },
+    { Icon: BellRing, title: 'Aviso na hora', text: 'Receba uma notificação a cada carimbo e quando a recompensa estiver desbloqueada.' },
+    { Icon: Gift, title: 'Sem custos para si', text: 'Para o cliente, o Acumulaê é sempre grátis. Basta consumir e acumular.' },
+  ],
+);
 
 function Benefits() {
   return (
     <section className="py-20 sm:py-24">
       <Container>
-        <SectionTitle eyebrow="Por que usar" title="Fidelidade que cabe no bolso" text="Chega de cartãozinho amassado, carimbo borrado e cartão esquecido em casa." />
+        <SectionTitle
+          eyebrow={tr('Por que usar', 'Porquê usar')}
+          title={tr('Fidelidade que cabe no bolso', 'Fidelização que cabe no bolso')}
+          text={tr(
+            'Chega de cartãozinho amassado, carimbo borrado e cartão esquecido em casa.',
+            'Acabaram-se os cartões amarrotados, os carimbos borrados e o cartão esquecido em casa.',
+          )}
+        />
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {BENEFITS.map(({ Icon, title, text }) => (
             <div key={title} className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-stone-200">
@@ -283,12 +318,20 @@ function Benefits() {
   );
 }
 
-const BUSINESS: Array<{ Icon: LucideIcon; text: string }> = [
-  { Icon: Palette, text: 'Cartão com a sua marca: logo, cores e o ícone do selo.' },
-  { Icon: QrCode, text: 'Lançamento em segundos no caixa, pelo celular do atendente.' },
-  { Icon: Users, text: 'Saiba quem são seus clientes e chame de volta quem sumiu.' },
-  { Icon: ChartColumn, text: 'Relatórios por unidade, funcionário e aniversariantes.' },
-];
+const BUSINESS: Array<{ Icon: LucideIcon; text: string }> = tr(
+  [
+    { Icon: Palette, text: 'Cartão com a sua marca: logo, cores e o ícone do selo.' },
+    { Icon: QrCode, text: 'Lançamento em segundos no caixa, pelo celular do atendente.' },
+    { Icon: Users, text: 'Saiba quem são seus clientes e chame de volta quem sumiu.' },
+    { Icon: ChartColumn, text: 'Relatórios por unidade, funcionário e aniversariantes.' },
+  ],
+  [
+    { Icon: Palette, text: 'Cartão com a sua marca: logótipo, cores e o ícone do carimbo.' },
+    { Icon: QrCode, text: 'Registo em segundos ao balcão, pelo telemóvel do operador.' },
+    { Icon: Users, text: 'Conheça os seus clientes e volte a chamar quem deixou de aparecer.' },
+    { Icon: ChartColumn, text: 'Relatórios por unidade, funcionário e aniversariantes.' },
+  ],
+);
 
 function ForBusiness() {
   return (
@@ -301,11 +344,16 @@ function ForBusiness() {
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-brand-200 ring-1 ring-white/15">
                 <Store className="h-4 w-4" aria-hidden />
-                Para estabelecimentos
+                {tr('Para estabelecimentos', 'Para negócios')}
               </span>
-              <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Faça o cliente voltar. E voltar de novo.</h2>
+              <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+                {tr('Faça o cliente voltar. E voltar de novo.', 'Faça o cliente voltar. E voltar outra vez.')}
+              </h2>
               <p className="mt-3 max-w-xl text-lg text-stone-300">
-                Troque o cartão de papel por um programa de fidelidade digital, sem maquininha nova e sem complicação para a equipe.
+                {tr(
+                  'Troque o cartão de papel por um programa de fidelidade digital, sem maquininha nova e sem complicação para a equipe.',
+                  'Troque o cartão de papel por um programa de fidelização digital, sem terminal novo e sem complicações para a equipa.',
+                )}
               </p>
               <ul className="mt-8 grid gap-4 sm:grid-cols-2">
                 {BUSINESS.map(({ Icon, text }) => (
@@ -320,13 +368,13 @@ function ForBusiness() {
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <SalesContact className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold whitespace-nowrap text-white shadow-sm transition duration-150 hover:bg-brand-700 hover:shadow-md hover:shadow-brand-600/30 motion-safe:active:scale-[0.98]">
                   <Mail className="h-4.5 w-4.5" aria-hidden />
-                  Quero no meu estabelecimento
+                  {tr('Quero no meu estabelecimento', 'Quero no meu negócio')}
                 </SalesContact>
                 <Link
                   href="/painel/entrar"
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 font-semibold whitespace-nowrap text-white ring-1 ring-white/25 transition duration-150 hover:bg-white/10 motion-safe:active:scale-[0.98]"
                 >
-                  Já sou parceiro: acessar o painel
+                  {tr('Já sou parceiro: acessar o painel', 'Já sou parceiro: aceder ao painel')}
                   <ArrowRight className="h-4.5 w-4.5" aria-hidden />
                 </Link>
               </div>
@@ -351,13 +399,17 @@ function FinalCta() {
     <section className="pb-20 sm:pb-24">
       <Container>
         <div className="rounded-[2rem] bg-gradient-to-br from-brand-600 to-brand-700 px-6 py-12 text-center text-white shadow-xl shadow-brand-600/25 sm:py-16">
-          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Seu próximo prêmio começa no próximo café.</h2>
-          <p className="mx-auto mt-3 max-w-xl text-lg text-brand-50/90">Crie sua conta e comece a acumular na primeira visita.</p>
+          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            {tr('Seu próximo prêmio começa no próximo café.', 'O seu próximo prémio começa no próximo café.')}
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-lg text-brand-50/90">
+            {tr('Crie sua conta e comece a acumular na primeira visita.', 'Crie a sua conta e comece a acumular logo na primeira visita.')}
+          </p>
           <Link
             href="/cadastro"
             className="mt-8 inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-white px-7 text-lg font-semibold text-brand-700 shadow-md transition duration-150 hover:bg-brand-50 motion-safe:active:scale-[0.98]"
           >
-            Criar minha conta grátis
+            {tr('Criar minha conta grátis', 'Criar conta grátis')}
             <ArrowRight className="h-5 w-5" aria-hidden />
           </Link>
         </div>
@@ -376,7 +428,7 @@ function Footer() {
         </div>
         <nav className="flex gap-5">
           <Link href="/termos" className="transition-colors hover:text-stone-800 hover:underline">
-            Termos de Uso
+            {tr('Termos de Uso', 'Termos de Utilização')}
           </Link>
           <Link href="/privacidade" className="transition-colors hover:text-stone-800 hover:underline">
             Privacidade
@@ -384,7 +436,7 @@ function Footer() {
           <Link href="/painel/entrar" className="transition-colors hover:text-stone-800 hover:underline">
             Painel do estabelecimento
           </Link>
-          <SalesContact className="transition-colors hover:text-stone-800 hover:underline">Contato comercial</SalesContact>
+          <SalesContact className="transition-colors hover:text-stone-800 hover:underline">{tr('Contato comercial', 'Contacto comercial')}</SalesContact>
         </nav>
       </Container>
     </footer>
@@ -419,8 +471,13 @@ function SalesContact({ className, children }: { className?: string; children: R
       {mounted &&
         createPortal(
           <div className="text-stone-900">
-            <Modal open={open} onClose={() => setOpen(false)} title="Fale com a gente">
-              <p className="text-stone-600">Conte um pouco sobre o seu estabelecimento e a gente responde por e-mail.</p>
+            <Modal open={open} onClose={() => setOpen(false)} title={tr('Fale com a gente', 'Fale connosco')}>
+              <p className="text-stone-600">
+                {tr(
+                  'Conte um pouco sobre o seu estabelecimento e a gente responde por e-mail.',
+                  'Conte-nos um pouco sobre o seu negócio e respondemos por e-mail.',
+                )}
+              </p>
               <p className="mt-3 rounded-xl bg-secondary-50 px-4 py-3 text-center font-semibold text-stone-900 select-all">{SALES_EMAIL}</p>
               <div className="mt-4 grid gap-2">
                 <a href={SALES_GMAIL} target="_blank" rel="noopener noreferrer" className={option}>
@@ -429,7 +486,7 @@ function SalesContact({ className, children }: { className?: string; children: R
                 </a>
                 <a href={SALES_MAILTO} className={option}>
                   <Mail className="h-5 w-5 text-brand-600" aria-hidden />
-                  Abrir meu app de e-mail
+                  {tr('Abrir meu app de e-mail', 'Abrir a minha app de e-mail')}
                 </a>
                 <button type="button" onClick={copy} className={option}>
                   {copied ? <Check className="h-5 w-5 text-emerald-600" strokeWidth={3} aria-hidden /> : <Copy className="h-5 w-5 text-brand-600" aria-hidden />}

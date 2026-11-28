@@ -16,6 +16,7 @@ import {
   UtensilsCrossed,
   Wine,
 } from 'lucide-react';
+import { tr } from './region';
 
 /**
  * Ícones do selo. As chaves e a ORDEM espelham o catálogo da API (apps/api/src/common/stamps.ts):
@@ -30,12 +31,12 @@ export const STAMP_ICONS: Record<string, { Icon: LucideIcon; label: string }> = 
   pizza: { Icon: Pizza, label: 'Pizza' },
   fish: { Icon: Fish, label: 'Peixe' },
   hamburger: { Icon: Hamburger, label: 'Hambúrguer' },
-  'ice-cream': { Icon: IceCreamCone, label: 'Sorvete' },
+  'ice-cream': { Icon: IceCreamCone, label: tr('Sorvete', 'Gelado') },
   cake: { Icon: CakeSlice, label: 'Bolo' },
   croissant: { Icon: Croissant, label: 'Croissant' },
   beer: { Icon: Beer, label: 'Cerveja' },
   wine: { Icon: Wine, label: 'Vinho' },
-  gift: { Icon: Gift, label: 'Presente' },
+  gift: { Icon: Gift, label: tr('Presente', 'Prenda') },
   crown: { Icon: Crown, label: 'Coroa' },
 };
 
