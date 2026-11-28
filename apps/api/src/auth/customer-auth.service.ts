@@ -5,6 +5,7 @@ import { config } from '../common/config';
 import { randomToken, sha256 } from '../common/crypto';
 import { badRequest, conflict, unauthorized } from '../common/errors';
 import { normalizePhone } from '../common/phone';
+import { tr } from '../common/region';
 import { hashPassword, passwordProblem, verifyPassword } from '../common/password';
 import { emailSchema } from '../common/schemas';
 import { MailService } from '../mail/mail.service';
@@ -25,12 +26,12 @@ export const birthDateSchema = z
   }, 'data inválida');
 
 export const registerSchema = z.object({
-  name: z.string().trim().min(2, 'informe seu nome').max(120),
+  name: z.string().trim().min(2, tr('informe seu nome', 'indique o seu nome')).max(120),
   phone: z.string().trim().min(8).max(30),
   email: emailSchema,
   password: z.string().min(1).max(128),
   birthDate: birthDateSchema.nullish(),
-  acceptTerms: z.literal(true, { errorMap: () => ({ message: 'é preciso aceitar os termos' }) }),
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: tr('é preciso aceitar os termos', 'é necessário aceitar os termos') }) }),
 });
 
 export const loginSchema = z.object({
@@ -91,8 +92,14 @@ export class CustomerAuthService {
       throw conflict(
         'ACCOUNT_EXISTS',
         field === 'phone'
-          ? 'Já existe uma conta com este telefone. Entre ou recupere sua senha.'
-          : 'Já existe uma conta com este e-mail. Entre ou recupere sua senha.',
+          ? tr(
+              'Já existe uma conta com este telefone. Entre ou recupere sua senha.',
+              'Já existe uma conta com este telemóvel. Entre ou recupere a sua palavra-passe.',
+            )
+          : tr(
+              'Já existe uma conta com este e-mail. Entre ou recupere sua senha.',
+              'Já existe uma conta com este e-mail. Entre ou recupere a sua palavra-passe.',
+            ),
         { field },
       );
     }
@@ -100,7 +107,7 @@ export class CustomerAuthService {
 
   async register(input: z.infer<typeof registerSchema>, device: string | null) {
     const phoneE164 = normalizePhone(input.phone);
-    if (!phoneE164) throw badRequest('INVALID_PHONE', 'Telefone inválido. Informe DDD + número.');
+    if (!phoneE164) throw badRequest('INVALID_PHONE', tr('Telefone inválido. Informe DDD + número.', 'Número de telemóvel inválido.'));
     const birthDate = toDate(input.birthDate);
     const problem = passwordProblem(input.password, { birthDate, phoneE164 });
     if (problem) throw badRequest('WEAK_PASSWORD', problem);
@@ -121,7 +128,7 @@ export class CustomerAuthService {
       });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        throw conflict('ACCOUNT_EXISTS', 'Já existe uma conta com este telefone ou e-mail.');
+        throw conflict('ACCOUNT_EXISTS', tr('Já existe uma conta com este telefone ou e-mail.', 'Já existe uma conta com este telemóvel ou e-mail.'));
       }
       throw e;
     }
@@ -148,7 +155,7 @@ export class CustomerAuthService {
     if (!ok || !c) {
       const { accountPausedMs } = this.limiter.fail('customer', key, ip);
       if (accountPausedMs && c?.email && c.status === 'ACTIVE') this.alertAttack(c, accountPausedMs);
-      throw unauthorized('Telefone/e-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
+      throw unauthorized(tr('Telefone/e-mail ou senha incorretos.', 'Telemóvel/e-mail ou palavra-passe incorretos.'), 'INVALID_CREDENTIALS');
     }
     this.limiter.succeed('customer', key, ip);
     const session = await this.sessions.create('customer', c.id, device);
@@ -160,14 +167,22 @@ export class CustomerAuthService {
     void this.mail.send({
       to: c.email!,
       subject: 'Tentativas de entrar na sua conta — Acumulaê',
-      text:
+      text: tr(
         `Olá, ${c.name.split(' ')[0]}!\n\n` +
-        `Notamos muitas tentativas de entrar na sua conta Acumulaê com a senha errada.\n` +
-        `Por segurança, pausamos por ${formatWait(pausedMs)} o login em aparelhos e redes que você ainda não usou. ` +
-        `Onde você já entrou, tudo continua funcionando.\n\n` +
-        `Se não foi você, recomendamos trocar a senha agora (o login volta ao normal na hora):\n` +
-        `${config.publicUrl}/esqueci-senha\n\n` +
-        `Dica: use uma senha que você não usa em outros sites.`,
+          `Notamos muitas tentativas de entrar na sua conta Acumulaê com a senha errada.\n` +
+          `Por segurança, pausamos por ${formatWait(pausedMs)} o login em aparelhos e redes que você ainda não usou. ` +
+          `Onde você já entrou, tudo continua funcionando.\n\n` +
+          `Se não foi você, recomendamos trocar a senha agora (o login volta ao normal na hora):\n` +
+          `${config.publicUrl}/esqueci-senha\n\n` +
+          `Dica: use uma senha que você não usa em outros sites.`,
+        `Olá, ${c.name.split(' ')[0]}!\n\n` +
+          `Detetámos muitas tentativas de entrar na sua conta Acumulaê com a palavra-passe errada.\n` +
+          `Por segurança, suspendemos durante ${formatWait(pausedMs)} o início de sessão em dispositivos e redes que ainda não utilizou. ` +
+          `Nos dispositivos onde já entrou, tudo continua a funcionar.\n\n` +
+          `Se não foi o próprio, recomendamos que altere a palavra-passe agora (o início de sessão volta ao normal de imediato):\n` +
+          `${config.publicUrl}/esqueci-senha\n\n` +
+          `Dica: use uma palavra-passe que não utilize noutros sites.`,
+      ),
     });
   }
 
@@ -183,12 +198,17 @@ export class CustomerAuthService {
     const url = `${config.publicUrl}/redefinir-senha?token=${token}`;
     void this.mail.send({
       to: c.email,
-      subject: 'Redefinição de senha — Acumulaê',
-      text:
+      subject: tr('Redefinição de senha — Acumulaê', 'Redefinição da palavra-passe — Acumulaê'),
+      text: tr(
         `Olá, ${c.name.split(' ')[0]}!\n\n` +
-        `Recebemos um pedido para redefinir a senha da sua conta Acumulaê.\n` +
-        `Use o link abaixo (válido por ${RESET_TTL_MINUTES} minutos, uso único):\n${url}\n\n` +
-        `Se não foi você, ignore este e-mail. Sua senha continua a mesma.`,
+          `Recebemos um pedido para redefinir a senha da sua conta Acumulaê.\n` +
+          `Use o link abaixo (válido por ${RESET_TTL_MINUTES} minutos, uso único):\n${url}\n\n` +
+          `Se não foi você, ignore este e-mail. Sua senha continua a mesma.`,
+        `Olá, ${c.name.split(' ')[0]}!\n\n` +
+          `Recebemos um pedido para redefinir a palavra-passe da sua conta Acumulaê.\n` +
+          `Use o link abaixo (válido durante ${RESET_TTL_MINUTES} minutos, utilização única):\n${url}\n\n` +
+          `Se não foi o próprio, ignore este e-mail. A sua palavra-passe continua a mesma.`,
+      ),
     });
   }
 

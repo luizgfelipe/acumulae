@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Logger, Param, Post, Query, Req, Res }
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { config } from '../common/config';
+import { tr } from '../common/region';
 import { clientIp, deviceLabel } from '../common/request';
 import { ZodPipe } from '../common/zod.pipe';
 import { LIMITS } from '../rate-limit/limits';
@@ -114,7 +115,12 @@ export class AuthController {
   @HttpCode(200)
   async forgot(@Body(new ZodPipe(forgotSchema)) body: z.infer<typeof forgotSchema>, @Req() req: Request) {
     await this.auth.forgot(body.identifier, clientIp(req));
-    return { message: 'Se houver uma conta, enviamos um link para o e-mail cadastrado.' };
+    return {
+      message: tr(
+        'Se houver uma conta, enviamos um link para o e-mail cadastrado.',
+        'Se existir uma conta, enviámos um link para o e-mail registado.',
+      ),
+    };
   }
 
   @Post('password/reset')

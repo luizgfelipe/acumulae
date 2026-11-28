@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { maskPhone } from '../common/phone';
+import { tr } from '../common/region';
 import { pageSchema } from '../common/schemas';
 import { TERMS_DATA_SHARING_SINCE } from '../common/terms';
 import { addDays, localDay, localToUtc, startOfMonthLocal } from '../common/time';
@@ -29,8 +30,11 @@ export class ReportsService {
     const { plan } = await effectivePlan(this.prisma, ctx.tenantId);
     if (!plan[feature]) {
       const messages = {
-        reports: 'Relatórios estão disponíveis a partir do plano Profissional.',
-        customerExport: 'Exportar clientes está disponível a partir do plano Profissional.',
+        reports: tr('Relatórios estão disponíveis a partir do plano Profissional.', 'Os relatórios estão disponíveis a partir do plano Profissional.'),
+        customerExport: tr(
+          'Exportar clientes está disponível a partir do plano Profissional.',
+          'A exportação de clientes está disponível a partir do plano Profissional.',
+        ),
         networkDashboard: 'O painel consolidado da rede está disponível no plano Rede.',
       };
       throw planFeatureError(messages[feature]);
@@ -259,7 +263,18 @@ export class ReportsService {
         include: { customer: { select: { name: true, phoneE164: true, email: true, birthDate: true } }, program: { select: { name: true } } },
       }),
     ]);
-    const header = ['Nome', 'Telefone', 'E-mail', 'Aniversário', 'Aceita promoções', 'Programa', 'Saldo', 'Recompensas disponíveis', 'Última visita', 'Cliente desde'];
+    const header = [
+      'Nome',
+      tr('Telefone', 'Telemóvel'),
+      'E-mail',
+      'Aniversário',
+      'Aceita promoções',
+      'Programa',
+      'Saldo',
+      'Recompensas disponíveis',
+      'Última visita',
+      'Cliente desde',
+    ];
     const date = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '');
     const lines = rows.map((m) =>
       [

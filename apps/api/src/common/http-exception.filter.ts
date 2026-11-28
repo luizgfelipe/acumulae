@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@n
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 import { ZodError } from 'zod';
+import { tr } from './region';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -35,7 +36,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError && exception.code === 'P2002') {
-      return res.status(409).json({ statusCode: 409, code: 'CONFLICT', message: 'Registro duplicado.' });
+      return res.status(409).json({ statusCode: 409, code: 'CONFLICT', message: tr('Registro duplicado.', 'Registo duplicado.') });
     }
 
     this.logger.error(exception instanceof Error ? exception.stack : String(exception));

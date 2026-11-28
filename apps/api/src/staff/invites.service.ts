@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { StaffRole } from '@prisma/client';
 import { config } from '../common/config';
 import { randomToken, sha256 } from '../common/crypto';
+import { tr } from '../common/region';
 import { MailService } from '../mail/mail.service';
 import { PrismaService, Tx } from '../prisma/prisma.service';
 
@@ -41,16 +42,22 @@ export class InvitesService {
   }
 
   async sendEmail(params: { email: string; tenantName: string; role: StaffRole; url: string; name?: string | null }) {
-    const roleLabel = params.role === 'MANAGER' ? 'gestor(a)' : 'atendente';
+    const roleLabel = params.role === 'MANAGER' ? 'gestor(a)' : tr('atendente', 'operador(a)');
     await this.mail.send({
       to: params.email,
       subject: `Convite para o painel do ${params.tenantName} no Acumulaê`,
-      text:
+      text: tr(
         `Olá${params.name ? `, ${params.name}` : ''}!\n\n` +
-        `Você foi convidado(a) como ${roleLabel} do programa de fidelidade do ${params.tenantName} no Acumulaê.\n\n` +
-        `Para definir sua senha e acessar, use o link abaixo (válido por ${INVITE_TTL_HOURS} horas, uso único):\n` +
-        `${params.url}\n\n` +
-        `Se você não esperava este convite, ignore este e-mail.`,
+          `Você foi convidado(a) como ${roleLabel} do programa de fidelidade do ${params.tenantName} no Acumulaê.\n\n` +
+          `Para definir sua senha e acessar, use o link abaixo (válido por ${INVITE_TTL_HOURS} horas, uso único):\n` +
+          `${params.url}\n\n` +
+          `Se você não esperava este convite, ignore este e-mail.`,
+        `Olá${params.name ? `, ${params.name}` : ''}!\n\n` +
+          `Foi convidado(a) como ${roleLabel} do programa de fidelização do ${params.tenantName} no Acumulaê.\n\n` +
+          `Para definir a sua palavra-passe e aceder, use o link abaixo (válido durante ${INVITE_TTL_HOURS} horas, utilização única):\n` +
+          `${params.url}\n\n` +
+          `Se não esperava este convite, ignore este e-mail.`,
+      ),
     });
   }
 }

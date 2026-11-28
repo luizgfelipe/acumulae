@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { tr } from './region';
 
 const BCRYPT_COST = 11;
 
@@ -39,9 +40,9 @@ export function passwordProblem(
   pw: string,
   ctx: { birthDate?: Date | null; phoneE164?: string | null } = {},
 ): string | null {
-  if (!pw || pw.length < 6) return 'A senha precisa ter pelo menos 6 caracteres.';
-  if (pw.length > 128) return 'A senha é longa demais.';
-  if (isSequence(pw) || COMMON.has(pw.toLowerCase())) return 'Escolha uma senha menos óbvia.';
+  if (!pw || pw.length < 6) return tr('A senha precisa ter pelo menos 6 caracteres.', 'A palavra-passe tem de ter pelo menos 6 caracteres.');
+  if (pw.length > 128) return tr('A senha é longa demais.', 'A palavra-passe é demasiado longa.');
+  if (isSequence(pw) || COMMON.has(pw.toLowerCase())) return tr('Escolha uma senha menos óbvia.', 'Escolha uma palavra-passe menos óbvia.');
 
   const digits = pw.replace(/\D/g, '');
   const onlyDigits = digits.length === pw.length;
@@ -51,10 +52,10 @@ export function passwordProblem(
     const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
     const yyyy = String(d.getUTCFullYear());
     const forms = [`${dd}${mm}${yyyy}`, `${dd}${mm}${yyyy.slice(2)}`, `${yyyy}${mm}${dd}`];
-    if (forms.includes(digits)) return 'Não use sua data de nascimento como senha.';
+    if (forms.includes(digits)) return tr('Não use sua data de nascimento como senha.', 'Não use a sua data de nascimento como palavra-passe.');
   }
   if (ctx.phoneE164 && onlyDigits && digits.length >= 6) {
-    if (ctx.phoneE164.replace(/\D/g, '').includes(digits)) return 'Não use seu telefone como senha.';
+    if (ctx.phoneE164.replace(/\D/g, '').includes(digits)) return tr('Não use seu telefone como senha.', 'Não use o seu telemóvel como palavra-passe.');
   }
   return null;
 }

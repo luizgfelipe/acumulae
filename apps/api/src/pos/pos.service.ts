@@ -6,6 +6,7 @@ import { randomToken, sha256 } from '../common/crypto';
 import { AppError, badRequest, notFound } from '../common/errors';
 import { maskName, shortName } from '../common/names';
 import { normalizePhone } from '../common/phone';
+import { tr } from '../common/region';
 import { LoyaltyService, assertAmount, redeemRestriction, summarize } from '../loyalty/loyalty.service';
 import { PersonalQrService } from '../loyalty/personal-qr.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -24,7 +25,10 @@ const creditAmountFields = {
   amountCents: z.number().int().min(1).max(100_000_000).nullish(),
 };
 const hasAmount = (b: { quantity?: number | null; amountCents?: number | null }) => b.quantity != null || b.amountCents != null;
-const amountMissing = { message: 'informe a quantidade ou o valor da compra', path: ['quantity'] };
+const amountMissing = () => ({
+  message: tr('informe a quantidade ou o valor da compra', 'indique a quantidade ou o valor da compra'),
+  path: ['quantity'],
+});
 
 export const creditSchema = z
   .object({
@@ -137,17 +141,26 @@ export class PosService {
   async resolveQr(ctx: PosCtx, payload: string) {
     const customerId = this.qr.verify(payload);
     if (!customerId) {
-      throw badRequest('INVALID_QR', 'QR inválido ou expirado. Peça para o cliente abrir o "Meu QR" de novo.');
+      throw badRequest('INVALID_QR', tr(
+        'QR inválido ou expirado. Peça para o cliente abrir o "Meu QR" de novo.',
+        'QR inválido ou expirado. Peça ao cliente para abrir o "Meu QR" de novo.',
+      ));
     }
     return this.customerView(ctx, customerId, 'QR_PESSOAL');
   }
 
   async findByPhone(ctx: PosCtx, phone: string) {
     const e164 = normalizePhone(phone);
-    if (!e164) throw badRequest('INVALID_PHONE', 'Telefone inválido.');
+    if (!e164) throw badRequest('INVALID_PHONE', tr('Telefone inválido.', 'Número de telemóvel inválido.'));
     const c = await this.prisma.customer.findUnique({ where: { phoneE164: e164 } });
     if (!c || c.status !== 'ACTIVE') {
-      throw notFound('Nenhuma conta com este telefone. Gere um QR temporário para o cliente se cadastrar.', 'CUSTOMER_NOT_FOUND');
+      throw notFound(
+        tr(
+          'Nenhuma conta com este telefone. Gere um QR temporário para o cliente se cadastrar.',
+          'Nenhuma conta com este número de telemóvel. Gere um QR temporário para o cliente se registar.',
+        ),
+        'CUSTOMER_NOT_FOUND',
+      );
     }
     return this.customerView(ctx, c.id, 'TELEFONE');
   }
@@ -180,7 +193,7 @@ export class PosService {
   async redeem(ctx: PosCtx, body: z.infer<typeof redeemSchema>, idempotencyKey: string) {
     const ref = await this.readRef(ctx, body.customerRef);
     if (Date.now() / 1000 - ref.iat > REDEEM_WINDOW_SECONDS) {
-      throw new AppError(409, 'CUSTOMER_READ_EXPIRED', 'A identificação expirou. Busque o cliente novamente.');
+      throw new AppError(409, 'CUSTOMER_READ_EXPIRED', tr('A identificação expirou. Busque o cliente novamente.', 'A identificação expirou. Procure o cliente novamente.'));
     }
     const r = await this.loyalty.redeem({
       tenantId: ctx.tenantId,
@@ -216,7 +229,7 @@ export class PosService {
     } else {
       if (body.quantity == null) throw badRequest('INVALID_QUANTITY', 'A quantidade deve ser um inteiro maior ou igual a 1.');
       if (body.quantity > program.maxPerEntry) {
-        throw badRequest('QUANTITY_ABOVE_LIMIT', `O máximo por lançamento é ${program.maxPerEntry}.`);
+        throw badRequest('QUANTITY_ABOVE_LIMIT', tr(`O máximo por lançamento é ${program.maxPerEntry}.`, `O máximo por registo é ${program.maxPerEntry}.`));
       }
       quantity = body.quantity;
     }

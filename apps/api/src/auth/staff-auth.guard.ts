@@ -11,6 +11,7 @@ import { Reflector } from '@nestjs/core';
 import { StaffRole, TenantStatus } from '@prisma/client';
 import { Request } from 'express';
 import { AppError, forbidden, unauthorized } from '../common/errors';
+import { tr } from '../common/region';
 import { PrismaService } from '../prisma/prisma.service';
 import { bearerOrCookie } from './customer-auth.guard';
 import { COOKIE_NAMES } from './cookies';
@@ -104,9 +105,15 @@ export class StaffGuard implements CanActivate {
     if (opts.tenant) {
       if (!context) throw forbidden('Selecione o estabelecimento.', 'NO_TENANT_CONTEXT');
       if (context.tenantStatus !== 'ACTIVE') {
-        throw new AppError(403, 'TENANT_SUSPENDED', 'Este estabelecimento está suspenso. Fale com o suporte do Acumulaê.');
+        throw new AppError(
+          403,
+          'TENANT_SUSPENDED',
+          tr('Este estabelecimento está suspenso. Fale com o suporte do Acumulaê.', 'Este estabelecimento está suspenso. Contacte o suporte do Acumulaê.'),
+        );
       }
-      if (opts.roles?.length && !opts.roles.includes(context.role)) throw forbidden('Seu perfil não tem acesso a esta área.');
+      if (opts.roles?.length && !opts.roles.includes(context.role)) {
+        throw forbidden(tr('Seu perfil não tem acesso a esta área.', 'O seu perfil não tem acesso a esta área.'));
+      }
       if (opts.store) {
         if (!context.storeId) throw forbidden('Selecione a unidade.', 'NO_STORE_CONTEXT');
         const store = await this.prisma.store.findUnique({ where: { id: context.storeId } });

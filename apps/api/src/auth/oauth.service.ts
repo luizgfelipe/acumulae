@@ -4,6 +4,7 @@ import { SignJWT, createRemoteJWKSet, importPKCS8, jwtVerify } from 'jose';
 import { config } from '../common/config';
 import { randomToken } from '../common/crypto';
 import { badRequest, notFound } from '../common/errors';
+import { tr } from '../common/region';
 
 export type ProviderKey = 'google' | 'apple';
 
@@ -29,7 +30,7 @@ export class OAuthService {
 
   assertEnabled(provider: string): asserts provider is ProviderKey {
     if ((provider !== 'google' && provider !== 'apple') || !this.enabled(provider)) {
-      throw notFound('Login social indisponível.', 'PROVIDER_DISABLED');
+      throw notFound(tr('Login social indisponível.', 'Início de sessão com conta social indisponível.'), 'PROVIDER_DISABLED');
     }
   }
 
@@ -81,7 +82,7 @@ export class OAuthService {
     const body = (await res.json().catch(() => ({}))) as { id_token?: string; error?: string };
     if (!res.ok || !body.id_token) {
       this.logger.warn(`Troca de código falhou (${url}): ${res.status} ${body.error ?? ''}`);
-      throw badRequest('OAUTH_FAILED', 'Não foi possível concluir o login. Tente novamente.');
+      throw badRequest('OAUTH_FAILED', tr('Não foi possível concluir o login. Tente novamente.', 'Não foi possível iniciar sessão. Tente novamente.'));
     }
     return body.id_token;
   }
@@ -98,7 +99,7 @@ export class OAuthService {
       issuer: ['https://accounts.google.com', 'accounts.google.com'],
       audience: config.google.clientId,
     });
-    if (payload.nonce !== nonce) throw badRequest('OAUTH_FAILED', 'Falha na verificação do login.');
+    if (payload.nonce !== nonce) throw badRequest('OAUTH_FAILED', tr('Falha na verificação do login.', 'Falha na verificação do início de sessão.'));
     return {
       provider: 'GOOGLE',
       subject: String(payload.sub),
@@ -132,7 +133,7 @@ export class OAuthService {
       issuer: 'https://appleid.apple.com',
       audience: config.apple.clientId,
     });
-    if (payload.nonce !== nonce) throw badRequest('OAUTH_FAILED', 'Falha na verificação do login.');
+    if (payload.nonce !== nonce) throw badRequest('OAUTH_FAILED', tr('Falha na verificação do login.', 'Falha na verificação do início de sessão.'));
 
     // A Apple só envia o nome na PRIMEIRA autorização (campo "user" do form_post): salvar agora.
     let name: string | null = null;

@@ -24,6 +24,7 @@ import { MAX_STAMP_IMAGE_BYTES, STAMP_ICONS, allowedStampIcons } from '../common
 import { SEGMENTS, SEGMENT_CODES } from '../common/segments';
 import { emailSchema, hexColorSchema, pageSchema, slugSchema, weekdaysSchema } from '../common/schemas';
 import { addDays, localToUtc, startOfMonthLocal } from '../common/time';
+import { tr } from '../common/region';
 import { LoyaltyService, pluralize, summarize } from '../loyalty/loyalty.service';
 import { PrismaService, Tx } from '../prisma/prisma.service';
 import { InvitesService } from '../staff/invites.service';
@@ -36,7 +37,7 @@ export const brandingUpdateSchema = z
     cardStyle: cardStyleSchema.optional(),
     stampIcon: z.enum(STAMP_ICONS).optional(),
   })
-  .refine((b) => Object.values(b).some((v) => v !== undefined), { message: 'informe ao menos um campo' });
+  .refine((b) => Object.values(b).some((v) => v !== undefined), () => ({ message: tr('informe ao menos um campo', 'indique pelo menos um campo') }));
 export const logoUploadSchema = z.object({ image: logoDataUrlSchema.nullable() });
 export const stampImageUploadSchema = z.object({ image: stampImageDataUrlSchema });
 
@@ -83,7 +84,7 @@ export const ledgerQuerySchema = pageSchema.extend({
   membershipId: z.string().uuid().optional(),
   programId: z.string().uuid().optional(),
 });
-export const reverseSchema = z.object({ reason: z.string().trim().min(3, 'informe o motivo').max(300) });
+export const reverseSchema = z.object({ reason: z.string().trim().min(3, tr('informe o motivo', 'indique o motivo')).max(300) });
 
 export interface AdminCtx {
   tenantId: string;
@@ -117,7 +118,7 @@ export class AdminService {
     ]);
     const active = await this.loyalty.activePrograms(this.prisma, t);
     // Com um programa, os selos usam o nome dele ("rodízios"); com vários, o termo genérico.
-    const unitLabelPlural = active.length === 1 ? pluralize(active[0].unitLabel, active[0].unitLabelPlural) : 'selos';
+    const unitLabelPlural = active.length === 1 ? pluralize(active[0].unitLabel, active[0].unitLabelPlural) : tr('selos', 'carimbos');
     return {
       since,
       members,
@@ -139,10 +140,15 @@ export class AdminService {
     const plan = await this.plan(ctx.tenantId);
     // Escolhas fora do plano vigente são recusadas; voltar ao padrão (sem secundária, Clássico) sempre pode.
     if (input.stampIcon && !allowedStampIcons(plan.maxStampIcons).includes(input.stampIcon)) {
-      throw planFeatureError('Este ícone de selo não está disponível no seu plano.');
+      throw planFeatureError(tr('Este ícone de selo não está disponível no seu plano.', 'Este ícone de carimbo não está disponível no seu plano.'));
     }
     if (!plan.cardCustomization && (input.secondaryColor || (input.cardStyle && input.cardStyle !== 'CLASSICO'))) {
-      throw planFeatureError('Cor secundária e modelos de cartão estão disponíveis a partir do plano Profissional.');
+      throw planFeatureError(
+        tr(
+          'Cor secundária e modelos de cartão estão disponíveis a partir do plano Profissional.',
+          'A cor secundária e os modelos de cartão estão disponíveis a partir do plano Profissional.',
+        ),
+      );
     }
     const data = { primaryColor: input.primaryColor, secondaryColor: input.secondaryColor, cardStyle: input.cardStyle, stampIcon: input.stampIcon };
     await this.prisma.tenantBranding.upsert({
@@ -169,7 +175,7 @@ export class AdminService {
   async setStampImage(ctx: AdminCtx, image: string | null) {
     if (image) {
       const plan = await this.plan(ctx.tenantId);
-      if (!plan.customStampImage) throw planFeatureError('Imagem própria no selo não está disponível no seu plano.');
+      if (!plan.customStampImage) throw planFeatureError(tr('Imagem própria no selo não está disponível no seu plano.', 'A imagem própria no carimbo não está disponível no seu plano.'));
     }
     const img = image ? parseLogo(image, MAX_STAMP_IMAGE_BYTES) : null;
     const fields = { stampImageData: img?.data ?? null, stampImageMime: img?.mime ?? null };
@@ -415,7 +421,7 @@ export class AdminService {
     }
     const active = await db.store.findMany({ where: { tenantId, status: 'ACTIVE' }, select: { id: true } });
     if (active.length === 1) return [active[0].id];
-    throw badRequest('STORES_REQUIRED', 'Selecione pelo menos uma unidade para o atendente.');
+    throw badRequest('STORES_REQUIRED', tr('Selecione pelo menos uma unidade para o atendente.', 'Selecione pelo menos uma unidade para o operador.'));
   }
 
   async inviteStaff(ctx: AdminCtx, input: z.infer<typeof staffInviteSchema>) {
@@ -435,7 +441,7 @@ export class AdminService {
     const m = await this.prisma.staffMembership.findFirst({ where: { id: membershipId, tenantId: ctx.tenantId } });
     if (!m) throw notFound('Funcionário não encontrado.');
     if (m.id === ctx.membershipId && (input.status === 'INACTIVE' || input.role === 'ATTENDANT')) {
-      throw badRequest('CANNOT_DEMOTE_SELF', 'Você não pode desativar nem rebaixar o próprio acesso.');
+      throw badRequest('CANNOT_DEMOTE_SELF', tr('Você não pode desativar nem rebaixar o próprio acesso.', 'Não pode desativar nem reduzir o seu próprio acesso.'));
     }
     await this.prisma.$transaction(async (tx) => {
       if (input.status === 'ACTIVE' && m.status !== 'ACTIVE') {

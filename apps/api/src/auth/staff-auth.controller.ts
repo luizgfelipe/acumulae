@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { tr } from '../common/region';
 import { clientIp, deviceLabel } from '../common/request';
 import { ZodPipe } from '../common/zod.pipe';
 import { LIMITS } from '../rate-limit/limits';
@@ -80,7 +81,7 @@ export class StaffAuthController {
   @HttpCode(200)
   async forgot(@Body(new ZodPipe(staffForgotSchema)) body: z.infer<typeof staffForgotSchema>, @Req() req: Request) {
     await this.staffAuth.forgot(body.email, clientIp(req));
-    return { message: 'Se houver uma conta, enviamos um link para o e-mail.' };
+    return { message: tr('Se houver uma conta, enviamos um link para o e-mail.', 'Se existir uma conta, enviámos um link para o e-mail.') };
   }
 
   @Post('auth/password/reset')

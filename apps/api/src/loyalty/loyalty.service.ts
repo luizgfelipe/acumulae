@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { LedgerSource, LoyaltyProgram, Membership, Prisma, ProgramKind } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { AppError, badRequest, conflict, notFound } from '../common/errors';
+import { tr } from '../common/region';
 import { describeWeekdays, isoWeekdayLocal } from '../common/time';
 import {
   creditMessage,
@@ -106,19 +107,22 @@ function assertQuantity(p: LoyaltyProgram, quantity: number | null | undefined):
     throw badRequest('INVALID_QUANTITY', 'A quantidade deve ser um inteiro maior ou igual a 1.');
   }
   if (quantity > p.maxPerEntry) {
-    throw badRequest('QUANTITY_ABOVE_LIMIT', `O máximo por lançamento é ${p.maxPerEntry}.`);
+    throw badRequest('QUANTITY_ABOVE_LIMIT', tr(`O máximo por lançamento é ${p.maxPerEntry}.`, `O máximo por registo é ${p.maxPerEntry}.`));
   }
 }
 
 /** Programa por valor: valor da compra em centavos, de R$ 0,01 até o máximo por lançamento (e o teto de R$ 10.000). */
 export function assertAmount(p: LoyaltyProgram, amountCents: number | null | undefined): asserts amountCents is number {
   if (typeof amountCents !== 'number' || !Number.isInteger(amountCents) || amountCents < 1) {
-    throw badRequest('INVALID_AMOUNT', 'Informe o valor da compra.');
+    throw badRequest('INVALID_AMOUNT', tr('Informe o valor da compra.', 'Indique o valor da compra.'));
   }
   // O limite do programa nunca passa do teto de proteção (inclusive programa sem limite preenchido).
   const limit = Math.min(p.maxAmountPerEntryCents ?? MAX_AMOUNT_PER_ENTRY_CENTS, MAX_AMOUNT_PER_ENTRY_CENTS);
   if (amountCents > limit) {
-    throw badRequest('AMOUNT_ABOVE_LIMIT', `O valor máximo por lançamento é ${formatMoney(limit)}.`);
+    throw badRequest(
+      'AMOUNT_ABOVE_LIMIT',
+      tr(`O valor máximo por lançamento é ${formatMoney(limit)}.`, `O valor máximo por registo é ${formatMoney(limit)}.`),
+    );
   }
 }
 
@@ -438,7 +442,11 @@ export class LoyaltyService {
     });
     if (!available.length) throw new AppError(409, 'NO_REWARD', 'O cliente não tem recompensa disponível.');
     if (quantity > available.length) {
-      throw new AppError(409, 'NOT_ENOUGH_REWARDS', `O cliente tem só ${available.length} recompensa(s) disponível(is).`);
+      throw new AppError(
+        409,
+        'NOT_ENOUGH_REWARDS',
+        tr(`O cliente tem só ${available.length} recompensa(s) disponível(is).`, `O cliente só tem ${available.length} recompensa(s) disponível(eis).`),
+      );
     }
     // Se uma recompensa específica foi pedida, ela vai primeiro.
     const chosen = input.rewardId
@@ -499,9 +507,12 @@ export class LoyaltyService {
       });
       if (!entry) throw notFound('Movimentação não encontrada.');
       if (entry.type !== 'CREDITO' && entry.type !== 'RESGATE') {
-        throw badRequest('NOT_REVERSIBLE', 'Só é possível estornar lançamentos de consumo e resgates.');
+        throw badRequest(
+          'NOT_REVERSIBLE',
+          tr('Só é possível estornar lançamentos de consumo e resgates.', 'Só é possível anular registos de consumo e resgates.'),
+        );
       }
-      if (entry.reversedBy) throw conflict('ALREADY_REVERSED', 'Esta movimentação já foi estornada.');
+      if (entry.reversedBy) throw conflict('ALREADY_REVERSED', tr('Esta movimentação já foi estornada.', 'Esta movimentação já foi anulada.'));
 
       const m = await this.lock(tx, entry.membershipId);
       const key = `reverse:${entry.id}`;
@@ -544,7 +555,10 @@ export class LoyaltyService {
       const alreadyRedeemed = () =>
         conflict(
           'REWARD_ALREADY_REDEEMED',
-          'Este consumo liberou uma recompensa que já foi resgatada. Estorne o resgate antes de estornar o consumo.',
+          tr(
+            'Este consumo liberou uma recompensa que já foi resgatada. Estorne o resgate antes de estornar o consumo.',
+            'Este consumo desbloqueou uma recompensa que já foi resgatada. Anule o resgate antes de anular o consumo.',
+          ),
         );
 
       let balance: number;

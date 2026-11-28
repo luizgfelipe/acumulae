@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { AdminCtx } from '../admin/admin.service';
 import { logoUrlOf } from '../common/branding';
 import { AppError, badRequest } from '../common/errors';
+import { tr } from '../common/region';
 import { pageSchema } from '../common/schemas';
 import { startOfMonthLocal } from '../common/time';
 import { effectivePlan, lockTenant, planFeatureError, withinLimit } from '../plans/plans';
@@ -218,7 +219,10 @@ export class AnnouncementsService {
           throw new AppError(
             409,
             'ANNOUNCEMENT_LIMIT_REACHED',
-            `Seu plano permite ${max === 1 ? '1 notificação' : `${max} notificações`} por mês. O limite renova no dia 1º.`,
+            tr(
+              `Seu plano permite ${max === 1 ? '1 notificação' : `${max} notificações`} por mês. O limite renova no dia 1º.`,
+              `O seu plano permite ${max === 1 ? '1 notificação' : `${max} notificações`} por mês. O limite renova-se no dia 1.`,
+            ),
             { max },
           );
         }

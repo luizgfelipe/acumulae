@@ -1,4 +1,5 @@
 import { NotificationKind } from '@prisma/client';
+import { tr } from '../common/region';
 import { formatMoney } from '../loyalty/value';
 import type { Tx } from '../prisma/prisma.service';
 
@@ -31,15 +32,20 @@ export function creditMessage(p: {
 }): NotificationText {
   const missing = Math.max(0, p.goal - p.balance);
   const pending = p.rewardsAvailable ?? 0;
-  const reminder = pending === 0 ? '' : pending === 1 ? ' Você tem 1 recompensa para usar.' : ` Você tem ${pending} recompensas para usar.`;
-  const card = `Seu cartão está com ${p.balance} de ${p.goal}.`;
+  const reminder =
+    pending === 0
+      ? ''
+      : pending === 1
+        ? tr(' Você tem 1 recompensa para usar.', ' Tem 1 recompensa para usar.')
+        : tr(` Você tem ${pending} recompensas para usar.`, ` Tem ${pending} recompensas para usar.`);
+  const card = tr(`Seu cartão está com ${p.balance} de ${p.goal}.`, `O seu cartão está com ${p.balance} de ${p.goal}.`);
   if (p.value) {
     const purchase = formatMoney(p.value.amountCents);
     // Compra que não fechou selo: só a sobra mudou.
     if (p.quantity === 0) {
       return {
         kind: 'CREDITO',
-        title: `Compra de ${purchase} registrada no ${p.tenant}`,
+        title: tr(`Compra de ${purchase} registrada no ${p.tenant}`, `Compra de ${purchase} registada no ${p.tenant}`),
         body: `Faltam ${formatMoney(p.value.stampValueCents - p.value.leftoverCents)} para o próximo ${p.units.one}. ${card}${reminder}`,
       };
     }
@@ -60,8 +66,14 @@ export function creditMessage(p: {
 export function rewardUnlockedMessage(p: { tenant: string; count: number; reward: string }): NotificationText {
   return {
     kind: 'RECOMPENSA_LIBERADA',
-    title: p.count === 1 ? `Recompensa liberada no ${p.tenant}!` : `${p.count} recompensas liberadas no ${p.tenant}!`,
-    body: `${p.reward}. Para resgatar, mostre seu QR ou informe seu telefone no caixa.`,
+    title:
+      p.count === 1
+        ? tr(`Recompensa liberada no ${p.tenant}!`, `Recompensa desbloqueada no ${p.tenant}!`)
+        : tr(`${p.count} recompensas liberadas no ${p.tenant}!`, `${p.count} recompensas desbloqueadas no ${p.tenant}!`),
+    body: tr(
+      `${p.reward}. Para resgatar, mostre seu QR ou informe seu telefone no caixa.`,
+      `${p.reward}. Para resgatar, mostre o seu QR ou indique o seu telemóvel na caixa.`,
+    ),
   };
 }
 
@@ -93,20 +105,23 @@ export function creditReversedMessage(p: {
   // Saldo zerado com recompensa pendente: no app o cartão aparece completo, então o texto acompanha.
   const status =
     pending > 0 && p.balance === 0
-      ? ` Seu cartão continua completo: você tem ${rewards}.`
-      : ` Seu cartão está com ${p.balance} de ${p.goal}.${pending > 0 ? ` Você tem ${rewards}.` : ''}`;
+      ? tr(` Seu cartão continua completo: você tem ${rewards}.`, ` O seu cartão continua completo: tem ${rewards}.`)
+      : tr(
+          ` Seu cartão está com ${p.balance} de ${p.goal}.${pending > 0 ? ` Você tem ${rewards}.` : ''}`,
+          ` O seu cartão está com ${p.balance} de ${p.goal}.${pending > 0 ? ` Tem ${rewards}.` : ''}`,
+        );
   return {
     kind: 'ESTORNO',
-    title: `Lançamento estornado no ${p.tenant}`,
-    body: `O estabelecimento estornou ${what}.${cancelled}${status}`,
+    title: tr(`Lançamento estornado no ${p.tenant}`, `Registo anulado no ${p.tenant}`),
+    body: tr(`O estabelecimento estornou ${what}.${cancelled}${status}`, `O estabelecimento anulou ${what}.${cancelled}${status}`),
   };
 }
 
 export function redeemReversedMessage(p: { tenant: string; reward: string }): NotificationText {
   return {
     kind: 'ESTORNO',
-    title: `Resgate desfeito no ${p.tenant}`,
-    body: `A recompensa "${p.reward}" voltou para o seu cartão.`,
+    title: tr(`Resgate desfeito no ${p.tenant}`, `Resgate anulado no ${p.tenant}`),
+    body: tr(`A recompensa "${p.reward}" voltou para o seu cartão.`, `A recompensa "${p.reward}" voltou ao seu cartão.`),
   };
 }
 

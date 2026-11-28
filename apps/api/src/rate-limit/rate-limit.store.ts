@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { tooMany } from '../common/errors';
+import { tr } from '../common/region';
 
 /** Regra de limite: `max` eventos dentro de `windowMs` bloqueiam a chave por `blockMs`. */
 export interface LimitRule {
@@ -54,7 +55,11 @@ export class RateLimitStore {
   }
 
   /** Lança 429 se a chave estiver bloqueada. */
-  assert(rule: LimitRule, key: string, message = (wait: string) => `Muitas tentativas. Tente novamente em ${wait}.`) {
+  assert(
+    rule: LimitRule,
+    key: string,
+    message = (wait: string) => tr(`Muitas tentativas. Tente novamente em ${wait}.`, `Demasiadas tentativas. Tente novamente daqui a ${wait}.`),
+  ) {
     const ms = this.blockedFor(rule, key);
     if (ms > 0) throw tooMany(message(formatWait(ms)), Math.ceil(ms / 1000));
   }

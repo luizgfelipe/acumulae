@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { tr } from '../common/region';
 import { LimitRule, RateLimitStore } from '../rate-limit/rate-limit.store';
 
 const MIN = 60_000;
@@ -23,7 +24,10 @@ export const FORGOT_ID: LimitRule = { name: 'forgot:id', windowMs: HOUR, max: 3,
 export const FORGOT_IP: LimitRule = { name: 'forgot:ip', windowMs: HOUR, max: 10, blockMs: HOUR, maxBlockMs: 24 * HOUR };
 
 const FORGOT_MESSAGE = (wait: string) =>
-  `Muitos pedidos de redefinição de senha. Confira seu e-mail (inclusive o spam) ou tente de novo em ${wait}.`;
+  tr(
+    `Muitos pedidos de redefinição de senha. Confira seu e-mail (inclusive o spam) ou tente de novo em ${wait}.`,
+    `Demasiados pedidos de redefinição da palavra-passe. Verifique o seu e-mail (incluindo o spam) ou tente novamente daqui a ${wait}.`,
+  );
 
 /** IPs onde cada conta já entrou, guardados para a pausa do LOGIN_ACCOUNT. */
 const KNOWN_IPS_PER_ACCOUNT = 10;
@@ -59,8 +63,12 @@ export class LoginRateLimiter {
         LOGIN_ACCOUNT,
         acc,
         (wait) =>
-          `Por segurança, depois de muitas tentativas erradas, esta conta está com o login pausado em novos aparelhos e redes. ` +
-          `Tente de novo em ${wait} ou redefina a senha em "Esqueci minha senha".`,
+          tr(
+            `Por segurança, depois de muitas tentativas erradas, esta conta está com o login pausado em novos aparelhos e redes. ` +
+              `Tente de novo em ${wait} ou redefina a senha em "Esqueci minha senha".`,
+            `Por segurança, após muitas tentativas erradas, o início de sessão nesta conta está suspenso em novos dispositivos e redes. ` +
+              `Tente novamente daqui a ${wait} ou redefina a palavra-passe em "Esqueci-me da palavra-passe".`,
+          ),
       );
     }
   }

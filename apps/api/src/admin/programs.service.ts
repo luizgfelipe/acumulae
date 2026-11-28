@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { LoyaltyProgram } from '@prisma/client';
 import { z } from 'zod';
 import { AppError, conflict } from '../common/errors';
+import { tr } from '../common/region';
 import { weekdaysSchema } from '../common/schemas';
 import { describeWeekdays } from '../common/time';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
@@ -11,7 +12,7 @@ import { effectivePlan, withinLimit } from '../plans/plans';
 import type { AdminCtx } from './admin.service';
 
 const programBaseSchema = z.object({
-  name: z.string().trim().min(2, 'informe o nome do programa').max(60),
+  name: z.string().trim().min(2, tr('informe o nome do programa', 'indique o nome do programa')).max(60),
   /** SELO (padrão): o caixa lança selos. VALOR: o caixa informa o valor da compra. */
   kind: z.enum(['SELO', 'VALOR']).default('SELO'),
   /** VALOR: quanto vale 1 selo, em centavos (de R$ 0,01 a R$ 100.000). */
@@ -21,7 +22,13 @@ const programBaseSchema = z.object({
     .number()
     .int()
     .min(1)
-    .max(MAX_AMOUNT_PER_ENTRY_CENTS, `a compra máxima por lançamento vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}`)
+    .max(
+      MAX_AMOUNT_PER_ENTRY_CENTS,
+      tr(
+        `a compra máxima por lançamento vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}`,
+        `a compra máxima por registo vai até ${formatMoney(MAX_AMOUNT_PER_ENTRY_CENTS)}`,
+      ),
+    )
     .nullish(),
   unitLabel: z.string().trim().min(1).max(30),
   unitLabelPlural: z.string().trim().max(30).nullish(),
@@ -36,12 +43,12 @@ const programBaseSchema = z.object({
 function valueRules(p: { kind: 'SELO' | 'VALOR'; stampValueCents?: number | null; maxAmountPerEntryCents?: number | null }, ctx: z.RefinementCtx) {
   if (p.kind !== 'VALOR') return;
   if (!p.stampValueCents) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['stampValueCents'], message: 'informe quanto vale 1 selo' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['stampValueCents'], message: tr('informe quanto vale 1 selo', 'indique quanto vale 1 carimbo') });
   }
   if (!p.maxAmountPerEntryCents) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxAmountPerEntryCents'], message: 'informe a compra máxima por lançamento' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxAmountPerEntryCents'], message: tr('informe a compra máxima por lançamento', 'indique a compra máxima por registo') });
   } else if (p.stampValueCents && p.maxAmountPerEntryCents < p.stampValueCents) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxAmountPerEntryCents'], message: 'a compra máxima não pode ser menor que o valor do selo' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maxAmountPerEntryCents'], message: tr('a compra máxima não pode ser menor que o valor do selo', 'a compra máxima não pode ser inferior ao valor do carimbo') });
   }
 }
 
@@ -60,8 +67,11 @@ function limitError(max: number) {
     409,
     'PROGRAM_LIMIT_REACHED',
     max === 1
-      ? 'Seu plano permite 1 programa ativo. Desative o atual antes de ativar outro.'
-      : `Seu plano permite até ${max} programas ativos. Desative um antes de ativar outro.`,
+      ? tr('Seu plano permite 1 programa ativo. Desative o atual antes de ativar outro.', 'O seu plano permite 1 programa ativo. Desative o atual antes de ativar outro.')
+      : tr(
+          `Seu plano permite até ${max} programas ativos. Desative um antes de ativar outro.`,
+          `O seu plano permite até ${max} programas ativos. Desative um antes de ativar outro.`,
+        ),
     { maxActive: max },
   );
 }
@@ -161,7 +171,10 @@ export class ProgramsService {
       if (members > 0) {
         throw conflict(
           'PROGRAM_VALUE_LOCKED',
-          'Este programa já tem clientes: o tipo e o valor do selo não podem mudar. Para outra regra, crie um programa novo.',
+          tr(
+            'Este programa já tem clientes: o tipo e o valor do selo não podem mudar. Para outra regra, crie um programa novo.',
+            'Este programa já tem clientes: o tipo e o valor do carimbo não podem mudar. Para outra regra, crie um programa novo.',
+          ),
         );
       }
     }
@@ -189,7 +202,10 @@ export class ProgramsService {
     await this.loyalty.programOf(this.prisma, ctx.tenantId, id);
     const members = await this.prisma.membership.count({ where: { programId: id } });
     if (members > 0) {
-      throw conflict('PROGRAM_IN_USE', 'Este programa já tem clientes. Desative-o em vez de excluir, para manter o histórico.');
+      throw conflict('PROGRAM_IN_USE', tr(
+          'Este programa já tem clientes. Desative-o em vez de excluir, para manter o histórico.',
+          'Este programa já tem clientes. Desative-o em vez de o eliminar, para manter o histórico.',
+        ));
     }
     await this.prisma.$transaction([
       this.prisma.checkoutToken.deleteMany({ where: { programId: id } }),

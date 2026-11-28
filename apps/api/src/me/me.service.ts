@@ -14,6 +14,7 @@ import { LoyaltyService, pluralize, redeemRestriction, summarize } from '../loya
 import { PersonalQrService } from '../loyalty/personal-qr.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TERMS_VERSION } from '../common/terms';
+import { tr } from '../common/region';
 
 export const acceptTermsSchema = z.object({
   acceptTerms: z.literal(true, { errorMap: () => ({ message: 'é preciso aceitar os termos' }) }),
@@ -41,7 +42,10 @@ export const joinSchema = z.object({
 export const consentSchema = z.object({ marketingConsent: z.boolean() });
 export const deleteMeSchema = z.object({
   password: z.string().max(128).optional(),
-  confirm: z.literal('EXCLUIR', { errorMap: () => ({ message: 'digite EXCLUIR para confirmar' }) }),
+  /** A palavra que o cliente digita: EXCLUIR (BR) ou ELIMINAR (PT). */
+  confirm: z.string().refine((v) => v === tr('EXCLUIR', 'ELIMINAR'), () => ({
+    message: tr('digite EXCLUIR para confirmar', 'escreva ELIMINAR para confirmar'),
+  })),
 });
 
 /** Movimentações exibidas ao cliente. */
@@ -73,7 +77,7 @@ export class MeService {
 
   async completeProfile(me: CustomerPrincipal, input: z.infer<typeof completeProfileSchema>) {
     const phoneE164 = normalizePhone(input.phone);
-    if (!phoneE164) throw badRequest('INVALID_PHONE', 'Telefone inválido. Informe DDD + número.');
+    if (!phoneE164) throw badRequest('INVALID_PHONE', tr('Telefone inválido. Informe DDD + número.', 'Número de telemóvel inválido.'));
     await this.auth.assertAvailable(phoneE164, null, me.id);
     const c = await this.prisma.customer.update({
       where: { id: me.id },
@@ -105,7 +109,7 @@ export class MeService {
   async changePassword(me: CustomerPrincipal, input: z.infer<typeof changePasswordSchema>) {
     const c = await this.prisma.customer.findUniqueOrThrow({ where: { id: me.id } });
     if (c.passwordHash && !(await verifyPassword(input.currentPassword ?? '', c.passwordHash))) {
-      throw unauthorized('Senha atual incorreta.', 'INVALID_CREDENTIALS');
+      throw unauthorized(tr('Senha atual incorreta.', 'Palavra-passe atual incorreta.'), 'INVALID_CREDENTIALS');
     }
     const problem = passwordProblem(input.newPassword, { birthDate: c.birthDate, phoneE164: c.phoneE164 });
     if (problem) throw badRequest('WEAK_PASSWORD', problem);
@@ -119,7 +123,7 @@ export class MeService {
   }
 
   qrPayload(me: CustomerPrincipal) {
-    if (!me.phoneE164) throw new AppError(409, 'PROFILE_INCOMPLETE', 'Complete seu cadastro para continuar.');
+    if (!me.phoneE164) throw new AppError(409, 'PROFILE_INCOMPLETE', tr('Complete seu cadastro para continuar.', 'Complete o seu registo para continuar.'));
     return { ...this.qr.issue(me.id), name: me.name };
   }
 
@@ -154,12 +158,12 @@ export class MeService {
 
   /** Q-04: vínculo criado já no cadastro pelo QR do balcão (0/meta). */
   async join(me: CustomerPrincipal, slug: string, storeSlug?: string | null) {
-    if (!me.phoneE164) throw new AppError(409, 'PROFILE_INCOMPLETE', 'Complete seu cadastro para continuar.');
+    if (!me.phoneE164) throw new AppError(409, 'PROFILE_INCOMPLETE', tr('Complete seu cadastro para continuar.', 'Complete o seu registo para continuar.'));
     const tenant = await this.prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) throw notFound('Estabelecimento não encontrado.');
-    if (tenant.status !== 'ACTIVE') throw forbidden('Este estabelecimento não está aceitando novos participantes.', 'TENANT_SUSPENDED');
+    if (tenant.status !== 'ACTIVE') throw forbidden(tr('Este estabelecimento não está aceitando novos participantes.', 'Este estabelecimento não está a aceitar novos participantes.'), 'TENANT_SUSPENDED');
     const programs = await this.loyalty.activePrograms(this.prisma, tenant.id);
-    if (!programs.length) throw new AppError(409, 'NO_ACTIVE_PROGRAM', 'Este estabelecimento não tem programa ativo no momento.');
+    if (!programs.length) throw new AppError(409, 'NO_ACTIVE_PROGRAM', tr('Este estabelecimento não tem programa ativo no momento.', 'Este estabelecimento não tem nenhum programa ativo de momento.'));
     // Unidade de entrada: a do QR; sem ela (ou inválida), a única unidade ativa, se só houver uma.
     const stores = await this.prisma.store.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE' }, select: { id: true, slug: true } });
     const signupStoreId = stores.find((s) => s.slug === storeSlug)?.id ?? (stores.length === 1 ? stores[0].id : null);
@@ -257,7 +261,7 @@ export class MeService {
   async deleteAccount(me: CustomerPrincipal, input: z.infer<typeof deleteMeSchema>) {
     const c = await this.prisma.customer.findUniqueOrThrow({ where: { id: me.id } });
     if (c.passwordHash && !(await verifyPassword(input.password ?? '', c.passwordHash))) {
-      throw unauthorized('Senha incorreta.', 'INVALID_CREDENTIALS');
+      throw unauthorized(tr('Senha incorreta.', 'Palavra-passe incorreta.'), 'INVALID_CREDENTIALS');
     }
     const now = new Date();
     await this.prisma.$transaction(async (tx) => {
@@ -272,7 +276,7 @@ export class MeService {
       await tx.customer.update({
         where: { id: me.id },
         data: {
-          name: 'Cliente excluído',
+          name: tr('Cliente excluído', 'Cliente eliminado'),
           email: null,
           phoneE164: null,
           birthDate: null,
@@ -302,7 +306,7 @@ export class MeService {
       where: { slug },
       select: { branding: { select: { stampImageData: true, stampImageMime: true } } },
     });
-    if (!t?.branding?.stampImageData || !t.branding.stampImageMime) throw notFound('Imagem do selo não encontrada.');
+    if (!t?.branding?.stampImageData || !t.branding.stampImageMime) throw notFound(tr('Imagem do selo não encontrada.', 'Imagem do carimbo não encontrada.'));
     return { data: Buffer.from(t.branding.stampImageData), mime: t.branding.stampImageMime };
   }
 

@@ -1,6 +1,8 @@
 import { Plan, Prisma, SupportChannel } from '@prisma/client';
 import { AppError } from '../common/errors';
+import { tr } from '../common/region';
 import { allowedStampIcons } from '../common/stamps';
+import { formatMoney } from '../loyalty/value';
 import type { Tx } from '../prisma/prisma.service';
 import { localDay, localToUtc } from '../common/time';
 
@@ -198,15 +200,18 @@ export async function lockTenant(tx: Tx, tenantId: string) {
   await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId}::uuid FOR UPDATE`;
 }
 
-/** R$ 59,90 (sem depender do ICU do Node, que põe espaço não separável). */
-const brl = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+/** R$ 59,90 (sem depender do ICU do Node, que põe espaço não separável). Em PT, "59,90 €". */
+const brl = (cents: number) => tr(`R$ ${(cents / 100).toFixed(2).replace('.', ',')}`, formatMoney(cents));
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function staffLimitError(max: number) {
   return new AppError(
     409,
     'STAFF_LIMIT_REACHED',
-    `Seu plano permite até ${plural(max, 'funcionário', 'funcionários')}, contando os convites pendentes. Desative alguém ou mude de plano.`,
+    tr(
+      `Seu plano permite até ${plural(max, 'funcionário', 'funcionários')}, contando os convites pendentes. Desative alguém ou mude de plano.`,
+      `O seu plano permite até ${plural(max, 'funcionário', 'funcionários')}, incluindo os convites pendentes. Desative alguém ou mude de plano.`,
+    ),
     { max },
   );
 }
@@ -227,16 +232,23 @@ export const storesNeeded = (used: number, max: number) => Math.max(max, used >=
 
 /** Frase da recomendação do plano de rede (mensagens da API). */
 export const networkPlanPitch = (p: Plan) =>
-  `A partir de ${plural(p.includedStores, 'unidade', 'unidades')}, recomendamos o plano ${p.name}: ${plural(p.includedStores, 'unidade inclusa', 'unidades inclusas')} por ${brl(p.priceCents)} por mês, com o painel da rede.`;
+  tr(
+    `A partir de ${plural(p.includedStores, 'unidade', 'unidades')}, recomendamos o plano ${p.name}: ${plural(p.includedStores, 'unidade inclusa', 'unidades inclusas')} por ${brl(p.priceCents)} por mês, com o painel da rede.`,
+    `A partir de ${plural(p.includedStores, 'unidade', 'unidades')}, recomendamos o plano ${p.name}: ${plural(p.includedStores, 'unidade incluída', 'unidades incluídas')} por ${brl(p.priceCents)} por mês, com o painel da rede.`,
+  );
 
 export function storeLimitError(eff: EffectivePlan, recommended: Plan | null = null) {
   const p = eff.plan;
   const extra =
     p.extraStorePriceCents !== null && !eff.expired
-      ? ` Cada unidade extra custa ${brl(p.extraStorePriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`
+      ? tr(
+          ` Cada unidade extra custa ${brl(p.extraStorePriceCents)} por mês: fale com o suporte do Acumulaê para contratar.`,
+          ` Cada unidade extra custa ${brl(p.extraStorePriceCents)} por mês: contacte o suporte do Acumulaê para contratar.`,
+        )
       : ' Mude de plano para ter mais unidades.';
   const pitch = recommended ? ` ${networkPlanPitch(recommended)}` : '';
-  return new AppError(409, 'STORE_LIMIT_REACHED', `Seu plano permite ${plural(eff.maxStores, 'unidade ativa', 'unidades ativas')}.${extra}${pitch}`, {
+  const limit = tr(`Seu plano permite`, `O seu plano permite`);
+  return new AppError(409, 'STORE_LIMIT_REACHED', `${limit} ${plural(eff.maxStores, 'unidade ativa', 'unidades ativas')}.${extra}${pitch}`, {
     max: eff.maxStores,
     recommendedPlan: recommended?.code ?? null,
   });

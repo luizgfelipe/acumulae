@@ -1,6 +1,7 @@
 import { CardStyle } from '@prisma/client';
 import { z } from 'zod';
 import { badRequest } from './errors';
+import { tr } from './region';
 import { DEFAULT_STAMP_ICON, MAX_STAMP_IMAGE_BYTES } from './stamps';
 import type { VisualAllowance } from '../plans/plans';
 
@@ -61,7 +62,7 @@ export function logoUrlOf(slug: string, b: { logoMime: string | null; version: n
 const imageDataUrlSchema = (maxBytes: number) =>
   z
     .string()
-    .max(Math.ceil((maxBytes * 4) / 3) + 100, 'imagem grande demais')
+    .max(Math.ceil((maxBytes * 4) / 3) + 100, tr('imagem grande demais', 'imagem demasiado grande'))
     .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/, 'envie uma imagem PNG, JPG ou WebP');
 
 export const logoDataUrlSchema = imageDataUrlSchema(MAX_LOGO_BYTES);

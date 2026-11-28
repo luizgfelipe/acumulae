@@ -5,6 +5,7 @@ import { config } from '../common/config';
 import { randomToken, sha256 } from '../common/crypto';
 import { badRequest, forbidden, gone, notFound, unauthorized } from '../common/errors';
 import { hashPassword, passwordProblem, verifyPassword } from '../common/password';
+import { tr } from '../common/region';
 import { emailSchema } from '../common/schemas';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -72,7 +73,7 @@ export class StaffAuthService {
     if (!ok || !u) {
       const { accountPausedMs } = this.limiter.fail('staff', input.email, ip);
       if (accountPausedMs && u?.status === 'ACTIVE') this.alertAttack(u, accountPausedMs);
-      throw unauthorized('E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
+      throw unauthorized(tr('E-mail ou senha incorretos.', 'E-mail ou palavra-passe incorretos.'), 'INVALID_CREDENTIALS');
     }
     this.limiter.succeed('staff', input.email, ip);
     const session = await this.sessions.create('staff', u.id, device, await this.autoContext(u.id));
@@ -84,21 +85,30 @@ export class StaffAuthService {
     void this.mail.send({
       to: u.email,
       subject: 'Tentativas de entrar no seu acesso ao painel — Acumulaê',
-      text:
+      text: tr(
         `Olá, ${u.name.split(' ')[0]}!\n\n` +
-        `Notamos muitas tentativas de entrar no seu acesso ao painel/caixa do Acumulaê com a senha errada.\n` +
-        `Por segurança, pausamos por ${formatWait(pausedMs)} o login em aparelhos e redes que você ainda não usou. ` +
-        `Onde você já entrou, tudo continua funcionando.\n\n` +
-        `Se não foi você, recomendamos trocar a senha agora (o login volta ao normal na hora):\n` +
-        `${config.publicUrl}/painel/esqueci-senha`,
+          `Notamos muitas tentativas de entrar no seu acesso ao painel/caixa do Acumulaê com a senha errada.\n` +
+          `Por segurança, pausamos por ${formatWait(pausedMs)} o login em aparelhos e redes que você ainda não usou. ` +
+          `Onde você já entrou, tudo continua funcionando.\n\n` +
+          `Se não foi você, recomendamos trocar a senha agora (o login volta ao normal na hora):\n` +
+          `${config.publicUrl}/painel/esqueci-senha`,
+        `Olá, ${u.name.split(' ')[0]}!\n\n` +
+          `Detetámos muitas tentativas de entrar no seu acesso ao painel/caixa do Acumulaê com a palavra-passe errada.\n` +
+          `Por segurança, suspendemos durante ${formatWait(pausedMs)} o início de sessão em dispositivos e redes que ainda não utilizou. ` +
+          `Nos dispositivos onde já entrou, tudo continua a funcionar.\n\n` +
+          `Se não foi o próprio, recomendamos que altere a palavra-passe agora (o início de sessão volta ao normal de imediato):\n` +
+          `${config.publicUrl}/painel/esqueci-senha`,
+      ),
     });
   }
 
   async setContext(staffUserId: string, sessionId: string, tenantId: string, storeId: string | null | undefined) {
     const wp = (await this.workplaces(staffUserId)).find((w) => w.tenantId === tenantId);
-    if (!wp) throw forbidden('Você não tem acesso a este estabelecimento.');
+    if (!wp) throw forbidden(tr('Você não tem acesso a este estabelecimento.', 'Não tem acesso a este estabelecimento.'));
     let chosenStore: string | null = storeId ?? null;
-    if (chosenStore && !wp.stores.some((s) => s.id === chosenStore)) throw forbidden('Você não tem acesso a esta unidade.');
+    if (chosenStore && !wp.stores.some((s) => s.id === chosenStore)) {
+      throw forbidden(tr('Você não tem acesso a esta unidade.', 'Não tem acesso a esta unidade.'));
+    }
     if (!chosenStore && wp.stores.length === 1) chosenStore = wp.stores[0].id;
     await this.prisma.staffSession.update({ where: { id: sessionId }, data: { tenantId, storeId: chosenStore } });
   }
@@ -140,11 +150,15 @@ export class StaffAuthService {
     });
     void this.mail.send({
       to: u.email,
-      subject: 'Redefinição de senha do painel — Acumulaê',
-      text:
+      subject: tr('Redefinição de senha do painel — Acumulaê', 'Redefinição da palavra-passe do painel — Acumulaê'),
+      text: tr(
         `Olá, ${u.name.split(' ')[0]}!\n\nPara redefinir sua senha do painel/caixa, use o link abaixo ` +
-        `(válido por 30 minutos, uso único):\n${config.publicUrl}/painel/redefinir-senha?token=${token}\n\n` +
-        `Se não foi você, ignore este e-mail.`,
+          `(válido por 30 minutos, uso único):\n${config.publicUrl}/painel/redefinir-senha?token=${token}\n\n` +
+          `Se não foi você, ignore este e-mail.`,
+        `Olá, ${u.name.split(' ')[0]}!\n\nPara redefinir a sua palavra-passe do painel/caixa, use o link abaixo ` +
+          `(válido durante 30 minutos, utilização única):\n${config.publicUrl}/painel/redefinir-senha?token=${token}\n\n` +
+          `Se não foi o próprio, ignore este e-mail.`,
+      ),
     });
   }
 
@@ -175,7 +189,12 @@ export class StaffAuthService {
       include: { tenant: true },
     });
     if (!inv) throw notFound('Convite não encontrado.', 'INVITE_NOT_FOUND');
-    if (inv.usedAt) throw gone('INVITE_USED', 'Este convite já foi usado. Entre com seu e-mail e senha.');
+    if (inv.usedAt) {
+      throw gone(
+        'INVITE_USED',
+        tr('Este convite já foi usado. Entre com seu e-mail e senha.', 'Este convite já foi utilizado. Entre com o seu e-mail e palavra-passe.'),
+      );
+    }
     if (inv.expiresAt < new Date()) throw gone('INVITE_EXPIRED', 'Este convite expirou. Peça um novo.');
     return inv;
   }
@@ -200,14 +219,17 @@ export class StaffAuthService {
     if (existing?.passwordHash) {
       // Já tem conta (ex.: funcionário de outro estabelecimento): confirma a senha atual.
       if (!(await verifyPassword(input.password, existing.passwordHash))) {
-        throw unauthorized('Senha incorreta. Use a senha que você já tem no Acumulaê.', 'INVALID_CREDENTIALS');
+        throw unauthorized(
+          tr('Senha incorreta. Use a senha que você já tem no Acumulaê.', 'Palavra-passe incorreta. Use a palavra-passe que já tem no Acumulaê.'),
+          'INVALID_CREDENTIALS',
+        );
       }
     } else {
       const problem = passwordProblem(input.password);
       if (problem) throw badRequest('WEAK_PASSWORD', problem);
     }
     const name = input.name ?? existing?.name ?? inv.name;
-    if (!name) throw badRequest('NAME_REQUIRED', 'Informe seu nome.');
+    if (!name) throw badRequest('NAME_REQUIRED', tr('Informe seu nome.', 'Indique o seu nome.'));
     const newHash = existing?.passwordHash ? null : await hashPassword(input.password);
 
     const user = await this.prisma.$transaction(async (tx) => {
@@ -215,7 +237,7 @@ export class StaffAuthService {
         where: { id: inv.id, usedAt: null, expiresAt: { gt: new Date() } },
         data: { usedAt: new Date() },
       });
-      if (!used.count) throw gone('INVITE_USED', 'Este convite já foi usado.');
+      if (!used.count) throw gone('INVITE_USED', tr('Este convite já foi usado.', 'Este convite já foi utilizado.'));
 
       const u = existing
         ? await tx.staffUser.update({

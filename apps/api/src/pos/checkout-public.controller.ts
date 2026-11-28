@@ -4,6 +4,7 @@ import { BRANDING_SELECT, brandStyle, logoUrlOf } from '../common/branding';
 import { resolvePlan, visualAllowance } from '../plans/plans';
 import { sha256 } from '../common/crypto';
 import { AppError, forbidden, gone, notFound } from '../common/errors';
+import { tr } from '../common/region';
 import { LoyaltyService, pluralize } from '../loyalty/loyalty.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LIMITS } from '../rate-limit/limits';
@@ -59,10 +60,10 @@ export class CheckoutClaimService {
 
   /** RN-44: cliente logado usa o QR → crédito imediato. Uso atômico (seção 8.4). */
   async claim(token: string, customer: CustomerPrincipal) {
-    if (!customer.phoneE164) throw new AppError(409, 'PROFILE_INCOMPLETE', 'Complete seu cadastro para continuar.');
+    if (!customer.phoneE164) throw new AppError(409, 'PROFILE_INCOMPLETE', tr('Complete seu cadastro para continuar.', 'Complete o seu registo para continuar.'));
     const t = await this.find(token);
     if (t.tenant.status !== 'ACTIVE') {
-      throw forbidden('Este estabelecimento está temporariamente sem acúmulo de pontos.', 'TENANT_SUSPENDED');
+      throw forbidden(tr('Este estabelecimento está temporariamente sem acúmulo de pontos.', 'Este estabelecimento está temporariamente sem acumulação de pontos.'), 'TENANT_SUSPENDED');
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -76,9 +77,9 @@ export class CheckoutClaimService {
           // Mesmo cliente tocando de novo: devolve o resultado já registrado (idempotente).
           return this.loyalty.creditInTx(tx, this.creditInput(t, customer.id));
         }
-        if (cur.usedAt) throw gone('TOKEN_USED', 'Este código já foi usado. Peça um novo ao atendente.');
-        if (cur.cancelledAt) throw gone('TOKEN_CANCELLED', 'Este código foi cancelado. Peça um novo ao atendente.');
-        throw gone('TOKEN_EXPIRED', 'Este código expirou. Peça um novo ao atendente.');
+        if (cur.usedAt) throw gone('TOKEN_USED', tr('Este código já foi usado. Peça um novo ao atendente.', 'Este código já foi usado. Peça um novo na caixa.'));
+        if (cur.cancelledAt) throw gone('TOKEN_CANCELLED', tr('Este código foi cancelado. Peça um novo ao atendente.', 'Este código foi cancelado. Peça um novo na caixa.'));
+        throw gone('TOKEN_EXPIRED', tr('Este código expirou. Peça um novo ao atendente.', 'Este código expirou. Peça um novo na caixa.'));
       }
       return this.loyalty.creditInTx(tx, this.creditInput(t, customer.id));
     });
